@@ -1,0 +1,443 @@
+<title>Farmer Opportunity &amp; Formula Flow — Interactive Prototype</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  svg.icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 272px; flex: 0 0 272px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); min-height: 40px; }
+  .flow-step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--faint); background: var(--surface); }
+  .flow-step.done { color: var(--ink); cursor: pointer; }
+  .flow-step.done .dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .flow-step.current { color: var(--ink); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  .flow-step.current .dot { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); }
+  .flow-step.locked { opacity: 0.55; }
+
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .restart-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 9px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .restart-btn:hover { background: var(--surface); color: var(--ink); }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 22px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 60ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 28px; height: 28px; border-radius: 8px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 13px; }
+  .app-header .logo .word { font-size: 14px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 20px; }
+  .app-header .navlinks span { font-size: 12.5px; color: rgba(255,255,255,0.75); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+
+  .bottom-nav { display: none; position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 6px; }
+  .bottom-nav .row { display: flex; justify-content: space-around; }
+  .bottom-nav .item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--faint); font-size: 10px; font-weight: 700; min-width: 44px; min-height: 44px; justify-content: center; }
+  .bottom-nav .item.current { color: var(--primary); }
+  .bottom-nav .item.current svg.icon { stroke: var(--primary); }
+  @container (max-width: 767px) { .app-header .navlinks { display: none; } .bottom-nav { display: block; } }
+
+  .body-pad { padding: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .card.accent { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .card-label { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .card.accent .card-label { color: rgba(255,255,255,0.75); }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .caption { font-size: 12px; color: var(--faint); margin-top: 6px; }
+  .card.accent .caption { color: rgba(255,255,255,0.75); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; font-size: 14px; font-weight: 700; padding: 12px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 48px; font-family: inherit; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+  .btn.block { width: 100%; }
+  .btn:hover { background: var(--bg); }
+  .btn.primary:hover { background: var(--gold-dark); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @container (max-width: 1023px) { .grid.g3 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) { .grid.g2, .grid.g3 { grid-template-columns: 1fr; } }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; padding: 9px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; }
+  .card.accent .kv .k { color: rgba(255,255,255,0.75); }
+  .card.accent .kv .v { color: #fff; }
+  .card.accent .kv { border-bottom-color: rgba(255,255,255,0.25); }
+
+  .section-title { font-size: 13px; font-weight: 800; letter-spacing: 0.01em; color: var(--ink); margin: 0 0 12px; display: flex; align-items: center; gap: 7px; }
+
+  .checkline {
+    display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; padding: 12px; border: 1.5px solid var(--border);
+    border-radius: 10px; cursor: pointer; min-height: 44px; transition: border-color .1s, background .1s;
+  }
+  .checkline:hover { background: var(--bg); }
+  .checkline .box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); flex: none; margin-top: 1px; display: flex; align-items: center; justify-content: center; background: var(--surface); }
+  .checkline .box svg { width: 13px; height: 13px; stroke: #fff; stroke-width: 3; display: none; }
+  .checkline.checked { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+  .checkline.checked .box { background: var(--primary); border-color: var(--primary); }
+  .checkline.checked .box svg { display: block; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface); color: var(--muted); z-index: 1; }
+  .step.done .circ { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step.current .circ { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 15%, var(--surface)); }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--muted); font-weight: 600; max-width: 110px; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink); }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 14px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--primary); }
+  @container (max-width: 767px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 10px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .success-mark { width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--success) 16%, transparent); display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+  .success-mark svg { width: 30px; height: 30px; stroke: var(--success); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .inline-alert {
+    display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  }
+  .inline-alert.show { display: flex; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 5</span>
+    </div>
+    <div class="rail-sub">Farmer Opportunity &amp; Formula — Interactive Prototype</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Real interaction, not a mockup.</b> Pick any of 3 opportunities and the detail/formula screens carry that choice through. Accepting requires all 4 commitment checkboxes ticked. Uses the Farmer Portal's phone-first system (bottom nav on phone).
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">Flow</div>
+    <div class="flow-steps" id="flowSteps"></div>
+
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (testing control)</button>
+
+    <div class="rail-footer">
+      Style guide: Farm_Master_Style_Guide_Stage4.docx.<br>
+      Structure: Farmer Portal Opportunity Board → Detail → Accept → Production Formula (Stage 3/4).
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Farmer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 4</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = [
+    { label: "Dashboard", icon: "home" },
+    { label: "Opportunities", icon: "leaf" },
+    { label: "My Formula", icon: "clipboard" },
+    { label: "Wallet", icon: "wallet" }
+  ];
+  var ICONS = {
+    home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    leaf: '<path d="M20 4C12 4 6 10 6 18c8 0 14-6 14-14z"/><path d="M6 18C10 14 14 10 20 4"/>',
+    clipboard: '<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12l2 2 4-4"/>',
+    wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="14" r="1.3"/>',
+    check: '<path d="M5 13l4 4L19 7"/>'
+  };
+  function icon(name) { return '<svg class="icon" viewBox="0 0 24 24">' + (ICONS[name] || "") + "</svg>"; }
+
+  var OPPORTUNITIES = [
+    { id: "gsfp", buyer: "Ghana School Feeding Programme", tag: "MoFA-linked", grade: "Grade 1", qty: 4.0, price: 2100, deadline: "12 Sep" },
+    { id: "tgp", buyer: "Tema Grain Processors Ltd.", tag: "Private buyer", grade: "Grade 1", qty: 6.5, price: 2200, deadline: "15 Sep" },
+    { id: "cfm", buyer: "Coastal Feed Mills", tag: "Private buyer", grade: "Grade 2", qty: 2.0, price: 2050, deadline: "18 Sep" }
+  ];
+
+  var COMMITMENTS = [
+    "Follow the production formula issued by your agronomist",
+    "Log planting and input milestones on this portal",
+    "Deliver to the Tema fulfilment centre by the deadline",
+    "Input and logistics costs are deducted at settlement"
+  ];
+
+  var state = { opp: null, checks: [false, false, false, false], step: "board" };
+  var STEPS = [
+    { id: "board", label: "Opportunity Board" },
+    { id: "detail", label: "Detail → Accept" },
+    { id: "confirm", label: "Acceptance Confirmed" },
+    { id: "formula", label: "Production Formula" }
+  ];
+
+  function chrome(currentIcon, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l.icon === currentIcon ? "current" : "") + '">' + l.label + "</span>";
+    }).join("");
+    var bottomItems = PORTAL_NAV.map(function (l) {
+      return '<div class="item ' + (l.icon === currentIcon ? "current" : "") + '">' + icon(l.icon) + "<span>" + l.label + "</span></div>";
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark">FM</div><div class="word">Farm Master</div></div>' +
+        '<div class="navlinks">' + links + "</div>" +
+        '<div class="avatar"></div>' +
+      "</div>" +
+      '<div class="body-pad">' + bodyHtml + "</div>" +
+      '<div class="bottom-nav"><div class="row">' + bottomItems + "</div></div>"
+    );
+  }
+
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function step(lbl, done, current) {
+    return '<div class="step ' + (done ? "done" : current ? "current" : "") + '"><div class="circ">' + (done ? icon("check").replace('class="icon"', 'class="icon" style="width:14px;height:14px;stroke:#fff"') : "") + '</div><div class="lbl">' + lbl + "</div></div>";
+  }
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+
+    if (state.step === "board") {
+      document.getElementById("screen-title").textContent = "Opportunity Board";
+      document.getElementById("screen-crumb").textContent = "Opportunity Board";
+      document.getElementById("screen-desc").textContent = "Three live buyer-backed opportunities for the Tema pilot. Pick one — the next screens carry your choice through.";
+      document.getElementById("canvas").innerHTML = chrome("leaf",
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">' +
+          '<span class="badge muted">Region: Tema</span><span class="badge muted">Crop: Maize</span><span class="badge pending">Season: Major 2026</span>' +
+        "</div>" +
+        '<div class="grid g3">' +
+          OPPORTUNITIES.map(function (o) {
+            return '<div class="card"><div class="card-label">' + o.tag + '</div><div class="card-title">' + o.buyer + "</div>" +
+              kv("Quantity / grade", o.qty.toFixed(1) + "t · " + o.grade) + kv("Price", "GHS " + o.price + "/t") + kv("Deadline", o.deadline) +
+              '<button class="btn primary block" style="margin-top:10px" data-opp="' + o.id + '">View &amp; accept</button></div>';
+          }).join("") +
+        "</div>"
+      );
+      document.querySelectorAll("[data-opp]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          state.opp = OPPORTUNITIES.find(function (o) { return o.id === b.dataset.opp; });
+          state.checks = [false, false, false, false];
+          state.step = "detail";
+          render();
+        });
+      });
+    }
+
+    if (state.step === "detail") {
+      var o = state.opp;
+      document.getElementById("screen-title").textContent = "Opportunity Detail → Accept";
+      document.getElementById("screen-crumb").textContent = "Opportunity Detail";
+      document.getElementById("screen-desc").textContent = "What accepting actually commits you to, stated plainly. Try clicking Accept before checking every box.";
+      document.getElementById("canvas").innerHTML = chrome("leaf",
+        '<div class="grid g2">' +
+          '<div class="card"><div class="card-label">' + o.tag + '</div><div class="card-title">' + o.buyer + "</div>" +
+            kv("Crop / grade", "Maize, " + o.grade) + kv("Quantity requested", o.qty.toFixed(1) + " t") + kv("Price", "GHS " + o.price + " / t") +
+            kv("Delivery window", "By " + o.deadline + " 2026") + kv("Pickup point", "Tema fulfilment centre") +
+          "</div>" +
+          '<div class="card"><div class="card-label">By accepting, you agree to</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px" id="checklist">' +
+              COMMITMENTS.map(function (c, i) {
+                return '<div class="checkline' + (state.checks[i] ? " checked" : "") + '" data-idx="' + i + '"><div class="box">' + icon("check") + "</div><span>" + c + "</span></div>";
+              }).join("") +
+            "</div>" +
+            '<button class="btn primary block" id="acceptBtn" style="margin-top:16px">Accept opportunity</button>' +
+            '<div class="inline-alert" id="acceptAlert"><span>⚠</span><span>Check every item above before accepting.</span></div>' +
+          "</div>" +
+        "</div>"
+      );
+      document.querySelectorAll(".checkline").forEach(function (row) {
+        row.addEventListener("click", function () {
+          var i = +row.dataset.idx;
+          state.checks[i] = !state.checks[i];
+          document.getElementById("acceptAlert").classList.remove("show");
+          render();
+        });
+      });
+      document.getElementById("acceptBtn").addEventListener("click", onAccept);
+    }
+
+    if (state.step === "confirm") {
+      var o2 = state.opp;
+      document.getElementById("screen-title").textContent = "Opportunity Accepted";
+      document.getElementById("screen-crumb").textContent = "Acceptance Confirmed";
+      document.getElementById("screen-desc").textContent = "Your acceptance was sent to Farm Master agronomy — a production formula is generated next.";
+      document.getElementById("canvas").innerHTML = chrome("leaf",
+        '<div style="max-width:420px;margin:20px auto;text-align:center">' +
+          '<div class="success-mark"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
+          '<div style="font-size:19px;font-weight:800;margin-bottom:6px">Opportunity accepted</div>' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:20px">' + o2.buyer + " · " + o2.qty.toFixed(1) + "t " + o2.grade + " confirmed. Your assigned agronomist has been notified." +
+          "</div>" +
+          '<button class="btn primary block" id="toFormulaBtn">View my production formula →</button>' +
+        "</div>"
+      );
+      document.getElementById("toFormulaBtn").addEventListener("click", function () { state.step = "formula"; render(); });
+    }
+
+    if (state.step === "formula") {
+      var o3 = state.opp;
+      var seed = Math.round(o3.qty * 1.6);
+      var npk = Math.ceil(o3.qty / 2);
+      var topdress = Math.max(1, Math.ceil(o3.qty / 4));
+      document.getElementById("screen-title").textContent = "My Production Formula";
+      document.getElementById("screen-crumb").textContent = "My Production Formula";
+      document.getElementById("screen-desc").textContent = "Generated from the opportunity you just accepted — quantities scale with your committed tonnage, not a fixed template.";
+      document.getElementById("canvas").innerHTML = chrome("clipboard",
+        '<div class="card accent" style="margin-bottom:16px">' +
+          '<div class="card-label">' + icon("leaf") + "For " + o3.buyer + "</div>" +
+          '<div class="card-title">Maize, ' + o3.grade + " — " + o3.qty.toFixed(1) + "t commitment</div>" +
+          '<div class="caption">Week 1 of 11 — planting calendar just issued</div>' +
+        "</div>" +
+        '<div class="card" style="margin-bottom:16px"><div class="card-label">Planting calendar</div>' +
+          '<div class="stepper">' + step("Land prep", true, false) + step("Planting", false, true) + step("Top-dress", false, false) + step("Weeding", false, false) + step("Harvest", false, false) + "</div>" +
+        "</div>" +
+        '<div class="grid g2">' +
+          '<div class="card"><div class="card-label">Input schedule — scaled to ' + o3.qty.toFixed(1) + "t</div>" +
+            kv("Seed — improved maize", seed + " kg") + kv("NPK fertiliser", npk + " bag" + (npk > 1 ? "s" : "") + ", wk 2") + kv("Top-dress (Sulphate of Ammonia)", topdress + " bag" + (topdress > 1 ? "s" : "") + ", wk 4") +
+            '<button class="btn primary block" style="margin-top:10px" id="orderInputsBtn">Order these inputs →</button>' +
+            '<div class="inline-alert" id="orderToast" style="color:var(--success);background:color-mix(in srgb, var(--success) 10%, transparent);border-color:color-mix(in srgb, var(--success) 35%, transparent)"><span>✓</span><span>Pre-filled and routed to Order Inputs.</span></div>' +
+          "</div>" +
+          '<div class="card"><div class="card-label">Quality checkpoints</div>' + kv("Row spacing", "75 cm") + kv("Plant spacing", "40 cm") + kv("Checkpoint — wk 4", "Agronomist visit due") + kv("Checkpoint — wk 9", "Pre-harvest grading") + "</div>" +
+        "</div>"
+      );
+      document.getElementById("orderInputsBtn").addEventListener("click", function () {
+        document.getElementById("orderToast").classList.add("show");
+      });
+    }
+  }
+
+  function onAccept() {
+    var allChecked = state.checks.every(function (c) { return c; });
+    if (!allChecked) { document.getElementById("acceptAlert").classList.add("show"); return; }
+    var btn = document.getElementById("acceptBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Accepting…';
+    setTimeout(function () { state.step = "confirm"; render(); }, 1000);
+  }
+
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) {
+      var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked";
+      var mark = i < activeIdx ? "✓" : (i + 1);
+      return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
+    }).join("");
+    el.querySelectorAll(".flow-step.done").forEach(function (row) {
+      row.addEventListener("click", function () {
+        state.step = STEPS[+row.dataset.idx].id;
+        render();
+      });
+    });
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", function () {
+    state = { opp: null, checks: [false, false, false, false], step: "board" };
+    setDevice("desktop");
+    render();
+  });
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android) — bottom nav active"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) {
+    b.addEventListener("click", function () { setDevice(b.dataset.device); });
+  });
+  setDevice("desktop");
+  render();
+})();
+</script>
