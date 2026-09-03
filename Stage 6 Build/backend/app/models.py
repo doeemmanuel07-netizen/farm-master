@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Float, Integer, DateTime, ForeignKey, Enum as SAEnum, Text
+    Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Enum as SAEnum, Text
 )
 from sqlalchemy.orm import relationship
 
@@ -179,6 +179,47 @@ class ProductionFormula(Base):
     seed_kg = Column(Float, nullable=False)
     npk_bags = Column(Integer, nullable=False)
     topdress_bags = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MechanisationRequestStatus(str, enum.Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    DECLINED = "declined"
+
+
+class MechanisationRequest(Base):
+    """
+    Vendor mechanisation service requests. Unlike Opportunity (a shared pool
+    any farmer can accept), a request is already directed at a specific
+    vendor -- vendor_id is set at creation, mirroring the real business
+    meaning (a farmer or Farm Master routed this request to that vendor).
+
+    The date-conflict override (added 3 Sep 2026, per Emmanuel's decision)
+    is modelled as a real two-party workflow, not vendor self-approval:
+    confirming a date past requested_by_date sets override_needed=true and
+    stores the proposed date/notes without finalising anything; only a
+    separate Super Admin-gated endpoint (admin.py) can set
+    override_approved=true and finalise the confirmation. This is stricter
+    than the Stage 5 prototype, which simulated the approval within the same
+    single-user session for demo purposes.
+    """
+    __tablename__ = "mechanisation_requests"
+
+    id = Column(String, primary_key=True, default=uid)
+    vendor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    farmer_name = Column(String, nullable=False)
+    service = Column(String, nullable=False)
+    area_acres = Column(Float, nullable=False)
+    requested_by_date = Column(String, nullable=False)  # ISO date, e.g. "2026-09-08"
+    status = Column(SAEnum(MechanisationRequestStatus), nullable=False, default=MechanisationRequestStatus.PENDING)
+    confirmed_date = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    override_needed = Column(Boolean, nullable=False, default=False)
+    override_approved = Column(Boolean, nullable=False, default=False)
+    override_approver_id = Column(String, ForeignKey("users.id"), nullable=True)
+    proposed_date = Column(String, nullable=True)
+    proposed_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

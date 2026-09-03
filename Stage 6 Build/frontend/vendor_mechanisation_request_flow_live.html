@@ -1,0 +1,526 @@
+<title>Vendor Mechanisation Request Flow — Live Backend</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 272px; flex: 0 0 272px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); min-height: 40px; }
+  .flow-step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--faint); background: var(--surface); }
+  .flow-step.done { color: var(--ink); cursor: pointer; }
+  .flow-step.done .dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .flow-step.current { color: var(--ink); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  .flow-step.current .dot { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); }
+  .flow-step.locked { opacity: 0.55; }
+
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .restart-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 9px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .restart-btn:hover { background: var(--surface); color: var(--ink); }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 21px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 12px; }
+  .app-header .logo .word { font-size: 13.5px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: rgba(255,255,255,0.72); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 4px; width: 20px; cursor: pointer; }
+  .app-header .hamburger span { height: 2px; background: #fff; border-radius: 1px; }
+  @container (max-width: 767px) { .app-header .navlinks { display: none; } .app-header .hamburger { display: flex; } }
+
+  .body-pad { padding: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .card-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
+  .caption { font-size: 11.5px; color: var(--faint); margin-top: 6px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; font-size: 13.5px; font-weight: 700; padding: 11px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 46px; font-family: inherit; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+  .btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .btn.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+  .btn.block { width: 100%; }
+  .btn:hover { background: var(--bg); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field-group input, .field-group textarea {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%;
+  }
+  .field-group input { height: 44px; }
+  .field-group textarea { min-height: 72px; resize: vertical; }
+  .field-group input:focus, .field-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.danger { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @container (max-width: 1023px) { .grid.g3 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) { .grid.g2, .grid.g3 { grid-template-columns: 1fr; } }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+
+  .section-title { font-size: 12.5px; font-weight: 800; color: var(--ink); margin: 0 0 12px; }
+
+  .table-scroll { overflow-x: auto; }
+  table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; padding: 9px 10px; border-bottom: 2px solid var(--border); }
+  table.data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
+
+  .req-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; cursor: pointer; transition: border-color .1s; }
+  .req-card:hover { border-color: var(--primary); }
+
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .success-mark { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+  .success-mark.ok { background: color-mix(in srgb, var(--success) 16%, transparent); }
+  .success-mark.declined { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+  .success-mark svg { width: 28px; height: 28px; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .success-mark.ok svg { stroke: var(--success); }
+  .success-mark.declined svg { stroke: var(--danger); }
+
+  .override-box { display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; font-weight: 600; border-radius: 8px; padding: 12px; margin-top: 12px; }
+  .override-box.warning { color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 14%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+  .override-box.approved { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); }
+  .override-box .head { display: flex; align-items: center; gap: 7px; font-weight: 800; }
+  .override-box .details { font-weight: 500; color: var(--muted); }
+
+  .inline-alert {
+    display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  }
+  .inline-alert.show { display: flex; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 6</span>
+    </div>
+    <div class="rail-sub">Vendor Mechanisation Request — Live Backend</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Real cross-role authority, not self-approval.</b> Confirming a date past the farmer's window doesn't let you approve your own override — it's stored server-side as a pending proposal that only a Super Admin can finalise. The testing control on that screen genuinely signs in as Super Admin and calls the real approval endpoint.
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">Flow</div>
+    <div class="flow-steps" id="flowSteps"></div>
+
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (new login)</button>
+
+    <div class="rail-footer">
+      Backend: Stage 6 Build/backend (FastAPI + SQLite).<br>
+      Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Vendor Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 5</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Catalogue", "Orders", "Billing"];
+  var API = "";
+
+  var state = {
+    token: null,
+    email: "vendor@farmmaster.test",
+    password: "password123",
+    requests: [],
+    req: null,
+    decision: null, // "confirmed" | "declined" | "pending_override"
+    step: "login",
+  };
+
+  var STEPS = [
+    { id: "login", label: "Sign in" },
+    { id: "incoming", label: "Incoming Requests" },
+    { id: "respond", label: "Review & Respond" },
+    { id: "result", label: "Response Sent" },
+    { id: "queue", label: "Fulfilment Queue" }
+  ];
+
+  function authHeaders(token, extra) {
+    var h = extra || {};
+    if (token) h["Authorization"] = "Bearer " + token;
+    return h;
+  }
+  async function apiGet(path, token) {
+    var res = await fetch(API + path, { headers: authHeaders(token || state.token) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+  async function apiPost(path, body, token) {
+    var res = await fetch(API + path, { method: "POST", headers: authHeaders(token || state.token, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+
+  function chrome(current, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
+    return (
+      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Vendor</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
+      '<div class="body-pad">' + bodyHtml + "</div>"
+    );
+  }
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function field(id, cap, val, type) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
+  }
+  function statusBadge(status, override) {
+    var cls = status === "confirmed" ? "success" : status === "declined" ? "danger" : "pending";
+    var label = status.charAt(0).toUpperCase() + status.slice(1);
+    return '<span class="badge ' + cls + '">' + label + "</span>" + (override ? ' <span class="badge pending">⚠ override</span>' : "");
+  }
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+
+    if (state.step === "login") {
+      document.getElementById("screen-title").textContent = "Sign in";
+      document.getElementById("screen-crumb").textContent = "Sign in";
+      document.getElementById("screen-desc").textContent = "Real authentication -- a genuine JWT, not a local flag.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
+          field("email", "Email", state.email) +
+          '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + "</div>" +
+          '<button class="btn primary block" id="loginBtn" style="margin-top:16px">Sign in</button>' +
+          '<div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div>' +
+          '<div class="caption" style="margin-top:10px">Dev-only seed account (see README).</div>' +
+        "</div></div>"
+      );
+      document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
+      document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
+      document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+
+    if (state.step === "incoming") {
+      document.getElementById("screen-title").textContent = "Incoming Requests";
+      document.getElementById("screen-crumb").textContent = "Incoming Requests";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/requests -- only this vendor's own requests, at whatever status they're really in.";
+      var pending = state.requests.filter(function (r) { return r.status === "pending" && !r.override_needed; });
+      document.getElementById("canvas").innerHTML = chrome("Orders",
+        '<div class="grid g3">' +
+          pending.map(function (r) {
+            return '<div class="req-card" data-req="' + r.id + '"><div class="card-label">' + r.service + '</div>' +
+              kv("Farmer", r.farmer_name) + kv("Area", r.area_acres.toFixed(1) + " acres") + kv("Requested by", r.requested_by_date) + kv("Suggested quote", "GHS " + r.suggested_quote) +
+              '<div class="badge pending" style="margin-top:8px">Awaiting response</div></div>';
+          }).join("") +
+        "</div>" +
+        (pending.length === 0 ? '<div class="caption">No pending requests left -- see the Fulfilment Queue for what has already been handled.</div>' : "")
+      );
+      document.querySelectorAll("[data-req]").forEach(function (c) {
+        c.addEventListener("click", function () {
+          state.req = state.requests.find(function (r) { return r.id === c.dataset.req; });
+          state.step = "respond";
+          render();
+        });
+      });
+    }
+
+    if (state.step === "respond") {
+      var r = state.req;
+      var overrideBox = "";
+      if (r.override_needed && !r.override_approved) {
+        overrideBox = '<div class="override-box warning"><div class="head">⚠ Outside the farmer’s requested window</div>' +
+          '<div class="details">Proposed ' + r.proposed_date + ', requested by ' + r.requested_by_date + '. This needs Super Admin approval before it can be finalised.</div>' +
+          '<button class="btn" id="simulateApprovalBtn" style="align-self:flex-start;margin-top:4px">Sign in as Super Admin &amp; approve (testing control)</button>' +
+        "</div>";
+      } else if (r.override_approved) {
+        overrideBox = '<div class="override-box approved"><div class="head">✓ Override approved</div><div class="details">Confirmed for ' + r.confirmed_date + ' by Super Admin.</div></div>';
+      }
+      document.getElementById("screen-title").textContent = "Review & Respond";
+      document.getElementById("screen-crumb").textContent = "Review & Respond";
+      document.getElementById("screen-desc").textContent = "Confirm posts to POST /vendor/requests/{id}/confirm. A date past the window doesn't error -- it comes back with override_needed=true and stays pending.";
+      document.getElementById("canvas").innerHTML = chrome("Orders",
+        '<div class="grid g2">' +
+          '<div class="card"><div class="card-label">Request — ' + r.service + '</div>' +
+            kv("Farmer", r.farmer_name) + kv("Area", r.area_acres.toFixed(1) + " acres") + kv("Requested by", r.requested_by_date) + kv("Suggested quote", "GHS " + r.suggested_quote) +
+            '<div class="caption">GHS/tonne rate applied per-acre (provisional; see PRD Section 10).</div>' +
+          "</div>" +
+          '<div class="card">' +
+            (r.override_needed ? "" : field("dateInput", "Confirm service date", r.confirmed_date, "date")) +
+            (r.override_needed ? "" : '<div style="margin-top:12px"><div class="field-group"><span class="cap">Notes to farmer (optional)</span><textarea id="notesInput"></textarea></div></div>') +
+            overrideBox +
+            (r.status === "pending" && !r.override_needed
+              ? '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"><button class="btn primary" id="confirmBtn" style="flex:1">Confirm request</button><button class="btn danger" id="declineBtn" style="flex:1">Decline</button></div>'
+              : "") +
+            (r.override_approved ? '<button class="btn primary block" id="toResultBtn" style="margin-top:14px">Continue →</button>' : "") +
+            '<div class="inline-alert" id="respondAlert"><span>⚠</span><span id="respondAlertText"></span></div>' +
+          "</div>" +
+        "</div>"
+      );
+      var confirmBtn = document.getElementById("confirmBtn");
+      if (confirmBtn) confirmBtn.addEventListener("click", onConfirm);
+      var declineBtn = document.getElementById("declineBtn");
+      if (declineBtn) declineBtn.addEventListener("click", onDecline);
+      var simBtn = document.getElementById("simulateApprovalBtn");
+      if (simBtn) simBtn.addEventListener("click", onSimulateApproval);
+      var toResultBtn = document.getElementById("toResultBtn");
+      if (toResultBtn) toResultBtn.addEventListener("click", function () { state.decision = "confirmed"; state.step = "result"; render(); });
+    }
+
+    if (state.step === "result") {
+      var r2 = state.req;
+      var ok = r2.status === "confirmed";
+      document.getElementById("screen-title").textContent = ok ? "Request Confirmed" : "Request Declined";
+      document.getElementById("screen-crumb").textContent = "Response Sent";
+      document.getElementById("screen-desc").textContent = ok ? "Confirmed in the database, including the override approval if one was needed." : "Declined in the database.";
+      document.getElementById("canvas").innerHTML = chrome("Orders",
+        '<div style="max-width:420px;margin:20px auto;text-align:center">' +
+          '<div class="success-mark ' + (ok ? "ok" : "declined") + '"><svg viewBox="0 0 24 24">' + (ok ? '<path d="M5 13l4 4L19 7"/>' : '<path d="M6 6l12 12M18 6L6 18"/>') + "</svg></div>" +
+          '<div style="font-size:18px;font-weight:800;margin-bottom:6px">' + (ok ? "Request confirmed" : "Request declined") + "</div>" +
+          '<div class="card" style="text-align:left;margin:0 auto 20px;max-width:360px">' +
+            kv("Farmer", r2.farmer_name) + kv("Service", r2.service) + (ok ? kv("Confirmed date", r2.confirmed_date) : "") +
+            '<div class="kv"><span class="k">Status</span><span class="v">' + statusBadge(r2.status, r2.override_approved) + "</span></div>" +
+          "</div>" +
+          '<button class="btn primary block" id="toQueueBtn">View fulfilment queue →</button>' +
+        "</div>"
+      );
+      document.getElementById("toQueueBtn").addEventListener("click", async function () {
+        state.requests = await apiGet("/vendor/requests");
+        state.step = "queue";
+        render();
+      });
+    }
+
+    if (state.step === "queue") {
+      document.getElementById("screen-title").textContent = "Incoming Orders / Fulfilment Queue";
+      document.getElementById("screen-crumb").textContent = "Fulfilment Queue";
+      document.getElementById("screen-desc").textContent = "Re-fetched live from GET /vendor/requests -- every row's status is exactly what's in the database right now.";
+      document.getElementById("canvas").innerHTML = chrome("Orders",
+        '<div class="table-scroll"><table class="data-table"><thead><tr><th>Farmer</th><th>Service</th><th>Requested by</th><th>Status</th></tr></thead><tbody>' +
+          state.requests.map(function (r) {
+            return "<tr><td>" + r.farmer_name + "</td><td>" + r.service + "</td><td>" + r.requested_by_date + "</td><td>" + statusBadge(r.status, r.override_approved) + "</td></tr>";
+          }).join("") +
+        "</tbody></table></div>"
+      );
+    }
+  }
+
+  async function onLogin() {
+    var btn = document.getElementById("loginBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      state.token = data.access_token;
+      state.requests = await apiGet("/vendor/requests");
+      state.step = "incoming";
+      render();
+    } catch (e) {
+      document.getElementById("loginAlertText").textContent = e.message;
+      document.getElementById("loginAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  }
+
+  async function onConfirm() {
+    var date = document.getElementById("dateInput").value;
+    var notes = document.getElementById("notesInput").value;
+    if (!date) {
+      document.getElementById("respondAlertText").textContent = "Pick a service date before confirming.";
+      document.getElementById("respondAlert").classList.add("show");
+      return;
+    }
+    var btn = document.getElementById("confirmBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Confirming…';
+    try {
+      var updated = await apiPost("/vendor/requests/" + state.req.id + "/confirm", { confirmed_date: date, notes: notes || null });
+      state.req = updated;
+      if (updated.override_needed && !updated.override_approved) {
+        render(); // stay on respond, now showing the pending-approval banner
+      } else {
+        state.decision = "confirmed";
+        state.step = "result";
+        render();
+      }
+    } catch (e) {
+      document.getElementById("respondAlertText").textContent = e.message;
+      document.getElementById("respondAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Confirm request";
+    }
+  }
+
+  async function onDecline() {
+    var btn = document.getElementById("declineBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Declining…';
+    try {
+      var updated = await apiPost("/vendor/requests/" + state.req.id + "/decline", null);
+      state.req = updated;
+      state.decision = "declined";
+      state.step = "result";
+      render();
+    } catch (e) {
+      document.getElementById("respondAlertText").textContent = e.message;
+      document.getElementById("respondAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Decline";
+    }
+  }
+
+  async function onSimulateApproval() {
+    var btn = document.getElementById("simulateApprovalBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in as Super Admin…';
+    try {
+      var loginRes = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "emmanuel@farmmaster.test", password: "password123" }) });
+      var loginData = await loginRes.json();
+      if (!loginRes.ok) throw new Error(loginData.detail || "Super Admin login failed");
+      btn.innerHTML = '<span class="spinner"></span> Approving override…';
+      var updated = await apiPost("/admin/vendor-requests/" + state.req.id + "/approve-override", null, loginData.access_token);
+      // Re-fetch as the vendor (whose token we kept) so the screen reflects what the vendor would see.
+      state.req = await apiGet("/vendor/requests/" + state.req.id);
+      render();
+    } catch (e) {
+      document.getElementById("respondAlertText").textContent = e.message;
+      document.getElementById("respondAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Sign in as Super Admin & approve (testing control)";
+    }
+  }
+
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) {
+      var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked";
+      var mark = i < activeIdx ? "✓" : (i + 1);
+      return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
+    }).join("");
+    el.querySelectorAll(".flow-step.done").forEach(function (row) {
+      row.addEventListener("click", function () {
+        var target = STEPS[+row.dataset.idx].id;
+        if (target === "login") state.token = null;
+        state.step = target;
+        render();
+      });
+    });
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", function () {
+    state = { token: null, email: "vendor@farmmaster.test", password: "password123", requests: [], req: null, decision: null, step: "login" };
+    setDevice("desktop");
+    render();
+  });
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
+  setDevice("desktop");
+  render();
+})();
+</script>

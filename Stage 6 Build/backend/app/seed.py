@@ -8,7 +8,7 @@ and must never be reused as one.
 """
 
 from .database import Base, engine, SessionLocal
-from .models import User, Role, UserStatus, RateConfig, Opportunity
+from .models import User, Role, UserStatus, RateConfig, Opportunity, MechanisationRequest
 from .auth import hash_password
 
 SEED_USERS = [
@@ -25,6 +25,13 @@ SEED_OPPORTUNITIES = [
     ("Ghana School Feeding Programme", "MoFA-linked", "Grade 1", 4.0, 2100, "12 Sep 2026"),
     ("Tema Grain Processors Ltd.", "Private buyer", "Grade 1", 6.5, 2200, "15 Sep 2026"),
     ("Coastal Feed Mills", "Private buyer", "Grade 2", 2.0, 2050, "18 Sep 2026"),
+]
+
+SEED_MECH_REQUESTS = [
+    # farmer_name, service, area_acres, requested_by_date (5/3/7 days from 3 Sep 2026, matching Stage 5)
+    ("Kojo Mensah", "Ploughing", 1.5, "2026-09-08"),
+    ("Ama Serwaa", "Ridging", 1.0, "2026-09-06"),
+    ("Yaw Boateng", "Harrowing", 2.2, "2026-09-10"),
 ]
 
 SEED_RATES = [
@@ -79,6 +86,19 @@ def seed():
             print(f"Seeded {len(SEED_OPPORTUNITIES)} opportunities.")
         else:
             print("Opportunities already exist, skipping opportunity seed.")
+
+        if db.query(MechanisationRequest).count() == 0:
+            vendor = db.query(User).filter(User.role == Role.VENDOR).first()
+            if vendor:
+                for farmer_name, service, area, requested_by in SEED_MECH_REQUESTS:
+                    db.add(MechanisationRequest(
+                        vendor_id=vendor.id, farmer_name=farmer_name, service=service,
+                        area_acres=area, requested_by_date=requested_by,
+                    ))
+                db.commit()
+                print(f"Seeded {len(SEED_MECH_REQUESTS)} mechanisation requests.")
+        else:
+            print("Mechanisation requests already exist, skipping seed.")
     finally:
         db.close()
 

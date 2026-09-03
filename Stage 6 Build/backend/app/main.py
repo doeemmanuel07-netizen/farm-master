@@ -10,6 +10,7 @@ from .seed import seed
 from .routers import auth as auth_router
 from .routers import buyer as buyer_router
 from .routers import farmer as farmer_router
+from .routers import vendor as vendor_router
 from .routers import admin as admin_router
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app.add_middleware(
 app.include_router(auth_router.router)
 app.include_router(buyer_router.router)
 app.include_router(farmer_router.router)
+app.include_router(vendor_router.router)
 app.include_router(admin_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
@@ -43,6 +45,10 @@ if FRONTEND_DIR.exists():
     @app.get("/farmer-flow")
     def farmer_flow_page():
         return FileResponse(str(FRONTEND_DIR / "farmer_opportunity_formula_flow_live.html"))
+
+    @app.get("/vendor-flow")
+    def vendor_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "vendor_mechanisation_request_flow_live.html"))
 
 
 @app.on_event("startup")

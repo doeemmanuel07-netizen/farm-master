@@ -12,10 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, AuditLog, RegistrationApproval, RateConfig
+from ..models import User, Role, AuditLog, RegistrationApproval, RateConfig, MechanisationRequest, MechanisationRequestStatus
 from ..auth import require_roles
 from ..audit import log_audit
-from ..schemas import RoleChangeRequest, AuditLogEntry, RateConfigResponse, RateConfigUpdate
+from ..schemas import RoleChangeRequest, AuditLogEntry, RateConfigResponse, RateConfigUpdate, MechanisationRequestResponse
 
 router = APIRouter(prefix="/admin", tags=["admin (Super Admin only)"])
 
@@ -69,6 +69,42 @@ def reject_registration(
     db.commit()
     log_audit(db, admin, "registration_rejected", f"{reg.applicant_name} ({reg.applicant_type}, {reg.portal} portal).")
     return {"id": reg.id, "status": reg.status}
+
+
+@router.post("/vendor-requests/{request_id}/approve-override", response_model=MechanisationRequestResponse)
+def approve_date_override(
+    request_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    """
+    Finalises a vendor's date-conflict override. This is the "buyer or admin
+    approval" required by Emmanuel's decision (3 Sep 2026) -- scoped to
+    Super Admin only for this pass, since a cross-portal Buyer-approval path
+    would need a buyer_id link on the request that doesn't exist yet
+    (documented as a known scope limit, not silently assumed away).
+    """
+    req = db.query(MechanisationRequest).filter(MechanisationRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found.")
+    if not req.override_needed or req.proposed_date is None:
+        raise HTTPException(status_code=409, detail="This request has no pending date-conflict override.")
+
+    req.confirmed_date = req.proposed_date
+    req.notes = req.proposed_notes
+    req.override_approved = True
+    req.override_approver_id = admin.id
+    req.status = MechanisationRequestStatus.CONFIRMED
+    db.commit()
+    db.refresh(req)
+
+    log_audit(
+        db, admin, "date_conflict_override_approved",
+        f"Mechanisation request {req.id} ({req.farmer_name}, {req.service}): confirmed for "
+        f"{req.confirmed_date}, outside requested window (by {req.requested_by_date}).",
+    )
+    req.suggested_quote = None
+    return req
 
 
 @router.get("/audit-log", response_model=List[AuditLogEntry])

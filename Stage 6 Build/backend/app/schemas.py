@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
-from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus
+from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus
 
 
 class LoginRequest(BaseModel):
@@ -87,6 +87,30 @@ class ProductionFormulaResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MechanisationRequestResponse(BaseModel):
+    id: str
+    farmer_name: str
+    service: str
+    area_acres: float
+    requested_by_date: str
+    status: MechanisationRequestStatus
+    confirmed_date: Optional[str]
+    notes: Optional[str]
+    override_needed: bool
+    override_approved: bool
+    proposed_date: Optional[str]
+    proposed_notes: Optional[str]
+    suggested_quote: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ConfirmRequestBody(BaseModel):
+    confirmed_date: str  # ISO date, e.g. "2026-09-20"
+    notes: Optional[str] = None
 
 
 class RoleChangeRequest(BaseModel):
