@@ -103,6 +103,14 @@
   }
   .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn {
+    flex: 1; font-size: 10px; font-family: "IBM Plex Mono", monospace; text-align: center;
+    padding: 7px 4px; border: 1px solid var(--border-strong); border-radius: 4px;
+    background: var(--surface); color: var(--text-muted); cursor: pointer; min-height: 32px;
+  }
+  .device-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+
   .rail-note {
     font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
     background: var(--surface); border: 1px dashed var(--border-strong);
@@ -116,7 +124,7 @@
   .screen-btn {
     display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0;
     text-align: left; padding: 8px 9px; border-radius: 4px; border: 1px solid transparent;
-    background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: inherit;
+    background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: inherit; min-height: 40px;
   }
   .screen-btn .num { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--text-faint); width: 15px; flex: none; }
   .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
@@ -142,7 +150,14 @@
     border-radius: 3px; padding: 4px 8px; white-space: nowrap; height: fit-content;
   }
 
-  .canvas { max-width: 1040px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0; overflow: hidden; }
+  .canvas {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0; overflow: hidden;
+    container-type: inline-size; transition: max-width 0.15s ease;
+  }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+  .viewport-label { font-size: 11px; font-family: "IBM Plex Mono", monospace; color: var(--text-faint); margin-bottom: 10px; }
 
   .wf-box { background: var(--box-fill); border: 1px solid var(--border-strong); border-radius: 3px; }
   .wf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px; }
@@ -161,7 +176,7 @@
   .wf-btn {
     display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 12.5px;
     font-weight: 600; padding: 9px 16px; border: 1px solid var(--border-strong); background: var(--box-fill-alt);
-    color: var(--text); cursor: default;
+    color: var(--text); cursor: default; min-height: 44px;
   }
   .wf-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
   .wf-btn.disabled { background: var(--deferred-fill); border-color: var(--border); color: var(--deferred-text); border-style: dashed; }
@@ -191,7 +206,8 @@
   .g2 { grid-template-columns: 1fr 1fr; }
   .g3 { grid-template-columns: repeat(3, 1fr); }
   .g4 { grid-template-columns: repeat(4, 1fr); }
-  @media (max-width: 620px) { .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
+  @container (max-width: 1023px) { .grid.g3, .grid.g4 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) { .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
 
   .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--surface-alt); }
   .app-header .logo { display: flex; align-items: center; gap: 9px; }
@@ -201,7 +217,8 @@
   .app-header .navlinks span { font-size: 12px; color: var(--text-muted); }
   .app-header .navlinks span.current { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
   .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--box-fill-alt); border: 1px solid var(--border-strong); }
-  @media (max-width: 700px) { .app-header .navlinks { display: none; } }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 3px; width: 20px; cursor: pointer; padding: 8px 0; }
+  .app-header .hamburger span { height: 2px; background: var(--text-muted); border-radius: 1px; }
 
   .body-pad { padding: 22px; }
 
@@ -231,11 +248,13 @@
   .step .sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
   .step:not(:last-child)::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border-strong); z-index: 0; }
   .step.done:not(:last-child)::after { background: var(--accent); }
-  @media (max-width: 620px) {
+  @container (max-width: 767px) {
     .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
     .step { flex-direction: row; text-align: left; gap: 10px; }
     .step .lbl { max-width: none; margin-top: 0; }
     .step:not(:last-child)::after { display: none; }
+    .app-header .navlinks { display: none; }
+    .app-header .hamburger { display: flex; }
   }
 
   .kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
@@ -290,6 +309,16 @@
       <b>Structure only.</b> No colour, type, or brand styling — that's Stage 4. Every screen here is internal-only: access is role-scoped to Agronomist, Logistics, or Admin/Finance (PRD Section 5) — never shown to Farmer, Buyer, or Vendor accounts.
     </div>
 
+    <div class="rail-note">
+      <b>Split priority — open decision.</b> Office roles (Agronomist, Admin/Finance: Dashboard, Matching, Formula Builder, Visit Logs, Intake, Finance, Reporting, MoFA, User Admin) are tablet/desktop-first. Field roles (Logistics: Dispatch, Proof of Pickup/Delivery, Trunking) are used by a rider away from a desk and should likely be phone-first instead — not yet confirmed, flagged for Emmanuel. Breakpoints: Desktop &ge;1024px &middot; Tablet 768&ndash;1023px (iPad/Android tablet) &middot; Phone &lt;768px (iOS/Android).
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
     <div class="rail-group-label">12 Screens · Control Centre + Logistics &amp; Fulfilment</div>
     <nav class="screens" id="nav"></nav>
 
@@ -308,7 +337,8 @@
       </div>
       <div class="screen-tag" id="screen-tag">SCREEN 1 / 12</div>
     </div>
-    <div class="canvas" id="canvas"></div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
   </main>
 </div>
 
@@ -324,6 +354,7 @@
       '<div class="app-header">' +
         '<div class="logo"><div class="mark"></div><div class="word">Farm Master — Control Centre</div></div>' +
         '<div class="navlinks">' + links + '</div>' +
+        '<div class="hamburger"><span></span><span></span><span></span></div>' +
         '<div class="avatar"></div>' +
       '</div>' +
       '<div class="body-pad">' +
@@ -664,6 +695,21 @@
     document.getElementById("canvas").innerHTML = s.body();
     if (history.replaceState) history.replaceState(null, "", "#" + id);
   }
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) {
+    b.addEventListener("click", function () { setDevice(b.dataset.device); });
+  });
+  setDevice("desktop");
 
   var initial = (location.hash || "").replace("#", "");
   show(screens.some(function (s) { return s.id === initial; }) ? initial : "dashboard");
