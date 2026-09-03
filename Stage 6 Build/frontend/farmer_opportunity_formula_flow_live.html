@@ -1,0 +1,497 @@
+<title>Farmer Opportunity &amp; Formula Flow — Live Backend</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  svg.icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 272px; flex: 0 0 272px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); min-height: 40px; }
+  .flow-step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--faint); background: var(--surface); }
+  .flow-step.done { color: var(--ink); cursor: pointer; }
+  .flow-step.done .dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .flow-step.current { color: var(--ink); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  .flow-step.current .dot { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); }
+  .flow-step.locked { opacity: 0.55; }
+
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .restart-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 9px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .restart-btn:hover { background: var(--surface); color: var(--ink); }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 22px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 60ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 28px; height: 28px; border-radius: 8px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 13px; }
+  .app-header .logo .word { font-size: 14px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 20px; }
+  .app-header .navlinks span { font-size: 12.5px; color: rgba(255,255,255,0.75); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+
+  .bottom-nav { display: none; position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 6px; }
+  .bottom-nav .row { display: flex; justify-content: space-around; }
+  .bottom-nav .item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--faint); font-size: 10px; font-weight: 700; min-width: 44px; min-height: 44px; justify-content: center; }
+  .bottom-nav .item.current { color: var(--primary); }
+  .bottom-nav .item.current svg.icon { stroke: var(--primary); }
+  @container (max-width: 767px) { .app-header .navlinks { display: none; } .bottom-nav { display: block; } }
+
+  .body-pad { padding: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .card.accent { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .card-label { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .card.accent .card-label { color: rgba(255,255,255,0.75); }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .caption { font-size: 12px; color: var(--faint); margin-top: 6px; }
+  .card.accent .caption { color: rgba(255,255,255,0.75); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; font-size: 14px; font-weight: 700; padding: 12px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 48px; font-family: inherit; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+  .btn.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn.block { width: 100%; }
+  .btn:hover { background: var(--bg); }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field-group input { height: 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; }
+  .field-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @container (max-width: 1023px) { .grid.g3 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) { .grid.g2, .grid.g3 { grid-template-columns: 1fr; } }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; padding: 9px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; }
+  .card.accent .kv .k { color: rgba(255,255,255,0.75); }
+  .card.accent .kv .v { color: #fff; }
+  .card.accent .kv { border-bottom-color: rgba(255,255,255,0.25); }
+
+  .section-title { font-size: 13px; font-weight: 800; letter-spacing: 0.01em; color: var(--ink); margin: 0 0 12px; display: flex; align-items: center; gap: 7px; }
+
+  .checkline {
+    display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; padding: 12px; border: 1.5px solid var(--border);
+    border-radius: 10px; cursor: pointer; min-height: 44px; transition: border-color .1s, background .1s;
+  }
+  .checkline:hover { background: var(--bg); }
+  .checkline .box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); flex: none; margin-top: 1px; display: flex; align-items: center; justify-content: center; background: var(--surface); }
+  .checkline .box svg { width: 13px; height: 13px; stroke: #fff; stroke-width: 3; display: none; }
+  .checkline.checked { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+  .checkline.checked .box { background: var(--primary); border-color: var(--primary); }
+  .checkline.checked .box svg { display: block; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface); color: var(--muted); z-index: 1; }
+  .step.done .circ { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step.current .circ { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 15%, var(--surface)); }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--muted); font-weight: 600; max-width: 110px; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink); }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 14px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--primary); }
+  @container (max-width: 767px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 10px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .success-mark { width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--success) 16%, transparent); display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+  .success-mark svg { width: 30px; height: 30px; stroke: var(--success); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .inline-alert {
+    display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  }
+  .inline-alert.show { display: flex; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 6</span>
+    </div>
+    <div class="rail-sub">Farmer Opportunity &amp; Formula — Live Backend</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Real backend, not local JS state.</b> Real login, real opportunities from the database, and a formula whose seed/NPK/top-dress quantities are calculated server-side. Try accepting the same opportunity twice (via restart + re-login) — the second attempt gets a genuine 409, not just documented intent.
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">Flow</div>
+    <div class="flow-steps" id="flowSteps"></div>
+
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (new login)</button>
+
+    <div class="rail-footer">
+      Backend: Stage 6 Build/backend (FastAPI + SQLite).<br>
+      Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Farmer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 5</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = [
+    { label: "Dashboard", icon: "home" },
+    { label: "Opportunities", icon: "leaf" },
+    { label: "My Formula", icon: "clipboard" },
+    { label: "Wallet", icon: "wallet" }
+  ];
+  var ICONS = {
+    home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    leaf: '<path d="M20 4C12 4 6 10 6 18c8 0 14-6 14-14z"/><path d="M6 18C10 14 14 10 20 4"/>',
+    clipboard: '<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12l2 2 4-4"/>',
+    wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="14" r="1.3"/>',
+    check: '<path d="M5 13l4 4L19 7"/>'
+  };
+  function icon(name) { return '<svg class="icon" viewBox="0 0 24 24">' + (ICONS[name] || "") + "</svg>"; }
+
+  var API = ""; // same-origin: served by the FastAPI app at /farmer-flow
+
+  var COMMITMENTS = [
+    "Follow the production formula issued by your agronomist",
+    "Log planting and input milestones on this portal",
+    "Deliver to the Tema fulfilment centre by the deadline",
+    "Input and logistics costs are deducted at settlement"
+  ];
+
+  var state = {
+    token: null,
+    email: "farmer@farmmaster.test",
+    password: "password123",
+    opportunities: [],
+    opp: null,
+    checks: [false, false, false, false],
+    formula: null,
+    step: "login",
+  };
+
+  var STEPS = [
+    { id: "login", label: "Sign in" },
+    { id: "board", label: "Opportunity Board" },
+    { id: "detail", label: "Detail → Accept" },
+    { id: "confirm", label: "Acceptance Confirmed" },
+    { id: "formula", label: "Production Formula" }
+  ];
+
+  function authHeaders(extra) {
+    var h = extra || {};
+    if (state.token) h["Authorization"] = "Bearer " + state.token;
+    return h;
+  }
+  async function apiGet(path) {
+    var res = await fetch(API + path, { headers: authHeaders() });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+  async function apiPost(path, body) {
+    var res = await fetch(API + path, { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+
+  function chrome(currentIcon, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l.icon === currentIcon ? "current" : "") + '">' + l.label + "</span>"; }).join("");
+    var bottomItems = PORTAL_NAV.map(function (l) { return '<div class="item ' + (l.icon === currentIcon ? "current" : "") + '">' + icon(l.icon) + "<span>" + l.label + "</span></div>"; }).join("");
+    return (
+      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master</div></div><div class="navlinks">' + links + '</div><div class="avatar"></div></div>' +
+      '<div class="body-pad">' + bodyHtml + "</div>" +
+      '<div class="bottom-nav"><div class="row">' + bottomItems + "</div></div>"
+    );
+  }
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function field(id, cap, val, type) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
+  }
+  function step(lbl, done, current) {
+    return '<div class="step ' + (done ? "done" : current ? "current" : "") + '"><div class="circ">' + (done ? icon("check").replace('class="icon"', 'class="icon" style="width:14px;height:14px;stroke:#fff"') : "") + '</div><div class="lbl">' + lbl + "</div></div>";
+  }
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+
+    if (state.step === "login") {
+      document.getElementById("screen-title").textContent = "Sign in";
+      document.getElementById("screen-crumb").textContent = "Sign in";
+      document.getElementById("screen-desc").textContent = "Real authentication -- a genuine JWT, not a local flag. Seeded dev credentials pre-filled.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
+          field("email", "Email", state.email) +
+          '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + "</div>" +
+          '<button class="btn primary block" id="loginBtn" style="margin-top:16px">Sign in</button>' +
+          '<div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div>' +
+          '<div class="caption" style="margin-top:10px">Dev-only seed account (see README) -- not a production credential.</div>' +
+        "</div></div>"
+      );
+      document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
+      document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
+      document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+
+    if (state.step === "board") {
+      document.getElementById("screen-title").textContent = "Opportunity Board";
+      document.getElementById("screen-crumb").textContent = "Opportunity Board";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /farmer/opportunities -- only status=open rows come back.";
+      document.getElementById("canvas").innerHTML = chrome("leaf",
+        '<div class="grid g3">' +
+          state.opportunities.map(function (o) {
+            return '<div class="card"><div class="card-label">' + o.tag + '</div><div class="card-title">' + o.buyer_name + "</div>" +
+              kv("Quantity / grade", o.quantity_tonnes.toFixed(1) + "t · " + o.grade) + kv("Price", "GHS " + o.price_per_tonne + "/t") + kv("Deadline", o.deadline) +
+              '<button class="btn primary block" style="margin-top:10px" data-opp="' + o.id + '">View &amp; accept</button></div>';
+          }).join("") +
+        "</div>"
+      );
+      document.querySelectorAll("[data-opp]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          state.opp = state.opportunities.find(function (o) { return o.id === b.dataset.opp; });
+          state.checks = [false, false, false, false];
+          state.step = "detail";
+          render();
+        });
+      });
+    }
+
+    if (state.step === "detail") {
+      var o = state.opp;
+      document.getElementById("screen-title").textContent = "Opportunity Detail → Accept";
+      document.getElementById("screen-crumb").textContent = "Opportunity Detail";
+      document.getElementById("screen-desc").textContent = "Accepting posts commitments_confirmed to POST /farmer/opportunities/{id}/accept. The server rejects it if false, or if someone already accepted this one.";
+      document.getElementById("canvas").innerHTML = chrome("leaf",
+        '<div class="grid g2">' +
+          '<div class="card"><div class="card-label">' + o.tag + '</div><div class="card-title">' + o.buyer_name + "</div>" +
+            kv("Crop / grade", "Maize, " + o.grade) + kv("Quantity requested", o.quantity_tonnes.toFixed(1) + " t") + kv("Price", "GHS " + o.price_per_tonne + " / t") + kv("Deadline", o.deadline) +
+          "</div>" +
+          '<div class="card"><div class="card-label">By accepting, you agree to</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px" id="checklist">' +
+              COMMITMENTS.map(function (c, i) { return '<div class="checkline' + (state.checks[i] ? " checked" : "") + '" data-idx="' + i + '"><div class="box">' + icon("check") + "</div><span>" + c + "</span></div>"; }).join("") +
+            "</div>" +
+            '<button class="btn primary block" id="acceptBtn" style="margin-top:16px">Accept opportunity</button>' +
+            '<div class="inline-alert" id="acceptAlert"><span>⚠</span><span id="acceptAlertText"></span></div>' +
+          "</div>" +
+        "</div>"
+      );
+      document.querySelectorAll(".checkline").forEach(function (row) {
+        row.addEventListener("click", function () {
+          state.checks[+row.dataset.idx] = !state.checks[+row.dataset.idx];
+          document.getElementById("acceptAlert").classList.remove("show");
+          render();
+        });
+      });
+      document.getElementById("acceptBtn").addEventListener("click", onAccept);
+    }
+
+    if (state.step === "confirm") {
+      var o2 = state.opp;
+      document.getElementById("screen-title").textContent = "Opportunity Accepted";
+      document.getElementById("screen-crumb").textContent = "Acceptance Confirmed";
+      document.getElementById("screen-desc").textContent = "The formula below was calculated server-side from a database rate table the moment acceptance succeeded.";
+      document.getElementById("canvas").innerHTML = chrome("leaf",
+        '<div style="max-width:420px;margin:20px auto;text-align:center">' +
+          '<div class="success-mark"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
+          '<div style="font-size:19px;font-weight:800;margin-bottom:6px">Opportunity accepted</div>' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:20px">' + o2.buyer_name + " · " + o2.quantity_tonnes.toFixed(1) + "t " + o2.grade + " confirmed in the database." + "</div>" +
+          '<button class="btn primary block" id="toFormulaBtn">View my production formula →</button>' +
+        "</div>"
+      );
+      document.getElementById("toFormulaBtn").addEventListener("click", function () { state.step = "formula"; render(); });
+    }
+
+    if (state.step === "formula") {
+      var o3 = state.opp, f = state.formula;
+      document.getElementById("screen-title").textContent = "My Production Formula";
+      document.getElementById("screen-crumb").textContent = "My Production Formula";
+      document.getElementById("screen-desc").textContent = "Fetched from the server's response to your Accept call -- these quantities came from a database rate table, not local JS.";
+      document.getElementById("canvas").innerHTML = chrome("clipboard",
+        '<div class="card accent" style="margin-bottom:16px"><div class="card-label">' + icon("leaf") + "For " + o3.buyer_name + "</div>" +
+          '<div class="card-title">Maize, ' + o3.grade + " — " + o3.quantity_tonnes.toFixed(1) + "t commitment</div>" +
+          '<div class="caption">Formula generated by the server on acceptance</div>' +
+        "</div>" +
+        '<div class="card"><div class="card-label">Input schedule — scaled to ' + o3.quantity_tonnes.toFixed(1) + "t (server-calculated)</div>" +
+          kv("Seed — improved maize", f.seed_kg + " kg") + kv("NPK fertiliser", f.npk_bags + " bag" + (f.npk_bags > 1 ? "s" : "")) + kv("Top-dress (Sulphate of Ammonia)", f.topdress_bags + " bag" + (f.topdress_bags > 1 ? "s" : "")) +
+          '<div class="caption" style="color:var(--danger);font-weight:700">⚠ Provisional scaling formula — agronomically unverified, pending agronomist review. Not authoritative.</div>' +
+        "</div>"
+      );
+    }
+  }
+
+  async function onLogin() {
+    var btn = document.getElementById("loginBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      state.token = data.access_token;
+      state.opportunities = await apiGet("/farmer/opportunities");
+      state.step = "board";
+      render();
+    } catch (e) {
+      document.getElementById("loginAlertText").textContent = e.message;
+      document.getElementById("loginAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  }
+
+  async function onAccept() {
+    var allChecked = state.checks.every(function (c) { return c; });
+    if (!allChecked) {
+      document.getElementById("acceptAlertText").textContent = "Check every item above before accepting.";
+      document.getElementById("acceptAlert").classList.add("show");
+      return;
+    }
+    var btn = document.getElementById("acceptBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Accepting…';
+    try {
+      var formula = await apiPost("/farmer/opportunities/" + state.opp.id + "/accept", { commitments_confirmed: true });
+      state.formula = formula;
+      state.step = "confirm";
+      render();
+    } catch (e) {
+      document.getElementById("acceptAlertText").textContent = e.message; // e.g. real 409 if already accepted
+      document.getElementById("acceptAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Accept opportunity";
+    }
+  }
+
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) {
+      var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked";
+      var mark = i < activeIdx ? "✓" : (i + 1);
+      return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
+    }).join("");
+    el.querySelectorAll(".flow-step.done").forEach(function (row) {
+      row.addEventListener("click", function () {
+        var target = STEPS[+row.dataset.idx].id;
+        if (target === "login") state.token = null;
+        state.step = target;
+        render();
+      });
+    });
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", function () {
+    state = { token: null, email: "farmer@farmmaster.test", password: "password123", opportunities: [], opp: null, checks: [false, false, false, false], formula: null, step: "login" };
+    setDevice("desktop");
+    render();
+  });
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android) — bottom nav active"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
+  setDevice("desktop");
+  render();
+})();
+</script>

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
-from .models import Role, RequirementStatus, PaymentStatus
+from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus
 
 
 class LoginRequest(BaseModel):
@@ -54,6 +54,36 @@ class PaymentResponse(BaseModel):
     method: str
     status: PaymentStatus
     transaction_ref: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class OpportunityResponse(BaseModel):
+    id: str
+    buyer_name: str
+    tag: str
+    grade: str
+    quantity_tonnes: float
+    price_per_tonne: float
+    deadline: str
+    status: OpportunityStatus
+
+    class Config:
+        from_attributes = True
+
+
+class AcceptOpportunityRequest(BaseModel):
+    commitments_confirmed: bool
+
+
+class ProductionFormulaResponse(BaseModel):
+    id: str
+    opportunity_id: str
+    seed_kg: float
+    npk_bags: int
+    topdress_bags: int
+    created_at: datetime
 
     class Config:
         from_attributes = True

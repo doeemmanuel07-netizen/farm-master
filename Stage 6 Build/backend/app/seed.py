@@ -8,7 +8,7 @@ and must never be reused as one.
 """
 
 from .database import Base, engine, SessionLocal
-from .models import User, Role, UserStatus, RateConfig
+from .models import User, Role, UserStatus, RateConfig, Opportunity
 from .auth import hash_password
 
 SEED_USERS = [
@@ -19,6 +19,12 @@ SEED_USERS = [
     ("buyer@farmmaster.test", "Tema Grain Processors Ltd.", Role.BUYER, "Tema Grain Processors Ltd."),
     ("farmer@farmmaster.test", "Kofi Mensah", Role.FARMER, None),
     ("vendor@farmmaster.test", "Kwame's Agro Supplies", Role.VENDOR, "Kwame's Agro Supplies"),
+]
+
+SEED_OPPORTUNITIES = [
+    ("Ghana School Feeding Programme", "MoFA-linked", "Grade 1", 4.0, 2100, "12 Sep 2026"),
+    ("Tema Grain Processors Ltd.", "Private buyer", "Grade 1", 6.5, 2200, "15 Sep 2026"),
+    ("Coastal Feed Mills", "Private buyer", "Grade 2", 2.0, 2050, "18 Sep 2026"),
 ]
 
 SEED_RATES = [
@@ -62,6 +68,17 @@ def seed():
             print(f"Seeded {len(SEED_RATES)} rate config rows (all PROVISIONAL).")
         else:
             print("Rate config already exists, skipping rate seed.")
+
+        if db.query(Opportunity).count() == 0:
+            for buyer_name, tag, grade, qty, price, deadline in SEED_OPPORTUNITIES:
+                db.add(Opportunity(
+                    buyer_name=buyer_name, tag=tag, grade=grade,
+                    quantity_tonnes=qty, price_per_tonne=price, deadline=deadline,
+                ))
+            db.commit()
+            print(f"Seeded {len(SEED_OPPORTUNITIES)} opportunities.")
+        else:
+            print("Opportunities already exist, skipping opportunity seed.")
     finally:
         db.close()
 

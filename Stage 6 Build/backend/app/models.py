@@ -135,6 +135,53 @@ class CommitmentFeePayment(Base):
     requirement = relationship("BuyerRequirement", back_populates="payments")
 
 
+class OpportunityStatus(str, enum.Enum):
+    OPEN = "open"
+    ACCEPTED = "accepted"
+
+
+class Opportunity(Base):
+    """
+    Buyer-backed opportunities available for a farmer to accept. PRD Section
+    8 confirms Phase 1 matching is manual/agronomist-assisted (no automated
+    matching engine), so these are seeded directly rather than derived
+    automatically from a BuyerRequirement -- buyer_requirement_id is kept
+    nullable for that future linkage.
+    """
+    __tablename__ = "opportunities"
+
+    id = Column(String, primary_key=True, default=uid)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=True)
+    buyer_name = Column(String, nullable=False)
+    tag = Column(String, nullable=False)  # e.g. "MoFA-linked", "Private buyer"
+    grade = Column(String, nullable=False)
+    quantity_tonnes = Column(Float, nullable=False)
+    price_per_tonne = Column(Float, nullable=False)
+    deadline = Column(String, nullable=False)
+    status = Column(SAEnum(OpportunityStatus), nullable=False, default=OpportunityStatus.OPEN)
+    accepted_by = Column(String, ForeignKey("users.id"), nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProductionFormula(Base):
+    """
+    Generated on acceptance. Input quantities are scaled from the accepted
+    opportunity's tonnage using the same RateConfig-backed, agronomically
+    UNVERIFIED formula as the Stage 5 prototype (PRD Section 10) -- now a
+    server-side calculation instead of client-side JS.
+    """
+    __tablename__ = "production_formulas"
+
+    id = Column(String, primary_key=True, default=uid)
+    opportunity_id = Column(String, ForeignKey("opportunities.id"), nullable=False)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    seed_kg = Column(Float, nullable=False)
+    npk_bags = Column(Integer, nullable=False)
+    topdress_bags = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class RegistrationApproval(Base):
     """Backend counterpart of the Registration Approval Queue screen (IA Section 10)."""
     __tablename__ = "registration_approvals"
