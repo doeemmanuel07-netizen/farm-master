@@ -1,0 +1,468 @@
+<title>USSD/SMS Flow Wireframe</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --surface-alt: #f5f6f8;
+    --rail-bg: #e4e7eb;
+    --border: #cdd2d9;
+    --border-strong: #aab1bb;
+    --text: #1c212b;
+    --text-muted: #646d7a;
+    --text-faint: #8b93a1;
+    --box-fill: #e7e9ed;
+    --box-fill-alt: #dde0e5;
+    --hatch: #d3d7dd;
+    --accent: #3f5e82;
+    --accent-fill: #dbe4ee;
+    --accent-text: #ffffff;
+    --deferred-fill: #eceef1;
+    --deferred-text: #9aa1ac;
+    --focus: #3f5e82;
+    --phone-screen: #1c212b;
+    --phone-screen-text: #d7e4d0;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13161b;
+      --surface: #1a1e25;
+      --surface-alt: #20242c;
+      --rail-bg: #181c22;
+      --border: #333944;
+      --border-strong: #4a515e;
+      --text: #e7e9ed;
+      --text-muted: #9aa1ac;
+      --text-faint: #6f7684;
+      --box-fill: #262b33;
+      --box-fill-alt: #2c323b;
+      --hatch: #313742;
+      --accent: #8fb0d6;
+      --accent-fill: #2a3a4c;
+      --accent-text: #10141a;
+      --deferred-fill: #20242c;
+      --deferred-text: #656c78;
+      --focus: #8fb0d6;
+      --phone-screen: #0b0e12;
+      --phone-screen-text: #9fd6a3;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13161b;
+    --surface: #1a1e25;
+    --surface-alt: #20242c;
+    --rail-bg: #181c22;
+    --border: #333944;
+    --border-strong: #4a515e;
+    --text: #e7e9ed;
+    --text-muted: #9aa1ac;
+    --text-faint: #6f7684;
+    --box-fill: #262b33;
+    --box-fill-alt: #2c323b;
+    --hatch: #313742;
+    --accent: #8fb0d6;
+    --accent-fill: #2a3a4c;
+    --accent-text: #10141a;
+    --deferred-fill: #20242c;
+    --deferred-text: #656c78;
+    --focus: #8fb0d6;
+    --phone-screen: #0b0e12;
+    --phone-screen-text: #9fd6a3;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  a { color: inherit; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail {
+    width: 272px;
+    flex: 0 0 272px;
+    background: var(--rail-bg);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px 24px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .rail-brand .name { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); }
+  .rail-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .pilot-chip {
+    display: inline-flex; gap: 6px; align-items: center; font-size: 11px;
+    font-family: "IBM Plex Mono", monospace; color: var(--text-muted);
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 3px; padding: 5px 8px; margin-bottom: 18px;
+  }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+  .rail-note {
+    font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
+    background: var(--surface); border: 1px dashed var(--border-strong);
+    border-radius: 4px; padding: 10px 11px; margin-bottom: 18px;
+  }
+  .rail-note b { color: var(--text); }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin: 4px 2px 6px; }
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 18px; }
+  .screen-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0;
+    text-align: left; padding: 8px 9px; border-radius: 4px; border: 1px solid transparent;
+    background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .screen-btn .num { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--text-faint); width: 15px; flex: none; }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .screen-btn.active { background: var(--accent-fill); border-color: var(--accent); color: var(--text); font-weight: 600; }
+  .screen-btn.active .num { color: var(--accent); }
+  .screen-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .rail-footer { font-size: 11px; color: var(--text-faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 20px; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 12px; color: var(--text-faint); font-family: "IBM Plex Mono", monospace; }
+  .topbar .desc { font-size: 13px; color: var(--text-muted); max-width: 60ch; margin-top: 6px; }
+  .screen-tag {
+    font-size: 10.5px; font-family: "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent); background: var(--accent-fill); border: 1px solid var(--accent);
+    border-radius: 3px; padding: 4px 8px; white-space: nowrap; height: fit-content;
+  }
+  .canvas { max-width: 1040px; background: transparent; padding: 0; }
+
+  .wf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px; }
+  .wf-label {
+    font-size: 10.5px; font-family: "IBM Plex Mono", monospace; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 7px; display: block;
+  }
+  .wf-caption { font-size: 11px; color: var(--text-faint); margin-top: 6px; font-style: italic; }
+  .wf-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-family: "IBM Plex Mono", monospace;
+    padding: 3px 7px; border-radius: 3px; border: 1px solid var(--border-strong); color: var(--text-muted); white-space: nowrap;
+  }
+  .wf-badge.role { color: var(--accent); border-color: var(--accent); background: var(--accent-fill); }
+  .kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--text-muted); }
+  .kv .v { font-family: "IBM Plex Mono", monospace; color: var(--text); }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text); margin: 0 0 12px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid > * { min-width: 0; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 620px) { .grid.g2, .grid.g3 { grid-template-columns: 1fr; } }
+
+  /* --- Phone / channel mockup components (specific to this wireframe) --- */
+  .channel-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .channel-col { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 0 0 260px; }
+  .channel-col .chan-label { font-size: 11px; font-family: "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+  .phone { width: 250px; border: 2px solid var(--border-strong); border-radius: 20px; background: var(--surface-alt); padding: 16px 12px 14px; }
+  .phone .notch { width: 56px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 0 auto 10px; }
+  .phone-screen {
+    background: var(--phone-screen); color: var(--phone-screen-text);
+    border-radius: 4px; padding: 12px 11px; min-height: 260px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.55;
+    display: flex; flex-direction: column;
+  }
+  .ussd-hdr { text-align: center; border-bottom: 1px dashed rgba(215,228,208,0.35); padding-bottom: 6px; margin-bottom: 8px; font-weight: 600; letter-spacing: 0.03em; }
+  .ussd-body { flex: 1; white-space: pre-wrap; }
+  .ussd-input {
+    margin-top: 8px; border-top: 1px dashed rgba(215,228,208,0.35); padding-top: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ussd-input .box { flex: 1; height: 20px; border: 1px solid rgba(215,228,208,0.45); border-radius: 2px; }
+  .ussd-input .send { font-size: 10px; padding: 3px 8px; border: 1px solid rgba(215,228,208,0.45); border-radius: 2px; }
+  .sms-thread { display: flex; flex-direction: column; gap: 3px; min-height: 260px; justify-content: flex-end; }
+  .sms-sender { font-size: 9.5px; color: var(--text-faint); font-family: "IBM Plex Mono", monospace; margin-bottom: 2px; }
+  .sms-bubble {
+    align-self: flex-start; max-width: 92%; background: var(--box-fill); border: 1px solid var(--border-strong);
+    border-radius: 6px; border-bottom-left-radius: 2px; padding: 8px 10px; font-size: 11.5px; line-height: 1.45;
+  }
+  .sms-meta { font-size: 9.5px; color: var(--text-faint); margin-top: 4px; font-family: "IBM Plex Mono", monospace; }
+  .chan-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 0 60px; padding-top: 90px; }
+  .chan-arrow .line { width: 40px; height: 1px; background: var(--border-strong); position: relative; }
+  .chan-arrow .line::after { content: "▶"; position: absolute; right: -8px; top: -6px; font-size: 10px; color: var(--text-faint); }
+  .chan-arrow .lbl { font-size: 9.5px; color: var(--text-faint); text-align: center; max-width: 70px; margin-top: 6px; }
+  @media (max-width: 700px) { .chan-arrow { display: none; } }
+
+  .menu-tree { font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.9; }
+  .menu-tree .l0 { font-weight: 700; }
+  .menu-tree .l1 { padding-left: 18px; color: var(--text); }
+  .menu-tree .l2 { padding-left: 36px; color: var(--text-muted); }
+  .menu-tree .tag { font-size: 9.5px; margin-left: 8px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage mono">Stage 3</span>
+    </div>
+    <div class="rail-sub">USSD / SMS Fallback — Low‑Fidelity Flow</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Not a portal.</b> Shown as the "Shared Services" node on the Stage 2 system map (Fig. 1) — this channel is used by the Farmer Portal side of the platform for farmers without a smartphone or reliable data (PRD Section 5). Structure only: exact menu depth and gateway are Stage 6 (SDD) decisions.
+    </div>
+
+    <div class="rail-group-label">4 Screens · The 3 PRD Touchpoints + Menu Map</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Built on Stage 2 Fig. 1 (Shared Services: SMS/USSD) and the PRD Section 5 fallback requirement.<br>
+      Dial code <span class="mono">*920#</span> is a placeholder pending short-code provisioning (Stage 8).
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">USSD/SMS Fallback / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 4</div>
+    </div>
+    <div class="canvas" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  function phoneUSSD(header, bodyLines, options) {
+    var body = bodyLines.map(function (l) { return l; }).join("\n");
+    return (
+      '<div class="phone"><div class="notch"></div><div class="phone-screen">' +
+        '<div class="ussd-hdr">' + header + '</div>' +
+        '<div class="ussd-body">' + body + '</div>' +
+        (options !== false ?
+          '<div class="ussd-input"><div class="box"></div><div class="send">SEND</div></div>' : '') +
+      '</div></div>'
+    );
+  }
+
+  function phoneSMS(bubbles) {
+    var html = bubbles.map(function (b) {
+      return '<div><div class="sms-sender">' + b.from + '</div>' +
+        '<div class="sms-bubble">' + b.text + '<div class="sms-meta">' + b.meta + '</div></div></div>';
+    }).join("");
+    return (
+      '<div class="phone"><div class="notch"></div><div class="phone-screen"><div class="sms-thread">' + html + '</div></div></div>'
+    );
+  }
+
+  function arrow(label) {
+    return '<div class="chan-arrow"><div class="line"></div><div class="lbl">' + label + '</div></div>';
+  }
+
+  var screens = [
+    {
+      id: "overview",
+      title: "Channel Overview &amp; Menu Map",
+      desc: "Two channels, one shared service: SMS pushes a one-line alert; USSD opens a session-based menu when the farmer dials in or follows the SMS's short code.",
+      body: function () {
+        return (
+          '<div class="wf-panel" style="margin-bottom:18px">' +
+            '<span class="wf-label">How the two channels split</span>' +
+            '<div class="grid g2">' +
+              '<div><div class="kv"><span class="k">SMS</span><span class="v">One-way push, farmer-readable, no login</span></div>' +
+                '<div class="kv"><span class="k">Triggered by</span><span class="v">Control Centre events</span></div></div>' +
+              '<div><div class="kv"><span class="k">USSD</span><span class="v">Session menu, farmer-initiated</span></div>' +
+                '<div class="kv"><span class="k">Entry</span><span class="v">Dial *920# or code in SMS</span></div></div>' +
+            '</div>' +
+            '<div class="wf-caption">Preferred language captured at Farmer Portal registration (Farmer Portal, Fig. 3) sets the language for both channels.</div>' +
+          '</div>' +
+          '<div class="wf-panel">' +
+            '<span class="wf-label">Menu map — *920# Farm Master</span>' +
+            '<div class="menu-tree">' +
+              '<div class="l0">*920# — FARM MASTER</div>' +
+              '<div class="l1">1. My Opportunities <span class="wf-badge role tag">Touchpoint 1</span></div>' +
+              '<div class="l2">1.1 View detail</div>' +
+              '<div class="l2">1.2 Accept / Decline</div>' +
+              '<div class="l1">2. Harvest Pickup <span class="wf-badge role tag">Touchpoint 2</span></div>' +
+              '<div class="l2">2.1 Confirm ready</div>' +
+              '<div class="l2">2.2 Reschedule</div>' +
+              '<div class="l1">3. Wallet Balance <span class="wf-badge role tag">Touchpoint 3</span></div>' +
+              '<div class="l2">3.1 Last settlement detail</div>' +
+              '<div class="l1">4. Speak to my agronomist</div>' +
+            '</div>' +
+            '<div class="wf-caption">Four top-level options — the three PRD-named touchpoints plus a balance-check convenience item routed to Agronomist Messaging. Full depth and copy finalised against the chosen gateway at Stage 6 (SDD).</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "opportunity",
+      title: "Opportunity Alert",
+      desc: "PRD Touchpoint 1. A new buyer-backed opportunity reaches a farmer without a smartphone the same way the Opportunity Board does for one with a smartphone (Farmer Portal, Fig. 3).",
+      body: function () {
+        return (
+          '<div class="channel-row">' +
+            '<div class="channel-col">' +
+              '<span class="chan-label">SMS — push alert</span>' +
+              phoneSMS([{
+                from: "FARMMSTR",
+                text: "New buyer opportunity: Maize 4.0t @ GHS2,100/t, Tema. Dial *920*1# to view &amp; accept by 12 Sep. Reply STOP to opt out.",
+                meta: "today, 08:14"
+              }]) +
+            '</div>' +
+            arrow("farmer dials the code from the SMS") +
+            '<div class="channel-col">' +
+              '<span class="chan-label">USSD — accept / decline</span>' +
+              phoneUSSD("FARM MASTER — 1/1", [
+                "Buyer: Ghana School",
+                "Feeding Programme",
+                "Maize Grade 1, 4.0t",
+                "Price: GHS 2,100/t",
+                "Deadline: 12 Sep",
+                "",
+                "1. Accept",
+                "2. Decline",
+                "0. Back"
+              ]) +
+            '</div>' +
+          '</div>' +
+          '<div class="wf-panel" style="margin-top:18px">' +
+            '<span class="wf-label">Behind the scenes</span>' +
+            '<div class="kv"><span class="k">On "1. Accept"</span><span class="v">Same accept-state as Opportunity Detail (Farmer Portal, Fig. 3)</span></div>' +
+            '<div class="kv"><span class="k">Race condition</span><span class="v">Whichever channel accepts first wins — no duplicate acceptance</span></div>' +
+            '<div class="kv"><span class="k">Next step</span><span class="v">Production formula issued (Internal Ops, Screen 3)</span></div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "pickup",
+      title: "Harvest Pickup Confirmation",
+      desc: "PRD Touchpoint 2. Mirrors the Farmer Portal's Harvest Pickup Request screen (Fig. 3) and feeds the same Logistics Dispatch board (Internal Operations, Screen 6).",
+      body: function () {
+        return (
+          '<div class="channel-row">' +
+            '<div class="channel-col">' +
+              '<span class="chan-label">SMS — prompt</span>' +
+              phoneSMS([{
+                from: "FARMMSTR",
+                text: "Your maize should be ready soon. Is it ready for pickup? Dial *920*2# to confirm or reschedule.",
+                meta: "3 Dec, 07:02"
+              }]) +
+            '</div>' +
+            arrow("farmer dials in to respond") +
+            '<div class="channel-col">' +
+              '<span class="chan-label">USSD — confirm</span>' +
+              phoneUSSD("HARVEST PICKUP", [
+                "Order: GSFP — Maize",
+                "",
+                "1. Yes, ready now",
+                "2. Not yet — reschedule",
+                "3. Speak to agronomist",
+                "0. Back"
+              ]) +
+            '</div>' +
+          '</div>' +
+          '<div class="wf-panel" style="margin-top:18px">' +
+            '<span class="wf-label">If "1. Yes, ready now"</span>' +
+            '<div class="kv"><span class="k">Next prompt</span><span class="v">"Enter bags ready:" (numeric entry)</span></div>' +
+            '<div class="kv"><span class="k">Confirmation SMS</span><span class="v">"Pickup requested. We will confirm a tricycle slot by SMS."</span></div>' +
+            '<div class="kv"><span class="k">Lands on</span><span class="v">Logistics Dispatch board — Outbound/Inbound queue (Internal Ops, Screen 6)</span></div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "payment",
+      title: "Payment Notification",
+      desc: "PRD Touchpoint 3. Notification-only by default — the USSD balance check is an optional companion for a farmer who wants the same breakdown the Wallet &amp; Settlement screen shows online (Farmer Portal, Fig. 3).",
+      body: function () {
+        return (
+          '<div class="channel-row">' +
+            '<div class="channel-col">' +
+              '<span class="chan-label">SMS — payout confirmation</span>' +
+              phoneSMS([{
+                from: "FARMMSTR",
+                text: "GHS 7,690 credited to your MTN MoMo (••••4821) for Maize delivery #0417. Ref: FM-20261203-0417.",
+                meta: "3 Dec, 16:40"
+              }]) +
+            '</div>' +
+            arrow("optional — farmer checks detail") +
+            '<div class="channel-col">' +
+              '<span class="chan-label">USSD — wallet detail (optional)</span>' +
+              phoneUSSD("WALLET", [
+                "Last settlement",
+                "GHS 7,690",
+                "Paid: 3 Dec 2026",
+                "Method: MTN MoMo",
+                "",
+                "1. View deductions",
+                "0. Back"
+              ]) +
+            '</div>' +
+          '</div>' +
+          '<div class="wf-panel" style="margin-top:18px">' +
+            '<span class="wf-label">Gateway note</span>' +
+            '<div class="kv"><span class="k">Triggered by</span><span class="v">Finance &amp; Reconciliation payout release (Internal Ops, Screen 9)</span></div>' +
+            '<div class="kv"><span class="k">Rails</span><span class="v">MTN MoMo, Vodafone Cash, AirtelTigo Money</span></div>' +
+            '<div class="kv"><span class="k">Processor</span><span class="v">Paystack / Hubtel — not yet locked (PRD Section 1.1)</span></div>' +
+          '</div>'
+        );
+      },
+    },
+  ];
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + '</span>';
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "overview");
+})();
+</script>
