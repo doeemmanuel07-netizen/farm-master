@@ -1,9 +1,14 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus the Buyer commitment-fee flow, end to end and
-tested. See `Farm_Master_SDD_Stage6.docx` (repo root) for architecture and
-`Farm_Master_API_Documentation_Stage6.docx` for the API contract.
+segregation of duties) plus four flows, end to end and tested: Buyer
+commitment-fee payment, Farmer opportunity-acceptance + production-formula
+receipt, Vendor mechanisation request (including the Super-Admin-approved
+date-conflict override), and the Matching Queue -- the first Internal
+Operations screen, where an Agronomist assigns a paid buyer requirement to
+one or more farmers. See `Farm_Master_SDD_Stage6.docx` (repo root) for
+architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
+contract.
 
 ## Stack
 
@@ -49,25 +54,35 @@ python -m uvicorn app.main:app --reload --port 8000
 
 The first run creates the tables in `farm_master` and seeds:
 
-- One user per role (all passwords: `password123` — **dev-only, never reuse
-  as a real credential**):
+- One user per role, plus extra Buyer/Farmer accounts so the Matching Queue
+  has real candidates to assign (all passwords: `password123` — **dev-only,
+  never reuse as a real credential**):
   - `emmanuel@farmmaster.test` — Super Admin
   - `finance@farmmaster.test` — Finance
   - `agronomist@farmmaster.test` — Agronomist
   - `logistics@farmmaster.test` — Logistics
   - `buyer@farmmaster.test` — Buyer (Tema Grain Processors Ltd.)
-  - `farmer@farmmaster.test` — Farmer
+  - `gsfp@farmmaster.test` — Buyer (Ghana School Feeding Programme)
+  - `coastal@farmmaster.test` — Buyer (Coastal Feed Mills)
+  - `farmer@farmmaster.test` — Farmer (Kofi Mensah)
+  - `kojo.mensah@farmmaster.test` — Farmer (Kojo Mensah)
+  - `ama.serwaa@farmmaster.test` — Farmer (Ama Serwaa)
   - `vendor@farmmaster.test` — Vendor (Kwame's Agro Supplies)
 - The five provisional rate config rows from PRD Section 10 (buyer
   commitment fee, vendor service fee, and the three formula-scaling
   constants) — all marked `PROVISIONAL`.
+- Two buyer requirements already past payment (status `MATCHING`) so the
+  Matching Queue has something to assign on first run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
 ## Running it
 
 - API root: <http://127.0.0.1:8000>
-- Live Buyer flow (real backend, not local JS state): <http://127.0.0.1:8000/buyer-flow>
+- Live Buyer flow: <http://127.0.0.1:8000/buyer-flow>
+- Live Farmer flow: <http://127.0.0.1:8000/farmer-flow>
+- Live Vendor flow: <http://127.0.0.1:8000/vendor-flow>
+- Live Agronomist Matching Queue: <http://127.0.0.1:8000/matching-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -93,14 +108,17 @@ curl -s -X POST http://127.0.0.1:8000/auth/login -H "Content-Type: application/j
 # entry appear automatically after a successful payment
 ```
 
-Or just open <http://127.0.0.1:8000/buyer-flow> and click through — every
-step (login, submit, pay, view status) is a real network call to the backend
-above, not a simulation.
+Or just open any of the `-flow` pages above and click through — every step
+is a real network call to the backend, not a simulation.
 
 ## Known limitations of this pass
 
 - Mobile money payment is simulated (marked successful immediately, no real
   gateway call) — no provider is chosen yet (PRD Section 1.1).
 - Card payment deliberately returns `501` rather than pretending to work.
-- Farmer and Vendor flows, and the rest of Internal Operations, are not yet
-  built — see the SDD, Section 8, for the full list.
+- The Matching Queue's tonnage split across assigned farmers is an even
+  split, a placeholder for real per-farm allocation logic (PRD Section 10).
+- Farmer/Vendor account management, and the rest of Internal Operations
+  (Formula Builder, Logistics Dispatch, Fulfilment Intake, Finance &
+  Reconciliation, Reporting, MoFA Data Exchange), are not yet built — see
+  the SDD, Section 8, for the full list.

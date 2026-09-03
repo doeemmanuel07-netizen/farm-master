@@ -12,6 +12,7 @@ from .routers import buyer as buyer_router
 from .routers import farmer as farmer_router
 from .routers import vendor as vendor_router
 from .routers import admin as admin_router
+from .routers import agronomist as agronomist_router
 
 app = FastAPI(
     title="Farm Master API",
@@ -33,6 +34,7 @@ app.include_router(buyer_router.router)
 app.include_router(farmer_router.router)
 app.include_router(vendor_router.router)
 app.include_router(admin_router.router)
+app.include_router(agronomist_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
@@ -49,6 +51,10 @@ if FRONTEND_DIR.exists():
     @app.get("/vendor-flow")
     def vendor_flow_page():
         return FileResponse(str(FRONTEND_DIR / "vendor_mechanisation_request_flow_live.html"))
+
+    @app.get("/matching-flow")
+    def matching_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "agronomist_matching_queue_flow_live.html"))
 
 
 @app.on_event("startup")

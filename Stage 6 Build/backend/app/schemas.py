@@ -1,7 +1,7 @@
 """Pydantic request/response schemas -- see API documentation doc for the full contract."""
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 
 from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus
@@ -141,3 +141,31 @@ class RateConfigResponse(BaseModel):
 
 class RateConfigUpdate(BaseModel):
     value: float
+
+
+class AgronomistRequirementResponse(BaseModel):
+    id: str
+    buyer_name: str
+    grade: str
+    quantity_tonnes: float
+    price_per_tonne: float
+    delivery_location: str
+    delivery_timeline: str
+    status: RequirementStatus
+    assigned_farmer_count: int
+
+    class Config:
+        from_attributes = True
+
+
+class FarmerCandidateResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+
+    class Config:
+        from_attributes = True
+
+
+class AssignFarmersRequest(BaseModel):
+    farmer_ids: List[str]

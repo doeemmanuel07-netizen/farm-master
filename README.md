@@ -31,16 +31,19 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus three flows implemented and tested end to end against a
+retrofitted) plus four flows implemented and tested end to end against a
 real database and a real frontend:
 
 - Buyer commitment-fee payment
 - Farmer opportunity-acceptance + production-formula receipt
 - Vendor mechanisation request, including the date-conflict override as a
   real Super-Admin-approved workflow
+- Matching Queue (Internal Operations) — an Agronomist assigns a paid
+  buyer requirement to one or more active farmers, creating real
+  Opportunity rows a farmer can then accept through the existing Farmer flow
 
 Not yet built: Farmer/Vendor account management, and the rest of Internal
-Operations (Matching Queue, Formula Builder, Logistics Dispatch, Fulfilment
+Operations (Production Formula Builder, Logistics Dispatch, Fulfilment
 Intake, Finance & Reconciliation, Reporting, MoFA Data Exchange).
 
 ## Tech stack
@@ -77,6 +80,7 @@ Then open:
 - <http://127.0.0.1:8000/buyer-flow>
 - <http://127.0.0.1:8000/farmer-flow>
 - <http://127.0.0.1:8000/vendor-flow>
+- <http://127.0.0.1:8000/matching-flow> — Agronomist Matching Queue (Internal Operations)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 This expects a local PostgreSQL instance (see

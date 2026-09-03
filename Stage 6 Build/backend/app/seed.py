@@ -8,7 +8,10 @@ and must never be reused as one.
 """
 
 from .database import Base, engine, SessionLocal
-from .models import User, Role, UserStatus, RateConfig, Opportunity, MechanisationRequest
+from .models import (
+    User, Role, UserStatus, RateConfig, Opportunity, MechanisationRequest,
+    BuyerRequirement, RequirementStatus,
+)
 from .auth import hash_password
 
 SEED_USERS = [
@@ -17,7 +20,11 @@ SEED_USERS = [
     ("agronomist@farmmaster.test", "Kwabena Osei", Role.AGRONOMIST, None),
     ("logistics@farmmaster.test", "Abena Owusu", Role.LOGISTICS, None),
     ("buyer@farmmaster.test", "Tema Grain Processors Ltd.", Role.BUYER, "Tema Grain Processors Ltd."),
+    ("gsfp@farmmaster.test", "Ghana School Feeding Programme", Role.BUYER, "Ghana School Feeding Programme"),
+    ("coastal@farmmaster.test", "Coastal Feed Mills", Role.BUYER, "Coastal Feed Mills"),
     ("farmer@farmmaster.test", "Kofi Mensah", Role.FARMER, None),
+    ("kojo.mensah@farmmaster.test", "Kojo Mensah", Role.FARMER, None),
+    ("ama.serwaa@farmmaster.test", "Ama Serwaa", Role.FARMER, None),
     ("vendor@farmmaster.test", "Kwame's Agro Supplies", Role.VENDOR, "Kwame's Agro Supplies"),
 ]
 
@@ -25,6 +32,17 @@ SEED_OPPORTUNITIES = [
     ("Ghana School Feeding Programme", "MoFA-linked", "Grade 1", 4.0, 2100, "12 Sep 2026"),
     ("Tema Grain Processors Ltd.", "Private buyer", "Grade 1", 6.5, 2200, "15 Sep 2026"),
     ("Coastal Feed Mills", "Private buyer", "Grade 2", 2.0, 2050, "18 Sep 2026"),
+]
+
+# Matching Queue demo data -- buyer requirements that have already paid their
+# commitment fee (status MATCHING) and are waiting for an Agronomist to
+# assign farmers. Distinct tonnage/price from SEED_OPPORTUNITIES above so
+# assigning them doesn't read as a duplicate of an opportunity that's
+# already open (these are new, separate orders from repeat buyers).
+SEED_REQUIREMENTS = [
+    # buyer_email, grade, quantity_tonnes, price_per_tonne, delivery_location, delivery_timeline
+    ("gsfp@farmmaster.test", "Grade 1", 3.0, 2150, "Tema", "20 Sep 2026"),
+    ("coastal@farmmaster.test", "Grade 2", 1.5, 2075, "Tema", "22 Sep 2026"),
 ]
 
 SEED_MECH_REQUESTS = [
@@ -75,6 +93,24 @@ def seed():
             print(f"Seeded {len(SEED_RATES)} rate config rows (all PROVISIONAL).")
         else:
             print("Rate config already exists, skipping rate seed.")
+
+        if db.query(BuyerRequirement).count() == 0:
+            fee_rate = db.query(RateConfig).filter(RateConfig.key == "buyer_commitment_fee_per_tonne").first()
+            rate = fee_rate.value if fee_rate else 90.0
+            for buyer_email, grade, qty, price, location, timeline in SEED_REQUIREMENTS:
+                buyer = db.query(User).filter(User.email == buyer_email).first()
+                if not buyer:
+                    continue
+                db.add(BuyerRequirement(
+                    buyer_id=buyer.id, crop="Maize", grade=grade, quantity_tonnes=qty,
+                    price_per_tonne=price, delivery_location=location, delivery_timeline=timeline,
+                    commitment_fee_amount=round(max(rate, qty * rate), 2),
+                    status=RequirementStatus.MATCHING,
+                ))
+            db.commit()
+            print(f"Seeded {len(SEED_REQUIREMENTS)} buyer requirements (Matching Queue demo data).")
+        else:
+            print("Buyer requirements already exist, skipping requirement seed.")
 
         if db.query(Opportunity).count() == 0:
             for buyer_name, tag, grade, qty, price, deadline in SEED_OPPORTUNITIES:
