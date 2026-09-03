@@ -1,0 +1,460 @@
+<title>Buyer Portal — Visual Design</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 264px; flex: 0 0 264px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .screen-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; text-align: left; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; min-height: 40px; }
+  .screen-btn .num { font-size: 10.5px; color: var(--faint); width: 15px; flex: none; font-weight: 700; }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface); color: var(--ink); }
+  .screen-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .screen-btn.active .num { color: rgba(255,255,255,0.75); }
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 21px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 12px; }
+  .app-header .logo .word { font-size: 13.5px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: rgba(255,255,255,0.72); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 4px; width: 20px; cursor: pointer; }
+  .app-header .hamburger span { height: 2px; background: #fff; border-radius: 1px; }
+
+  .body-pad { padding: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .card-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
+  .caption { font-size: 11.5px; color: var(--faint); margin-top: 6px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 8px; font-size: 13px; font-weight: 700; padding: 10px 16px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: default; min-height: 44px; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.disabled { background: var(--bg); border-color: var(--border); color: var(--faint); border-style: dashed; }
+  .btn.block { width: 100%; }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .field-group .field { height: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; padding: 0 11px; font-size: 12.5px; color: var(--faint); }
+  .field-group .field.tall { height: 74px; align-items: flex-start; padding-top: 9px; }
+  .field-group .field.filled { color: var(--primary-dark); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 7%, var(--surface)); font-weight: 700; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .tab { padding: 9px 16px; font-size: 12.5px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  .badge.deferred { background: var(--bg); color: var(--faint); border: 1px dashed var(--border); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @container (max-width: 1023px) { .grid.g3, .grid.g4 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) {
+    .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; }
+    .app-header .navlinks { display: none; }
+    .app-header .hamburger { display: flex; }
+  }
+
+  .stat-tile { border: 1px solid var(--border); border-radius: 8px; padding: 12px 13px; background: var(--surface); }
+  .stat-tile .num { font-size: 19px; font-weight: 800; font-family: "IBM Plex Mono", monospace; color: var(--primary); }
+  .stat-tile .cap { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+
+  .table-scroll { overflow-x: auto; }
+  table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; padding: 9px 10px; border-bottom: 2px solid var(--border); }
+  table.data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface); color: var(--muted); z-index: 1; }
+  .step.done .circ { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step.current .circ { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 15%, var(--surface)); }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--muted); font-weight: 700; max-width: 110px; }
+  .step .sub { font-size: 10px; color: var(--faint); margin-top: 2px; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink); }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--primary); }
+  @container (max-width: 767px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 12px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+
+  .section-title { font-size: 12.5px; font-weight: 800; color: var(--ink); margin: 0 0 12px; }
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+  .logrow { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 12px; }
+  .logrow:last-child { border-bottom: none; }
+  .logrow .when { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
+
+  .radio-row { display: flex; align-items: center; gap: 9px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .radio-row .dot { width: 16px; height: 16px; border-radius: 50%; flex: none; border: 1px solid var(--border); }
+  .radio-row .dot.on { background: var(--primary); border-color: var(--primary); }
+  .radio-row span { font-size: 12.5px; }
+
+  .map-ph { height: 200px; border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), color-mix(in srgb, var(--gold) 10%, var(--surface))); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 4</span>
+    </div>
+    <div class="rail-sub">Buyer Portal — Visual Design</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Dense treatment.</b> Same Deep Green &amp; Maize Gold system as the Farmer Portal, per Style Guide Section 7: multi-data-point cards, tables kept (scroll below tablet width), top nav collapses to a menu icon on phone — no bottom nav here.
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">8 Screens · Buyer Journey Order</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Style guide: Farm_Master_Style_Guide_Stage4.docx.<br>
+      Structure built on Stage 3 buyer_portal_wireframe.html.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Buyer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 8</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Submit Requirement", "My Orders", "Documents", "Account"];
+
+  function chrome(current, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>";
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Buyer</div></div>' +
+        '<div class="navlinks">' + links + "</div>" +
+        '<div class="hamburger"><span></span><span></span><span></span></div>' +
+        '<div class="avatar"></div>' +
+      "</div>" +
+      '<div class="body-pad">' + bodyHtml + "</div>"
+    );
+  }
+
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function field(cap, val) { return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field">' + (val || "") + "</div></div>"; }
+  function fieldFilled(cap, val) { return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field filled">' + val + "</div></div>"; }
+  function fieldTall(cap) { return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field tall"></div></div>'; }
+  function radioRow(label, on) { return '<div class="radio-row"><div class="dot' + (on ? " on" : "") + '"></div><span>' + label + "</span></div>"; }
+  function step(n, lbl, sub, done, current) {
+    return '<div class="step ' + (done ? "done" : current ? "current" : "") + '"><div class="circ">' + (done ? "✓" : n) + '</div><div class="lbl">' + lbl + '</div><div class="sub">' + sub + "</div></div>";
+  }
+  function logrow(txt, when) { return '<div class="logrow"><span>' + txt + '</span><span class="when">' + when + "</span></div>"; }
+
+  var screens = [
+    {
+      id: "registration",
+      title: "Registration &amp; Verification",
+      desc: "Public sign-up, split into two verification tracks per the confirmed cold-onboarding strategy (incl. one MoFA-linked buyer).",
+      body: function () {
+        return (
+          '<div class="body-pad">' +
+          '<div class="section-title">Buyer type</div>' +
+          '<div class="tabs"><div class="tab on">Institutional / MoFA-linked</div><div class="tab">Private Buyer</div></div>' +
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Organisation details</div>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' + field("Organisation / agency name", "") + field("Contact person", "") + field("Phone (MoMo-linked preferred)", "") + field("Email", "") + "</div>" +
+            "</div>" +
+            '<div class="card"><div class="card-label">Institutional verification</div>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' + field("MoFA accreditation / reference no.", "") + field("Programme (e.g. school feeding)", "") +
+              '<div class="field-group"><span class="cap">Accreditation letter</span><div class="field" style="justify-content:center;color:var(--info);font-weight:700">⬆ Upload document</div></div>' +
+              '<div class="caption">Checked against MoFA Data Exchange (Control Centre) once submitted.</div>' +
+              "</div>" +
+            "</div>" +
+          "</div>" +
+          '<div style="margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+            '<div class="btn primary">Submit for verification</div><span class="badge pending">Pending review</span>' +
+          "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "dashboard",
+      title: "Buyer Dashboard",
+      desc: "Home screen after login — status of active orders at a glance, next action always one click away.",
+      body: function () {
+        return chrome("Dashboard",
+          '<div class="section-title">This season, at a glance</div>' +
+          '<div class="grid g4" style="margin-bottom:20px">' +
+            stat("3", "Active orders") + stat("1", "Commitment fee due") + stat("12.4t", "Maize in transit") + stat("96%", "Spec-compliance rate") +
+          "</div>" +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">' +
+            '<div class="section-title" style="margin:0">Recent orders</div><div class="btn primary">+ Submit crop requirement</div>' +
+          "</div>" +
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>Order</th><th>Crop</th><th>Qty</th><th>Stage</th><th>Next action</th></tr></thead><tbody>' +
+            orow("BYR-0142", "Maize", "8.0t", '<span class="badge success">Aggregation</span>', "Track delivery") +
+            orow("BYR-0139", "Maize", "3.5t", '<span class="badge info">Production</span>', "View formula status") +
+            orow("BYR-0131", "Maize", "1.0t", '<span class="badge pending">Fee due</span>', "Pay commitment fee") +
+          "</tbody></table></div>"
+        );
+        function stat(n, cap) { return '<div class="stat-tile"><div class="num">' + n + '</div><div class="cap">' + cap + "</div></div>"; }
+        function orow(id, crop, qty, badge, action) { return "<tr><td class=\"mono\">" + id + "</td><td>" + crop + "</td><td class=\"mono\">" + qty + "</td><td>" + badge + "</td><td>" + action + "</td></tr>"; }
+      },
+    },
+    {
+      id: "submit",
+      title: "Submit Crop Requirement",
+      desc: "The order-initiating form — the transaction that starts the whole aggregation cycle (PRD Must-Have #1).",
+      body: function () {
+        return chrome("Submit Requirement",
+          '<div class="section-title">Requirement details</div>' +
+          '<div class="grid g2">' +
+            fieldFilled("Crop / variety", "Maize — pilot crop (locked)") + field("Grade / quality specification", "") +
+            field("Target quantity (tonnage)", "") + field("Price indication (GHS / tonne)", "") +
+            field("Delivery location", "") + field("Delivery timeline", "") +
+          "</div>" +
+          '<div style="margin-top:14px">' + fieldTall("Notes / special requirements") + "</div>" +
+          '<div class="divider"></div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">' +
+            '<span class="caption" style="margin:0">Submitting routes this to Farm Master agronomy for a production formula.</span>' +
+            '<div class="btn primary">Continue to commitment fee →</div>' +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "payment",
+      title: "Commitment Fee Payment",
+      desc: "Activates agronomy + aggregation effort on the order. Gateway not yet locked — Paystack / Hubtel shortlisted.",
+      body: function () {
+        return chrome("Submit Requirement",
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Order summary</div>' +
+              kv("Order", "BYR-0143 (draft)") + kv("Crop", "Maize") + kv("Quantity", "5.0 t") + kv("Delivery", "Tema, 6 wks") + kv("Commitment fee", "GHS 450.00") +
+            "</div>" +
+            '<div class="card"><div class="card-label">Payment method</div>' +
+              '<div style="display:flex;flex-direction:column;gap:8px">' + radioRow("MTN MoMo", true) + radioRow("Vodafone Cash", false) + radioRow("AirtelTigo Money", false) + radioRow("Card — via Paystack / Hubtel (TBD)", false) + "</div>" +
+              '<div class="btn primary block" style="margin-top:14px">Pay GHS 450.00</div>' +
+              '<div class="caption">On success: order activates, routed to Order Status.</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "status",
+      title: "Order Status Dashboard",
+      desc: "Real-time visibility into matching → production → aggregation → shipment.",
+      body: function () {
+        return chrome("My Orders",
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:8px">' +
+            '<div><div class="section-title" style="margin:0">Order BYR-0139</div><div class="caption">Maize · 3.5t · Tema fulfilment centre</div></div>' +
+            '<span class="badge info">In production</span>' +
+          "</div>" +
+          '<div class="card" style="margin-bottom:18px">' +
+            '<div class="stepper">' + step("1", "Matching", "3 farmers matched", true, false) + step("2", "Production", "Formula issued, wk 4 of 11", false, true) + step("3", "Aggregation", "Not started", false, false) + step("4", "Shipment", "Not started", false, false) + "</div>" +
+          "</div>" +
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Matched farmers</div>' + kv("Kofi Mensah", "1.2t") + kv("Ama Serwaa", "1.1t") + kv("Yaw Boateng", "1.2t") + "</div>" +
+            '<div class="card"><div class="card-label">Production milestones</div>' + kv("Land prep", "Complete") + kv("Planting", "Complete") + kv("Top-dress", "In progress") + kv("Harvest", "Pending") + "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "docs",
+      title: "Specification &amp; Compliance Documents",
+      desc: "Grading standards, certificates, and inspection reports — the paper trail institutional and MoFA-linked buyers need.",
+      body: function () {
+        return chrome("Documents",
+          '<div class="section-title">Order BYR-0139 — documents</div>' +
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>Document</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody>' +
+            drow("Grading standard — Maize Grade 1", "Standard", '<span class="badge success">Verified</span>') +
+            drow("Inspection report — wk 4 field visit", "Inspection", '<span class="badge success">Verified</span>') +
+            drow("Aggregation certificate", "Certificate", '<span class="badge pending">Pending</span>') +
+            drow("MoFA compliance export (CSV/PDF)", "MoFA report", '<span class="badge deferred">On delivery</span>') +
+          "</tbody></table></div>" +
+          '<div class="caption" style="margin-top:12px">MoFA export format: volume, quality grade, buyer, delivery date — generic template pending an official MoFA standard.</div>'
+        );
+        function drow(name, type, badge) { return "<tr><td>" + name + '</td><td class="mono" style="color:var(--muted)">' + type + "</td><td>" + badge + '</td><td><span style="color:var(--info);font-weight:700;font-size:12px">View</span></td></tr>'; }
+      },
+    },
+    {
+      id: "tracking",
+      title: "Fulfilment &amp; Delivery Tracking",
+      desc: "Which fulfilment centre is aggregating toward the order, and the estimated delivery date.",
+      body: function () {
+        return chrome("My Orders",
+          '<div class="grid g2">' +
+            '<div>' +
+              '<div class="card-label">Aggregation point</div>' +
+              '<div class="map-ph">📍 Tema fulfilment centre</div>' +
+              kv("Centre", "Tema (pilot)") + kv("Grading status", "2 of 3 lots graded") + kv("Est. delivery", "14 days") +
+            "</div>" +
+            '<div class="card"><div class="card-label">Delivery log</div>' +
+              logrow("Lot #3 intake — graded A", "Today") + logrow("Lot #2 intake — graded A", "3 days ago") + logrow("Lot #1 intake — graded B", "6 days ago") + logrow("Pickup scheduled, Farmer #08", "9 days ago") +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "invoice",
+      title: "Final Invoice &amp; Settlement",
+      desc: "Closes the order — agreed price, delivered quantity, deductions, and net payable.",
+      body: function () {
+        return chrome("My Orders",
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Invoice — order BYR-0142</div>' +
+              kv("Agreed price / tonne", "GHS 2,150") + kv("Delivered quantity", "8.0 t (spec-compliant)") + kv("Subtotal", "GHS 17,200") + kv("Commitment fee applied", "– GHS 450") +
+              '<div class="kv" style="border-top:1px solid var(--border);margin-top:2px;padding-top:12px"><span class="k" style="font-weight:800;color:var(--ink)">Net payable</span><span class="v" style="font-size:14px;color:var(--primary)">GHS 16,750</span></div>' +
+              '<div style="display:flex;gap:10px;margin-top:14px"><div class="btn primary">Settle invoice</div><div class="btn">Download PDF</div></div>' +
+            "</div>" +
+            '<div class="card"><div class="card-label">After settlement</div>' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12.5px;font-weight:600">Place standing / recurring order</span><span class="badge deferred">Phase 2</span></div>' +
+              '<div class="btn disabled block">Set up standing order</div>' +
+              '<div class="caption">Kept visible for continuity — disabled for the pilot.</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+  ];
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + "</span>";
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) {
+    b.addEventListener("click", function () { setDevice(b.dataset.device); });
+  });
+  setDevice("desktop");
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "registration");
+})();
+</script>
