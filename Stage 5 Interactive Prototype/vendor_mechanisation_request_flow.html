@@ -152,6 +152,15 @@
   }
   .inline-alert.show { display: flex; }
 
+  .override-box {
+    display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; font-weight: 600;
+    border-radius: 8px; padding: 12px; margin-top: 12px;
+  }
+  .override-box.warning { color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 14%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+  .override-box.approved { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); }
+  .override-box .head { display: flex; align-items: center; gap: 7px; font-weight: 800; }
+  .override-box .details { font-weight: 500; color: var(--muted); }
+
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 
@@ -176,7 +185,7 @@
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>Real interaction, not a mockup.</b> Pick any incoming request; Confirm requires a service date, Decline doesn't. Both are genuinely separate, independently-validated actions on the same screen.
+      <b>Real interaction, not a mockup.</b> Pick any incoming request; Confirm requires a service date, Decline doesn't. Picking a date past the farmer's requested window doesn't block you — it requires a simulated buyer/admin approval first, logged for the Super Admin audit trail.
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -213,18 +222,32 @@
 <script>
 (function () {
   var PORTAL_NAV = ["Dashboard", "Catalogue", "Orders", "Billing"];
-  var FEE_RATE = 45; // GHS per acre, illustrative quote only — mechanisation revenue tracking is Phase 2 (PRD Section 7)
+
+  // --- CONFIG: provisional rates — keep in sync with rates_config.js (canonical reference) ---
+  // STATUS: PROVISIONAL — pending Emmanuel's final business sign-off. Rate is specified as
+  // GHS/tonne, but mechanisation requests are currently captured by area (acres) — there is no
+  // yield/tonnage field on a request yet, so it's applied per-acre below as a placeholder wiring
+  // pattern (fee = area * rate). Flagged for Stage 6 data-model review, not treated as correct.
+  var CONFIG = {
+    vendorServiceFeePerTonne: 60 // GHS
+  };
+  var FEE_RATE = CONFIG.vendorServiceFeePerTonne;
+  var TODAY = new Date("2026-09-03T00:00:00"); // fixed reference date so window math is deterministic
 
   var REQUESTS = [
-    { id: "VND-0093", farmer: "Kojo Mensah", service: "Ploughing", area: 1.5, window: "Next 5 days" },
-    { id: "VND-0095", farmer: "Ama Serwaa", service: "Ridging", area: 1.0, window: "Next 3 days" },
-    { id: "VND-0097", farmer: "Yaw Boateng", service: "Harrowing", area: 2.2, window: "Next 7 days" }
+    { id: "VND-0093", farmer: "Kojo Mensah", service: "Ploughing", area: 1.5, window: "Next 5 days", windowDays: 5 },
+    { id: "VND-0095", farmer: "Ama Serwaa", service: "Ridging", area: 1.0, window: "Next 3 days", windowDays: 3 },
+    { id: "VND-0097", farmer: "Yaw Boateng", service: "Harrowing", area: 2.2, window: "Next 7 days", windowDays: 7 }
   ];
   var QUEUE_HISTORY = [
     { id: "VND-0088", farmer: "Abena Owusu", service: "Ridging", status: "Confirmed" }
   ];
 
-  var state = { req: null, date: "", notes: "", decision: null, step: "incoming" };
+  function addDays(date, n) { var d = new Date(date); d.setDate(d.getDate() + n); return d; }
+  function maxWindowDate(req) { return addDays(TODAY, req.windowDays); }
+  function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
+
+  var state = { req: null, date: "", notes: "", decision: null, overrideNeeded: false, overrideApproved: false, overrideApprover: null, step: "incoming" };
   var STEPS = [
     { id: "incoming", label: "Incoming Requests" },
     { id: "respond", label: "Review &amp; Respond" },
@@ -276,6 +299,7 @@
         c.addEventListener("click", function () {
           state.req = REQUESTS.find(function (r) { return r.id === c.dataset.req; });
           state.date = ""; state.notes = ""; state.decision = null;
+          state.overrideNeeded = false; state.overrideApproved = false; state.overrideApprover = null;
           state.step = "respond";
           render();
         });
@@ -284,15 +308,32 @@
 
     if (state.step === "respond") {
       var r = state.req;
+      var maxDate = maxWindowDate(r);
+      var overrideBox = "";
+      if (state.overrideNeeded && state.date) {
+        var over = daysBetween(maxDate, new Date(state.date + "T00:00:00"));
+        if (state.overrideApproved) {
+          overrideBox = '<div class="override-box approved">' +
+            '<div class="head">✓ Override approved</div>' +
+            '<div class="details">Approved by ' + state.overrideApprover + ' — ' + over + ' day' + (over > 1 ? "s" : "") + ' past ' + r.farmer + '’s requested window (by ' + formatDate(maxDate) + '). Logged to the Super Admin audit trail.</div>' +
+          "</div>";
+        } else {
+          overrideBox = '<div class="override-box warning">' +
+            '<div class="head">⚠ Outside the farmer’s requested window</div>' +
+            '<div class="details">' + r.farmer + ' requested ' + r.window + ' (by ' + formatDate(maxDate) + '). Your date is ' + over + ' day' + (over > 1 ? "s" : "") + ' later. This needs buyer/admin approval before the order can proceed.</div>' +
+            '<button class="btn" id="requestApprovalBtn" style="align-self:flex-start;margin-top:4px">Request buyer/admin approval</button>' +
+          "</div>";
+        }
+      }
       document.getElementById("screen-title").textContent = "Review &amp; Respond";
       document.getElementById("screen-crumb").textContent = "Review & Respond";
-      document.getElementById("screen-desc").textContent = "Confirm and Decline are two separately-validated actions here — try Decline with no date set, then try Confirm the same way.";
+      document.getElementById("screen-desc").textContent = "Confirm and Decline are two separately-validated actions here — try Decline with no date set, then try Confirm the same way. Try picking a date past the requested window, too.";
       document.getElementById("canvas").innerHTML = chrome("Orders",
         '<div class="grid g2">' +
           '<div class="card"><div class="card-label">Incoming request — ' + r.id + '</div>' +
-            kv("Farmer", r.farmer) + kv("Service", r.service) + kv("Area", r.area.toFixed(1) + " acres") + kv("Requested window", r.window) +
-            kv("Suggested quote", "GHS " + fee(r.area) + " (illustrative)") +
-            '<div class="caption">GHS ' + FEE_RATE + '/acre, for context only — mechanisation revenue tracking is Phase 2.</div>' +
+            kv("Farmer", r.farmer) + kv("Service", r.service) + kv("Area", r.area.toFixed(1) + " acres") + kv("Requested window", r.window + " (by " + formatDate(maxDate) + ")") +
+            kv("Suggested quote", "GHS " + fee(r.area)) +
+            '<div class="caption">GHS ' + FEE_RATE + '/tonne rate applied per-acre (provisional — pending Emmanuel’s final business sign-off; mechanisation revenue tracking itself is Phase 2).</div>' +
           "</div>" +
           '<div class="card">' +
             '<div class="field-group" id="fg-date" style="margin-bottom:12px"><span class="cap">Confirm service date</span>' +
@@ -300,22 +341,28 @@
               '<span class="field-error">Pick a date before confirming.</span>' +
             "</div>" +
             '<div class="field-group"><span class="cap">Notes to farmer (optional)</span><textarea id="notesInput" placeholder="e.g. Arriving with tractor around 7am">' + state.notes + "</textarea></div>" +
+            overrideBox +
             '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">' +
-              '<button class="btn primary" id="confirmBtn" style="flex:1">Confirm request</button>' +
+              '<button class="btn primary" id="confirmBtn" style="flex:1" ' + (state.overrideNeeded && !state.overrideApproved ? "disabled" : "") + '>Confirm request</button>' +
               '<button class="btn danger" id="declineBtn" style="flex:1">Decline</button>' +
             "</div>" +
             '<div class="inline-alert" id="respondAlert"><span>⚠</span><span>Pick a service date before confirming.</span></div>' +
           "</div>" +
         "</div>"
       );
-      document.getElementById("dateInput").addEventListener("input", function (e) {
+      document.getElementById("dateInput").addEventListener("change", function (e) {
         state.date = e.target.value;
         document.getElementById("fg-date").classList.remove("error");
         document.getElementById("respondAlert").classList.remove("show");
+        state.overrideNeeded = !!(state.date && new Date(state.date + "T00:00:00") > maxWindowDate(r));
+        state.overrideApproved = false; state.overrideApprover = null;
+        render();
       });
       document.getElementById("notesInput").addEventListener("input", function (e) { state.notes = e.target.value; });
       document.getElementById("confirmBtn").addEventListener("click", onConfirm);
       document.getElementById("declineBtn").addEventListener("click", onDecline);
+      var approvalBtn = document.getElementById("requestApprovalBtn");
+      if (approvalBtn) approvalBtn.addEventListener("click", onRequestApproval);
     }
 
     if (state.step === "result") {
@@ -340,6 +387,12 @@
             (ok ? kv("Confirmed date", formatDate(state.date)) : "") +
             '<div class="kv"><span class="k">Status</span><span class="v"><span class="badge ' + (ok ? "success" : "danger") + '">' + (ok ? "Confirmed" : "Declined") + "</span></span></div>" +
           "</div>" +
+          (ok && state.overrideApproved
+            ? '<div class="override-box approved" style="text-align:left;margin-bottom:20px">' +
+                '<div class="head">⚠ Confirmed outside requested window</div>' +
+                '<div class="details">Requested by ' + formatDate(maxWindowDate(r2)) + ', confirmed for ' + formatDate(state.date) + '. Override approved by ' + state.overrideApprover + ' — logged to the Super Admin audit trail.</div>' +
+              "</div>"
+            : "") +
           '<button class="btn primary block" id="toQueueBtn">View fulfilment queue →</button>' +
         "</div>"
       );
@@ -352,7 +405,7 @@
       document.getElementById("screen-desc").textContent = "The request you just handled now shows its real outcome alongside the rest of the queue.";
       var rows = QUEUE_HISTORY.concat(REQUESTS.map(function (r) {
         if (state.req && r.id === state.req.id) {
-          return { id: r.id, farmer: r.farmer, service: r.service, status: state.decision === "confirmed" ? "Confirmed" : "Declined", justHandled: true };
+          return { id: r.id, farmer: r.farmer, service: r.service, status: state.decision === "confirmed" ? "Confirmed" : "Declined", justHandled: true, override: state.overrideApproved };
         }
         return { id: r.id, farmer: r.farmer, service: r.service, status: "Awaiting response" };
       }));
@@ -360,7 +413,7 @@
         '<div class="table-scroll"><table class="data-table"><thead><tr><th>Request</th><th>Service</th><th>Farmer</th><th>Status</th></tr></thead><tbody>' +
           rows.map(function (row) {
             var badgeClass = row.status === "Confirmed" ? "success" : row.status === "Declined" ? "danger" : "pending";
-            return '<tr class="' + (row.justHandled ? "highlight" : "") + '"><td class="mono">' + row.id + "</td><td>" + row.service + "</td><td>" + row.farmer + '</td><td><span class="badge ' + badgeClass + '">' + row.status + "</span></td></tr>";
+            return '<tr class="' + (row.justHandled ? "highlight" : "") + '"><td class="mono">' + row.id + "</td><td>" + row.service + "</td><td>" + row.farmer + '</td><td><span class="badge ' + badgeClass + '">' + row.status + '</span>' + (row.override ? ' <span class="badge pending">⚠ override</span>' : "") + "</td></tr>";
           }).join("") +
         "</tbody></table></div>" +
         '<div class="caption" style="margin-top:12px">Confirmed jobs route automatically to Farm Master logistics dispatch — no separate delivery arrangement needed.</div>'
@@ -368,9 +421,9 @@
     }
   }
 
-  function formatDate(iso) {
-    if (!iso) return "—";
-    var d = new Date(iso + "T00:00:00");
+  function formatDate(value) {
+    if (!value) return "—";
+    var d = value instanceof Date ? value : new Date(value + "T00:00:00");
     return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   }
 
@@ -380,11 +433,25 @@
       document.getElementById("respondAlert").classList.add("show");
       return;
     }
+    if (state.overrideNeeded && !state.overrideApproved) {
+      return; // button is disabled in this state, but guard anyway — approval must happen first
+    }
     proceed("confirmed", "confirmBtn", "Confirming…");
   }
 
   function onDecline() {
     proceed("declined", "declineBtn", "Declining…");
+  }
+
+  function onRequestApproval() {
+    var btn = document.getElementById("requestApprovalBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Requesting approval…';
+    setTimeout(function () {
+      state.overrideApproved = true;
+      state.overrideApprover = "Super Admin (Emmanuel)";
+      render();
+    }, 900);
   }
 
   function proceed(decision, btnId, label) {
@@ -414,7 +481,7 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { req: null, date: "", notes: "", decision: null, step: "incoming" };
+    state = { req: null, date: "", notes: "", decision: null, overrideNeeded: false, overrideApproved: false, overrideApprover: null, step: "incoming" };
     setDevice("desktop");
     render();
   });

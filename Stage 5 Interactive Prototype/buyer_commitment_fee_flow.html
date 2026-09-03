@@ -232,7 +232,13 @@
 <script>
 (function () {
   var PORTAL_NAV = ["Dashboard", "Submit Requirement", "My Orders", "Documents", "Account"];
-  var FEE_RATE = 90; // GHS per tonne, illustrative — matches Stage 3/4 mock (5.0t -> GHS 450)
+
+  // --- CONFIG: provisional rates — keep in sync with rates_config.js (canonical reference) ---
+  // STATUS: PROVISIONAL — pending Emmanuel's final business sign-off.
+  var CONFIG = {
+    buyerCommitmentFeePerTonne: 90 // GHS / tonne
+  };
+  var FEE_RATE = CONFIG.buyerCommitmentFeePerTonne;
 
   var state = {
     grade: "Maize Grade 1",
@@ -297,7 +303,7 @@
           field("timeline", "Delivery timeline", state.timeline) +
         "</div>" +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;flex-wrap:wrap;gap:10px">' +
-          '<span class="caption" style="margin:0">Commitment fee is calculated from quantity (GHS ' + FEE_RATE + ' / tonne, illustrative).</span>' +
+          '<span class="caption" style="margin:0">Commitment fee is calculated from quantity (GHS ' + FEE_RATE + ' / tonne — provisional, pending Emmanuel’s final business sign-off).</span>' +
           '<button class="btn primary" id="continueBtn">Continue to commitment fee →</button>' +
         "</div>" +
         '<div class="inline-alert" id="submitAlert"><span>⚠</span><span>Fill in every field before continuing.</span></div>'

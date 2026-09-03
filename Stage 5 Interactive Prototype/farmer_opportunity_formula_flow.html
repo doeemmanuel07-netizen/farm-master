@@ -237,6 +237,16 @@
   };
   function icon(name) { return '<svg class="icon" viewBox="0 0 24 24">' + (ICONS[name] || "") + "</svg>"; }
 
+  // --- CONFIG: provisional rates — keep in sync with rates_config.js (canonical reference) ---
+  // STATUS: PROVISIONAL — agronomically UNVERIFIED, pending Emmanuel's/an agronomist's sign-off.
+  var CONFIG = {
+    formulaInputScaling: {
+      seedKgPerTonne: 1.6,
+      npkTonnesPerBag: 2,
+      topDressTonnesPerBag: 4
+    }
+  };
+
   var OPPORTUNITIES = [
     { id: "gsfp", buyer: "Ghana School Feeding Programme", tag: "MoFA-linked", grade: "Grade 1", qty: 4.0, price: 2100, deadline: "12 Sep" },
     { id: "tgp", buyer: "Tema Grain Processors Ltd.", tag: "Private buyer", grade: "Grade 1", qty: 6.5, price: 2200, deadline: "15 Sep" },
@@ -364,9 +374,10 @@
 
     if (state.step === "formula") {
       var o3 = state.opp;
-      var seed = Math.round(o3.qty * 1.6);
-      var npk = Math.ceil(o3.qty / 2);
-      var topdress = Math.max(1, Math.ceil(o3.qty / 4));
+      var scaling = CONFIG.formulaInputScaling;
+      var seed = Math.round(o3.qty * scaling.seedKgPerTonne);
+      var npk = Math.ceil(o3.qty / scaling.npkTonnesPerBag);
+      var topdress = Math.max(1, Math.ceil(o3.qty / scaling.topDressTonnesPerBag));
       document.getElementById("screen-title").textContent = "My Production Formula";
       document.getElementById("screen-crumb").textContent = "My Production Formula";
       document.getElementById("screen-desc").textContent = "Generated from the opportunity you just accepted — quantities scale with your committed tonnage, not a fixed template.";
@@ -382,6 +393,7 @@
         '<div class="grid g2">' +
           '<div class="card"><div class="card-label">Input schedule — scaled to ' + o3.qty.toFixed(1) + "t</div>" +
             kv("Seed — improved maize", seed + " kg") + kv("NPK fertiliser", npk + " bag" + (npk > 1 ? "s" : "") + ", wk 2") + kv("Top-dress (Sulphate of Ammonia)", topdress + " bag" + (topdress > 1 ? "s" : "") + ", wk 4") +
+            '<div class="caption" style="color:var(--danger);font-weight:700">⚠ Provisional scaling formula — agronomically unverified, pending agronomist review. Not authoritative.</div>' +
             '<button class="btn primary block" style="margin-top:10px" id="orderInputsBtn">Order these inputs →</button>' +
             '<div class="inline-alert" id="orderToast" style="color:var(--success);background:color-mix(in srgb, var(--success) 10%, transparent);border-color:color-mix(in srgb, var(--success) 35%, transparent)"><span>✓</span><span>Pre-filled and routed to Order Inputs.</span></div>' +
           "</div>" +
