@@ -187,7 +187,7 @@
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>Split treatment — confirmed 3 Sep 2026.</b> Office-role screens (Agronomist, Admin/Finance) use the dense treatment below. Logistics field screens (Dispatch, Proof of Pickup/Delivery, Trunking) are tagged <span class="badge device" style="vertical-align:middle">Phone-first</span> — try the Phone toggle on those three specifically.
+      <b>Split treatment — confirmed 3 Sep 2026.</b> Office-role screens (Agronomist, Finance, Super Admin) use the dense treatment below. Logistics field screens (Dispatch, Proof of Pickup/Delivery, Trunking) are tagged <span class="badge device" style="vertical-align:middle">Phone-first</span> — try the Phone toggle on those three specifically. Finance and Super Admin are separate roles (added 3 Sep 2026) so no role can both move money and grant its own permissions.
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -196,7 +196,7 @@
       <div class="device-btn" data-device="phone">Phone</div>
     </div>
 
-    <div class="rail-group-label">12 Screens · Control Centre + Logistics &amp; Fulfilment</div>
+    <div class="rail-group-label">14 Screens · Control Centre + Logistics &amp; Fulfilment</div>
     <nav class="screens" id="nav"></nav>
 
     <div class="rail-footer">
@@ -255,14 +255,15 @@
       desc: "Season-in-progress snapshot — one shared entry point, but tiles render based on the logged-in role.",
       device: "desktop",
       body: function () {
-        return chrome("Dashboard", "Agronomist · Logistics · Admin/Finance (scoped per login)", "desktop",
+        return chrome("Dashboard", "Agronomist · Logistics · Finance · Super Admin (scoped per login)", "desktop",
           '<div class="section-title">Pilot at a glance — Tema, Maize, Season: Major 2026</div>' +
           '<div class="grid g4" style="margin-bottom:20px">' + stat("14", "Farmers active on formulas") + stat("3", "Buyer orders in progress") + stat("5", "Awaiting manual match") + stat("2", "Loads in transit") + "</div>" +
           '<div class="section-title">Jump to</div>' +
-          '<div class="grid g3">' +
+          '<div class="grid g4">' +
             linkTile("Matching Queue", "5 buyer requirements need a farmer match") +
             linkTile("Fulfilment Intake", "1 delivery awaiting grading") +
             linkTile("Logistics Dispatch", "2 outbound, 1 inbound job today") +
+            linkTile("Registration Approvals", "3 pending review") +
           "</div>" +
           '<div class="divider"></div>' +
           '<div class="caption">A Logistics login sees dispatch tiles only — no order value, settlement, or margin figures.</div>'
@@ -323,7 +324,7 @@
       desc: "Produce arrives at the Tema fulfilment centre — weigh-in and grading against the buyer's specification.",
       device: "desktop",
       body: function () {
-        return chrome("Fulfilment", "Admin/Finance (fulfilment centre staff)", "desktop",
+        return chrome("Fulfilment", "Finance (fulfilment centre staff)", "desktop",
           '<div class="grid g2">' +
             '<div class="card"><div class="card-label">Intake — Kofi Mensah, delivery #0417</div>' +
               '<div style="display:flex;flex-direction:column;gap:12px">' + field("Weigh-in (kg)", "") +
@@ -403,7 +404,7 @@
       desc: "Automatic per-order reconciliation — commitment fee, farmer settlement, vendor payout, and Farm Master's trading margin.",
       device: "desktop",
       body: function () {
-        return chrome("Finance", "Admin/Finance", "desktop",
+        return chrome("Finance", "Finance", "desktop",
           '<div class="card" style="margin-bottom:14px"><div class="card-label">Order — Ghana School Feeding Programme (4.0 t)</div>' +
             kv("Commitment fee received", "GHS 1,260") + kv("Farmer settlement due", "GHS 7,690") + kv("Vendor payout due", "GHS 410") + kv("Logistics fee (Farm Master)", "GHS 90") +
             '<div class="kv" style="border-top:1px solid var(--border);margin-top:2px;padding-top:12px"><span class="k" style="font-weight:800;color:var(--ink)">Aggregation &amp; trade margin</span><span class="v" style="font-size:14px;color:var(--primary)">GHS 620</span></div>' +
@@ -421,7 +422,7 @@
       desc: "Tracks the six revenue streams as Phase 1 success metrics alongside pilot operating metrics.",
       device: "desktop",
       body: function () {
-        return chrome("Reporting", "Admin/Finance", "desktop",
+        return chrome("Reporting", "Finance", "desktop",
           '<div class="section-title">Revenue streams — live this season</div>' +
           '<div class="grid g3" style="margin-bottom:20px">' +
             stat("GHS 620", "Aggregation &amp; trade margin") + stat("GHS 90", "Logistics support fees") + statDef("Mechanisation support", "Phase 2") +
@@ -440,7 +441,7 @@
       desc: "Two-way integration: importing verified institutional buyer/accreditation data from MoFA, exporting a generic compliance report.",
       device: "desktop",
       body: function () {
-        return chrome("Reporting", "Admin/Finance", "desktop",
+        return chrome("Reporting", "Finance", "desktop",
           '<div class="grid g2">' +
             '<div class="card"><div class="card-label">Import — MoFA accreditation data</div>' +
               '<div class="kv"><span class="k">Ghana School Feeding Programme</span><span class="v"><span class="badge success">Verified</span></span></div>' + kv("Last sync", "2 Sep 2026") +
@@ -458,19 +459,65 @@
     {
       id: "useradmin",
       title: "User &amp; Role Admin",
-      desc: "Permission-scoped access across all six roles from day one, enforced at the data layer.",
+      desc: "Cross-portal account management and role assignment/revocation — Farmer, Buyer, Vendor, and Internal Operations (widened from internal-staff-only 3 Sep 2026). Only Super Admin can create accounts or change role permissions; Finance cannot.",
       device: "desktop",
       body: function () {
-        return chrome("Admin", "Admin/Finance", "desktop",
-          '<div class="table-scroll"><table class="data-table"><thead><tr><th>User</th><th>Role</th><th>Scope</th><th>Status</th></tr></thead><tbody>' +
-            row("Kwabena Osei", "Agronomist", "Formulas, visit logs, messaging — Tema", '<span class="badge success">Active</span>') +
-            row("Abena Owusu", "Logistics", "Dispatch, proof of pickup/delivery — no financial data", '<span class="badge success">Active</span>') +
-            row("Kojo Antwi", "Admin/Finance", "Reconciliation, reporting, MoFA export, user admin", '<span class="badge success">Active</span>') +
+        return chrome("Admin", "Super Admin", "desktop",
+          '<div class="card-label">Internal staff</div>' +
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>User</th><th>Role</th><th>Scope</th><th>Status</th><th></th></tr></thead><tbody>' +
+            row("Kwabena Osei", "Agronomist", "Formulas, visit logs, messaging — Tema", '<span class="badge success">Active</span>', "Change role") +
+            row("Abena Owusu", "Logistics", "Dispatch, proof of pickup/delivery — no financial data", '<span class="badge success">Active</span>', "Change role") +
+            row("Kojo Antwi", "Finance", "Reconciliation, reporting, MoFA export — no account/role admin", '<span class="badge success">Active</span>', "Change role") +
+            row("Emmanuel", "Super Admin", "Accounts, roles, registration approval, audit log — all four portals", '<span class="badge success">Active</span>', "—") +
+          "</tbody></table></div>" +
+          '<div class="card-label" style="margin-top:16px">External accounts (Farmer / Buyer / Vendor)</div>' +
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>User</th><th>Portal</th><th>Status</th><th></th></tr></thead><tbody>' +
+            row2("Kofi Mensah", "Farmer", '<span class="badge success">Active</span>', "Suspend") +
+            row2("Tema Grain Processors Ltd.", "Buyer", '<span class="badge pending">Pending review</span>', "Review →") +
+            row2("Kwame’s Agro Supplies", "Vendor", '<span class="badge pending">Pending review</span>', "Review →") +
           "</tbody></table></div>" +
           '<div class="btn primary" style="margin-top:14px">+ Add internal user</div>' +
-          '<div class="caption" style="margin-top:10px">Same enforcement model scopes the three external portals — a Farmer login never resolves Buyer order data or another farmer’s settlement figures.</div>'
+          '<div class="caption" style="margin-top:10px">Same enforcement model scopes the three external portals — a Farmer login never resolves Buyer order data or another farmer’s settlement figures. Every action on this screen is written to the Audit Log.</div>'
         );
-        function row(name, role, scope, status) { return "<tr><td>" + name + "</td><td>" + role + "</td><td>" + scope + "</td><td>" + status + "</td></tr>"; }
+        function row(name, role, scope, status, action) { return "<tr><td>" + name + "</td><td>" + role + "</td><td>" + scope + "</td><td>" + status + "</td><td>" + action + "</td></tr>"; }
+        function row2(name, portal, status, action) { return "<tr><td>" + name + "</td><td>" + portal + "</td><td>" + status + "</td><td>" + action + "</td></tr>"; }
+      },
+    },
+    {
+      id: "approvals",
+      title: "Registration Approval Queue",
+      desc: "Owns reviewing and approving a Buyer's or Vendor's “pending review” registration — added 3 Sep 2026; previously no internal screen owned this step.",
+      device: "desktop",
+      body: function () {
+        return chrome("Admin", "Super Admin", "desktop",
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>Applicant</th><th>Type</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody>' +
+            arow("Ghana School Feeding Programme", "Institutional (MoFA-linked)", "1 Sep 2026", '<span class="badge success">Verified</span>', "View") +
+            arow("Tema Grain Processors Ltd.", "Private Buyer", "2 Sep 2026", '<span class="badge pending">Pending review</span>', "Approve / Reject") +
+            arow("Coastal Feed Mills", "Private Buyer", "3 Sep 2026", '<span class="badge pending">Pending review</span>', "Approve / Reject") +
+            arow("Kwame’s Agro Supplies", "Third-Party Vendor", "3 Sep 2026", '<span class="badge pending">Pending review</span>', "Approve / Reject") +
+          "</tbody></table></div>" +
+          '<div class="caption" style="margin-top:12px">Institutional/MoFA-linked applicants are cross-checked against MoFA Data Exchange before approval. Every approval/rejection is written to the Audit Log.</div>'
+        );
+        function arow(name, type, submitted, status, action) { return "<tr><td>" + name + "</td><td>" + type + "</td><td>" + submitted + "</td><td>" + status + "</td><td>" + action + "</td></tr>"; }
+      },
+    },
+    {
+      id: "auditlog",
+      title: "Audit Log",
+      desc: "Visibility over every role/permission change and every financial action, attributable to the acting user — added 3 Sep 2026 alongside the Super Admin role.",
+      device: "desktop",
+      body: function () {
+        return chrome("Admin", "Super Admin", "desktop",
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Detail</th></tr></thead><tbody>' +
+            lrow("3 Sep, 16:42", "Emmanuel (Super Admin)", "Approved date-conflict override", "Vendor VND-0093 confirmed 12 days outside Kojo Mensah’s requested window") +
+            lrow("3 Sep, 14:10", "Kojo Antwi (Finance)", "Released farmer settlement", "GHS 7,690 — Order GSFP-001") +
+            lrow("3 Sep, 09:05", "Emmanuel (Super Admin)", "Approved Buyer registration", "Tema Grain Processors Ltd. — Private Buyer") +
+            lrow("2 Sep, 17:30", "Emmanuel (Super Admin)", "Role assigned", "Abena Owusu → Logistics") +
+            lrow("2 Sep, 11:00", "Kojo Antwi (Finance)", "Released vendor payout", "GHS 410 — Vendor: Farm Depot Tema") +
+          "</tbody></table></div>" +
+          '<div class="caption" style="margin-top:12px">Read-only for Super Admin — audit entries cannot be edited or deleted by any role, including Super Admin, to keep the trail meaningful.</div>'
+        );
+        function lrow(ts, actor, action, detail) { return "<tr><td class=\"mono\">" + ts + "</td><td>" + actor + "</td><td>" + action + "</td><td>" + detail + "</td></tr>"; }
       },
     },
   ];
