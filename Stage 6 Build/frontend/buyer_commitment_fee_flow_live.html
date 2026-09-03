@@ -1,0 +1,592 @@
+<title>Buyer Commitment-Fee Flow — Live Backend</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 272px; flex: 0 0 272px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); min-height: 40px; }
+  .flow-step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--faint); background: var(--surface); }
+  .flow-step.done { color: var(--ink); cursor: pointer; }
+  .flow-step.done .dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .flow-step.current { color: var(--ink); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  .flow-step.current .dot { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); }
+  .flow-step.locked { opacity: 0.55; }
+
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .restart-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 9px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .restart-btn:hover { background: var(--surface); color: var(--ink); }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 21px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 12px; }
+  .app-header .logo .word { font-size: 13.5px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: rgba(255,255,255,0.72); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 4px; width: 20px; cursor: pointer; }
+  .app-header .hamburger span { height: 2px; background: #fff; border-radius: 1px; }
+  @container (max-width: 767px) { .app-header .navlinks { display: none; } .app-header .hamburger { display: flex; } }
+
+  .body-pad { padding: 22px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
+  .caption { font-size: 11.5px; color: var(--faint); margin-top: 6px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; font-size: 14px; font-weight: 700; padding: 12px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 48px; font-family: inherit; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+  .btn.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn.block { width: 100%; }
+  .btn:hover { background: var(--bg); }
+  .btn.primary:hover { background: var(--gold-dark); }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field-group input, .field-group select {
+    height: 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%;
+  }
+  .field-group input:focus, .field-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+  .field-group.error input, .field-group.error select { border-color: var(--danger); }
+  .field-error { font-size: 11px; color: var(--danger); font-weight: 700; display: none; }
+  .field-group.error .field-error { display: block; }
+  .field-group input.locked { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); color: var(--primary-dark); font-weight: 700; border-color: var(--primary); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  @container (max-width: 767px) { .grid.g2 { grid-template-columns: 1fr; } }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; padding: 9px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+
+  .section-title { font-size: 13px; font-weight: 800; color: var(--ink); margin: 0 0 14px; }
+
+  .radio-row {
+    display: flex; align-items: center; gap: 11px; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; cursor: pointer; min-height: 44px; transition: border-color .1s, background .1s;
+  }
+  .radio-row:hover { background: var(--bg); }
+  .radio-row .dot { width: 18px; height: 18px; border-radius: 50%; flex: none; border: 2px solid var(--border); position: relative; }
+  .radio-row.selected { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+  .radio-row.selected .dot { border-color: var(--primary); }
+  .radio-row.selected .dot::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--primary); }
+  .radio-row span { font-size: 13px; font-weight: 600; }
+  .radio-row.disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface); color: var(--muted); z-index: 1; }
+  .step.done .circ { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step.current .circ { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 15%, var(--surface)); }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--muted); font-weight: 700; max-width: 110px; }
+  .step .sub { font-size: 10px; color: var(--faint); margin-top: 2px; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink); }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--primary); }
+  @container (max-width: 767px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 12px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25);
+    border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .success-mark {
+    width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--success) 16%, transparent);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 18px;
+  }
+  .success-mark svg { width: 30px; height: 30px; stroke: var(--success); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .inline-alert {
+    display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  }
+  .inline-alert.show { display: flex; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 6</span>
+    </div>
+    <div class="rail-sub">Buyer Commitment-Fee Payment — Live Backend</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Real backend, not local JS state.</b> Every step below calls the actual FastAPI service: real login (JWT), a real database row for your requirement, server-side fee calculation from a DB-backed rate table, and real RBAC -- try opening the browser console to watch the network calls.
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">Flow</div>
+    <div class="flow-steps" id="flowSteps"></div>
+
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (new login + new requirement)</button>
+
+    <div class="rail-footer">
+      Backend: Stage 6 Build/backend (FastAPI + SQLite).<br>
+      Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Buyer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 5</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Submit Requirement", "My Orders", "Documents", "Account"];
+  var API = ""; // same-origin: page is served by the FastAPI app at /buyer-flow
+
+  var state = {
+    token: null,
+    email: "buyer@farmmaster.test",
+    password: "password123",
+    loginError: "",
+    grade: "Maize Grade 1",
+    qty: "5.0",
+    price: "2150",
+    location: "Tema fulfilment centre",
+    timeline: "6 weeks",
+    requirement: null, // server object once submitted
+    method: null,
+    payment: null, // server object once paid
+    step: "login",
+  };
+
+  var STEPS = [
+    { id: "login", label: "Sign in" },
+    { id: "submit", label: "Submit Requirement" },
+    { id: "payment", label: "Commitment Fee Payment" },
+    { id: "success", label: "Payment Confirmation" },
+    { id: "status", label: "Order Status (activated)" },
+  ];
+
+  function authHeaders(extra) {
+    var h = extra || {};
+    if (state.token) h["Authorization"] = "Bearer " + state.token;
+    return h;
+  }
+
+  async function apiPost(path, body) {
+    var res = await fetch(API + path, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body),
+    });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      var err = new Error(data.detail || ("Request failed: " + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  async function apiGet(path) {
+    var res = await fetch(API + path, { headers: authHeaders() });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      var err = new Error(data.detail || ("Request failed: " + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function chrome(current, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>";
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Buyer</div></div>' +
+        '<div class="navlinks">' + links + "</div>" +
+        '<div class="hamburger"><span></span><span></span><span></span></div>' +
+        '<div class="avatar"></div>' +
+      "</div>" +
+      '<div class="body-pad">' + bodyHtml + "</div>"
+    );
+  }
+
+  function field(id, cap, val, type) {
+    return '<div class="field-group" id="fg-' + id + '"><span class="cap">' + cap + '</span>' +
+      '<input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '">' +
+      '<span class="field-error">Required to continue.</span></div>';
+  }
+
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function step(lbl, done, current) {
+    return '<div class="step ' + (done ? "done" : current ? "current" : "") + '"><div class="circ">' + (done ? "✓" : "") + '</div><div class="lbl">' + lbl + "</div></div>";
+  }
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+
+    if (state.step === "login") {
+      document.getElementById("screen-title").textContent = "Sign in";
+      document.getElementById("screen-crumb").textContent = "Sign in";
+      document.getElementById("screen-desc").textContent = "Real authentication against the backend -- this issues a genuine JWT, not a local flag. Seeded dev credentials are pre-filled.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto">' +
+          '<div class="card">' +
+            field("email", "Email", state.email) +
+            '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + "</div>" +
+            '<button class="btn primary block" id="loginBtn" style="margin-top:16px">Sign in</button>' +
+            '<div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div>' +
+            '<div class="caption" style="margin-top:10px">Dev-only seed account (see README) -- not a production credential.</div>' +
+          "</div>" +
+        "</div>"
+      );
+      document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
+      document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
+      document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+
+    if (state.step === "submit") {
+      document.getElementById("screen-title").textContent = "Submit Crop Requirement";
+      document.getElementById("screen-crumb").textContent = "Submit Crop Requirement";
+      document.getElementById("screen-desc").textContent = "Posted to POST /buyer/requirements as your logged-in Buyer identity. The fee below isn't shown until the server computes it from the DB-backed rate table.";
+      document.getElementById("canvas").innerHTML = chrome("Submit Requirement",
+        '<div class="section-title">Requirement details</div>' +
+        '<div class="grid g2">' +
+          '<div class="field-group"><span class="cap">Crop / variety</span><input class="locked" value="Maize — pilot crop (locked)" disabled></div>' +
+          field("grade", "Grade / quality specification", state.grade) +
+          field("qty", "Target quantity (tonnes)", state.qty, "number") +
+          field("price", "Price indication (GHS / tonne)", state.price, "number") +
+          field("location", "Delivery location", state.location) +
+          field("timeline", "Delivery timeline", state.timeline) +
+        "</div>" +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;flex-wrap:wrap;gap:10px">' +
+          '<span class="caption" style="margin:0">Commitment fee is calculated server-side from quantity.</span>' +
+          '<button class="btn primary" id="continueBtn">Continue to commitment fee →</button>' +
+        "</div>" +
+        '<div class="inline-alert" id="submitAlert"><span>⚠</span><span id="submitAlertText">Fill in every field before continuing.</span></div>'
+      );
+      document.getElementById("continueBtn").addEventListener("click", onSubmitRequirement);
+      ["grade", "qty", "price", "location", "timeline"].forEach(function (id) {
+        document.getElementById(id).addEventListener("input", function (e) { state[id] = e.target.value; });
+      });
+    }
+
+    if (state.step === "payment") {
+      var r = state.requirement;
+      var methods = [
+        { id: "momo", label: "MTN MoMo" },
+        { id: "vodafone", label: "Vodafone Cash" },
+        { id: "airteltigo", label: "AirtelTigo Money" },
+        { id: "card", label: "Card — via Paystack / Hubtel (TBD, returns 501 from the server)" },
+      ];
+      document.getElementById("screen-title").textContent = "Commitment Fee Payment";
+      document.getElementById("screen-crumb").textContent = "Commitment Fee Payment";
+      document.getElementById("screen-desc").textContent = "Fee amount came from the server's response to your Submit call, not from local JS. Try Card to see the real 501 the gateway-not-chosen decision produces.";
+      document.getElementById("canvas").innerHTML = chrome("Submit Requirement",
+        '<div class="grid g2">' +
+          '<div class="card"><div class="card-label">Order summary (from server)</div>' +
+            kv("Requirement ID", '<span class="mono" style="font-size:11px">' + r.id.slice(0, 8) + "…</span>") +
+            kv("Crop / grade", r.crop + ", " + r.grade) + kv("Quantity", r.quantity_tonnes + " t") +
+            kv("Delivery", r.delivery_location + " · " + r.delivery_timeline) +
+            '<div class="kv" style="border-top:1px solid var(--border);margin-top:2px;padding-top:12px"><span class="k" style="font-weight:800;color:var(--ink)">Commitment fee</span><span class="v" style="font-size:15px;color:var(--primary)">GHS ' + r.commitment_fee_amount.toFixed(2) + "</span></div>" +
+          "</div>" +
+          '<div class="card"><div class="card-label">Payment method</div>' +
+            '<div style="display:flex;flex-direction:column;gap:9px" id="methodList">' +
+              methods.map(function (m) {
+                return '<div class="radio-row' + (state.method === m.id ? " selected" : "") + '" data-method="' + m.id + '"><div class="dot"></div><span>' + m.label + "</span></div>";
+              }).join("") +
+            "</div>" +
+            '<button class="btn primary block" id="payBtn" style="margin-top:16px">Pay GHS ' + r.commitment_fee_amount.toFixed(2) + "</button>" +
+            '<div class="inline-alert" id="payAlert"><span>⚠</span><span id="payAlertText">Select a payment method to continue.</span></div>' +
+          "</div>" +
+        "</div>"
+      );
+      document.querySelectorAll(".radio-row").forEach(function (row) {
+        row.addEventListener("click", function () {
+          state.method = row.dataset.method;
+          document.getElementById("payAlert").classList.remove("show");
+          render();
+        });
+      });
+      document.getElementById("payBtn").addEventListener("click", onPay);
+    }
+
+    if (state.step === "success") {
+      var p = state.payment;
+      var methodLabel = { momo: "MTN MoMo", vodafone: "Vodafone Cash", airteltigo: "AirtelTigo Money" }[p.method] || p.method;
+      document.getElementById("screen-title").textContent = "Payment Confirmation";
+      document.getElementById("screen-crumb").textContent = "Payment Confirmation";
+      document.getElementById("screen-desc").textContent = "This payment record and transaction reference exist in the database -- and the requirement's status column really did change server-side.";
+      document.getElementById("canvas").innerHTML = chrome("Submit Requirement",
+        '<div style="max-width:420px;margin:20px auto;text-align:center">' +
+          '<div class="success-mark"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
+          '<div style="font-size:19px;font-weight:800;margin-bottom:6px">Payment successful</div>' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:20px">GHS ' + p.amount.toFixed(2) + " received via " + methodLabel + ". Ref " + p.transaction_ref + "." +
+          "</div>" +
+          '<div class="card" style="text-align:left;margin-bottom:20px">' +
+            kv("Payment ID", '<span class="mono" style="font-size:11px">' + p.id.slice(0, 8) + "…</span>") +
+            kv("Amount paid", "GHS " + p.amount.toFixed(2)) + kv("Method", methodLabel) +
+            '<div class="kv"><span class="k">Status</span><span class="v"><span class="badge success">' + p.status + "</span></span></div>" +
+          "</div>" +
+          '<button class="btn primary block" id="toStatusBtn">View order status →</button>' +
+        "</div>"
+      );
+      document.getElementById("toStatusBtn").addEventListener("click", function () { state.step = "status"; render(); });
+    }
+
+    if (state.step === "status") {
+      var r2 = state.requirement;
+      document.getElementById("screen-title").textContent = "Order Status Dashboard";
+      document.getElementById("screen-crumb").textContent = "Order Status Dashboard";
+      document.getElementById("screen-desc").textContent = "Re-fetched live from GET /buyer/requirements/{id} -- the 'Matching' status below is read from the database, not carried in local state.";
+      document.getElementById("canvas").innerHTML = chrome("My Orders",
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:8px">' +
+          '<div><div class="section-title" style="margin:0">Requirement ' + r2.id.slice(0, 8) + '…</div><div class="caption">' + r2.grade + " · " + r2.quantity_tonnes + " t · " + r2.delivery_location + "</div></div>" +
+          '<span class="badge info" id="statusBadge">' + r2.status + "</span>" +
+        "</div>" +
+        '<div class="card" style="margin-bottom:18px">' +
+          '<div class="stepper">' + step("Matching", true, false) + step("Production", false, true) + step("Aggregation", false, false) + step("Shipment", false, false) + "</div>" +
+        "</div>" +
+        '<div class="card"><div class="card-label">Live from the server</div>' +
+          kv("Fetched at", new Date().toLocaleTimeString()) + kv("Status column", r2.status) +
+          '<button class="btn block" id="refreshBtn" style="margin-top:12px">Re-fetch from server</button>' +
+        "</div>"
+      );
+      document.getElementById("refreshBtn").addEventListener("click", onRefreshStatus);
+    }
+  }
+
+  async function onLogin() {
+    var btn = document.getElementById("loginBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      var res = await fetch(API + "/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: state.email, password: state.password }),
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      state.token = data.access_token;
+      state.step = "submit";
+      render();
+    } catch (e) {
+      document.getElementById("loginAlertText").textContent = e.message;
+      document.getElementById("loginAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  }
+
+  async function onSubmitRequirement() {
+    var required = ["grade", "qty", "price", "location", "timeline"];
+    var missing = required.filter(function (id) { return !String(state[id] || "").trim(); });
+    required.forEach(function (id) { document.getElementById("fg-" + id).classList.toggle("error", missing.indexOf(id) !== -1); });
+    if (missing.length) {
+      document.getElementById("submitAlertText").textContent = "Fill in every field before continuing.";
+      document.getElementById("submitAlert").classList.add("show");
+      return;
+    }
+    document.getElementById("submitAlert").classList.remove("show");
+    var btn = document.getElementById("continueBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Submitting…';
+    try {
+      var req = await apiPost("/buyer/requirements", {
+        grade: state.grade,
+        quantity_tonnes: parseFloat(state.qty),
+        price_per_tonne: parseFloat(state.price),
+        delivery_location: state.location,
+        delivery_timeline: state.timeline,
+      });
+      state.requirement = req;
+      state.step = "payment";
+      render();
+    } catch (e) {
+      document.getElementById("submitAlertText").textContent = e.message;
+      document.getElementById("submitAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Continue to commitment fee →";
+    }
+  }
+
+  async function onPay() {
+    if (!state.method) {
+      document.getElementById("payAlert").classList.add("show");
+      return;
+    }
+    var btn = document.getElementById("payBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing payment…';
+    try {
+      var payment = await apiPost("/buyer/requirements/" + state.requirement.id + "/pay", { method: state.method });
+      state.payment = payment;
+      // Re-fetch so the Order Status screen reflects the server's real post-payment
+      // status column, not the pre-payment snapshot taken at Submit time.
+      state.requirement = await apiGet("/buyer/requirements/" + state.requirement.id);
+      state.step = "success";
+      render();
+    } catch (e) {
+      document.getElementById("payAlertText").textContent = e.message;
+      document.getElementById("payAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Pay GHS " + state.requirement.commitment_fee_amount.toFixed(2);
+    }
+  }
+
+  async function onRefreshStatus() {
+    var btn = document.getElementById("refreshBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Fetching…';
+    try {
+      var fresh = await apiGet("/buyer/requirements/" + state.requirement.id);
+      state.requirement = fresh;
+      render();
+    } catch (e) {
+      alert("Refresh failed: " + e.message);
+      btn.disabled = false;
+      btn.textContent = "Re-fetch from server";
+    }
+  }
+
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) {
+      var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked";
+      var mark = i < activeIdx ? "✓" : (i + 1);
+      return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
+    }).join("");
+    el.querySelectorAll(".flow-step.done").forEach(function (row) {
+      row.addEventListener("click", function () {
+        var target = STEPS[+row.dataset.idx].id;
+        if (target === "login") { state.token = null; }
+        state.step = target;
+        render();
+      });
+    });
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", function () {
+    state = {
+      token: null, email: "buyer@farmmaster.test", password: "password123", loginError: "",
+      grade: "Maize Grade 1", qty: "5.0", price: "2150", location: "Tema fulfilment centre", timeline: "6 weeks",
+      requirement: null, method: null, payment: null, step: "login",
+    };
+    setDevice("desktop");
+    render();
+  });
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) {
+    b.addEventListener("click", function () { setDevice(b.dataset.device); });
+  });
+  setDevice("desktop");
+  render();
+})();
+</script>

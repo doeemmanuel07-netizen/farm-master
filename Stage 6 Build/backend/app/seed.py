@@ -1,0 +1,70 @@
+"""
+Creates all tables and seeds one user per role plus the provisional rate
+config rows. Safe to re-run -- skips seeding if data already exists.
+
+DEV-ONLY CREDENTIALS: every seeded password below is "password123" purely
+so the pilot can be exercised locally. This is not a production credential
+and must never be reused as one.
+"""
+
+from .database import Base, engine, SessionLocal
+from .models import User, Role, UserStatus, RateConfig
+from .auth import hash_password
+
+SEED_USERS = [
+    ("emmanuel@farmmaster.test", "Emmanuel", Role.SUPER_ADMIN, None),
+    ("finance@farmmaster.test", "Kojo Antwi", Role.FINANCE, None),
+    ("agronomist@farmmaster.test", "Kwabena Osei", Role.AGRONOMIST, None),
+    ("logistics@farmmaster.test", "Abena Owusu", Role.LOGISTICS, None),
+    ("buyer@farmmaster.test", "Tema Grain Processors Ltd.", Role.BUYER, "Tema Grain Processors Ltd."),
+    ("farmer@farmmaster.test", "Kofi Mensah", Role.FARMER, None),
+    ("vendor@farmmaster.test", "Kwame's Agro Supplies", Role.VENDOR, "Kwame's Agro Supplies"),
+]
+
+SEED_RATES = [
+    ("buyer_commitment_fee_per_tonne", 90.0, "GHS/tonne",
+     "Buyer commitment fee. Matches Stage 5 prototype and PRD Section 10."),
+    ("vendor_service_fee_per_tonne", 60.0, "GHS/tonne",
+     "Vendor mechanisation service fee. Applied per-acre in the Stage 5 prototype pending a tonnage "
+     "field on mechanisation requests -- see PRD Section 10."),
+    ("formula_seed_kg_per_tonne", 1.6, "kg/tonne",
+     "Farmer production formula input scaling. AGRONOMICALLY UNVERIFIED -- see PRD Section 10."),
+    ("formula_npk_tonnes_per_bag", 2.0, "tonnes/bag",
+     "1 NPK bag per this many tonnes, rounded up. AGRONOMICALLY UNVERIFIED."),
+    ("formula_topdress_tonnes_per_bag", 4.0, "tonnes/bag",
+     "1 top-dress bag per this many tonnes, rounded up. AGRONOMICALLY UNVERIFIED."),
+]
+
+
+def seed():
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            for email, name, role, org in SEED_USERS:
+                db.add(User(
+                    email=email,
+                    full_name=name,
+                    role=role,
+                    status=UserStatus.ACTIVE,
+                    password_hash=hash_password("password123"),
+                    organisation_name=org,
+                ))
+            db.commit()
+            print(f"Seeded {len(SEED_USERS)} users (all passwords: password123 -- dev only).")
+        else:
+            print("Users already exist, skipping user seed.")
+
+        if db.query(RateConfig).count() == 0:
+            for key, value, unit, note in SEED_RATES:
+                db.add(RateConfig(key=key, value=value, unit=unit, status="PROVISIONAL", note=note))
+            db.commit()
+            print(f"Seeded {len(SEED_RATES)} rate config rows (all PROVISIONAL).")
+        else:
+            print("Rate config already exists, skipping rate seed.")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    seed()

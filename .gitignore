@@ -1,0 +1,7 @@
+# Stage 6 Build — generated/local artifacts, not source
+Stage 6 Build/backend/farm_master.db
+Stage 6 Build/backend/__pycache__/
+Stage 6 Build/backend/app/__pycache__/
+Stage 6 Build/backend/app/routers/__pycache__/
+**/__pycache__/
+*.pyc
