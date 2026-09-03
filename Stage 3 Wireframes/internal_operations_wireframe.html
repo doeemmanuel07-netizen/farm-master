@@ -1,0 +1,671 @@
+<title>Internal Operations Wireframe</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --surface-alt: #f5f6f8;
+    --rail-bg: #e4e7eb;
+    --border: #cdd2d9;
+    --border-strong: #aab1bb;
+    --text: #1c212b;
+    --text-muted: #646d7a;
+    --text-faint: #8b93a1;
+    --box-fill: #e7e9ed;
+    --box-fill-alt: #dde0e5;
+    --hatch: #d3d7dd;
+    --accent: #3f5e82;
+    --accent-fill: #dbe4ee;
+    --accent-text: #ffffff;
+    --deferred-fill: #eceef1;
+    --deferred-text: #9aa1ac;
+    --focus: #3f5e82;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13161b;
+      --surface: #1a1e25;
+      --surface-alt: #20242c;
+      --rail-bg: #181c22;
+      --border: #333944;
+      --border-strong: #4a515e;
+      --text: #e7e9ed;
+      --text-muted: #9aa1ac;
+      --text-faint: #6f7684;
+      --box-fill: #262b33;
+      --box-fill-alt: #2c323b;
+      --hatch: #313742;
+      --accent: #8fb0d6;
+      --accent-fill: #2a3a4c;
+      --accent-text: #10141a;
+      --deferred-fill: #20242c;
+      --deferred-text: #656c78;
+      --focus: #8fb0d6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13161b;
+    --surface: #1a1e25;
+    --surface-alt: #20242c;
+    --rail-bg: #181c22;
+    --border: #333944;
+    --border-strong: #4a515e;
+    --text: #e7e9ed;
+    --text-muted: #9aa1ac;
+    --text-faint: #6f7684;
+    --box-fill: #262b33;
+    --box-fill-alt: #2c323b;
+    --hatch: #313742;
+    --accent: #8fb0d6;
+    --accent-fill: #2a3a4c;
+    --accent-text: #10141a;
+    --deferred-fill: #20242c;
+    --deferred-text: #656c78;
+    --focus: #8fb0d6;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  a { color: inherit; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail {
+    width: 272px;
+    flex: 0 0 272px;
+    background: var(--rail-bg);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px 24px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .rail-brand .name { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); }
+  .rail-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .pilot-chip {
+    display: inline-flex; gap: 6px; align-items: center; font-size: 11px;
+    font-family: "IBM Plex Mono", monospace; color: var(--text-muted);
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 3px; padding: 5px 8px; margin-bottom: 18px;
+  }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  .rail-note {
+    font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
+    background: var(--surface); border: 1px dashed var(--border-strong);
+    border-radius: 4px; padding: 10px 11px; margin-bottom: 18px;
+  }
+  .rail-note b { color: var(--text); }
+
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin: 4px 2px 6px; }
+
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 18px; }
+  .screen-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0;
+    text-align: left; padding: 8px 9px; border-radius: 4px; border: 1px solid transparent;
+    background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .screen-btn .num { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--text-faint); width: 15px; flex: none; }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .screen-btn.active { background: var(--accent-fill); border-color: var(--accent); color: var(--text); font-weight: 600; }
+  .screen-btn.active .num { color: var(--accent); }
+  .screen-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  .rail-footer { font-size: 11px; color: var(--text-faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 20px; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 12px; color: var(--text-faint); font-family: "IBM Plex Mono", monospace; }
+  .topbar .desc { font-size: 13px; color: var(--text-muted); max-width: 56ch; margin-top: 6px; }
+  .screen-tag {
+    font-size: 10.5px; font-family: "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent); background: var(--accent-fill); border: 1px solid var(--accent);
+    border-radius: 3px; padding: 4px 8px; white-space: nowrap; height: fit-content;
+  }
+
+  .canvas { max-width: 1040px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0; overflow: hidden; }
+
+  .wf-box { background: var(--box-fill); border: 1px solid var(--border-strong); border-radius: 3px; }
+  .wf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px; }
+  .wf-label {
+    font-size: 10.5px; font-family: "IBM Plex Mono", monospace; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 7px; display: block;
+  }
+  .wf-caption { font-size: 11px; color: var(--text-faint); margin-top: 6px; font-style: italic; }
+  .wf-line { height: 8px; background: var(--box-fill-alt); border-radius: 2px; margin-bottom: 6px; }
+  .wf-heading-line { height: 13px; width: 46%; background: var(--box-fill-alt); border-radius: 2px; margin-bottom: 10px; }
+  .wf-img {
+    background: repeating-linear-gradient(45deg, var(--hatch), var(--hatch) 1px, transparent 1px, transparent 9px);
+    border: 1px solid var(--border-strong); border-radius: 3px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-faint); font-size: 11px; font-family: "IBM Plex Mono", monospace;
+  }
+  .wf-btn {
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 12.5px;
+    font-weight: 600; padding: 9px 16px; border: 1px solid var(--border-strong); background: var(--box-fill-alt);
+    color: var(--text); cursor: default;
+  }
+  .wf-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .wf-btn.disabled { background: var(--deferred-fill); border-color: var(--border); color: var(--deferred-text); border-style: dashed; }
+  .wf-input { display: flex; flex-direction: column; gap: 5px; }
+  .wf-input .cap { font-size: 11px; color: var(--text-muted); }
+  .wf-input .field { height: 34px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 3px; }
+  .wf-input .field.tall { height: 70px; }
+  .wf-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-strong); }
+  .wf-tab {
+    padding: 8px 14px; font-size: 12px; color: var(--text-muted); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 4px 4px 0 0; background: var(--surface-alt);
+  }
+  .wf-tab.on { background: var(--surface); color: var(--text); font-weight: 600; border-color: var(--border-strong); }
+
+  .wf-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-family: "IBM Plex Mono", monospace;
+    padding: 3px 7px; border-radius: 3px; border: 1px solid var(--border-strong); color: var(--text-muted); white-space: nowrap;
+  }
+  .wf-badge.pending { color: var(--text-muted); }
+  .wf-badge.done { color: var(--accent); border-color: var(--accent); }
+  .wf-badge.deferred { color: var(--deferred-text); border-style: dashed; }
+  .wf-badge.role { color: var(--accent); border-color: var(--accent); background: var(--accent-fill); }
+
+  .grid { display: grid; gap: 16px; }
+  .grid > * { min-width: 0; }
+  [style*="justify-content:space-between"] { flex-wrap: wrap; row-gap: 8px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 620px) { .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--surface-alt); }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 5px; background: var(--box-fill-alt); border: 1px solid var(--border-strong); }
+  .app-header .logo .word { font-size: 13px; font-weight: 700; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: var(--text-muted); }
+  .app-header .navlinks span.current { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--box-fill-alt); border: 1px solid var(--border-strong); }
+  @media (max-width: 700px) { .app-header .navlinks { display: none; } }
+
+  .body-pad { padding: 22px; }
+
+  .stat-tile { border: 1px solid var(--border); border-radius: 5px; padding: 13px 14px; background: var(--surface); }
+  .stat-tile .num { font-size: 21px; font-weight: 700; font-family: "IBM Plex Mono", monospace; }
+  .stat-tile .cap { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .stat-tile.disabled { opacity: 0.55; }
+  .stat-tile .ph-badge { margin-top: 6px; }
+
+  .table-scroll { overflow-x: auto; }
+  table.wf-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.wf-table th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border-strong); }
+  table.wf-table td { padding: 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  table.wf-table td .wf-line { margin: 0; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border-strong); display: flex;
+    align-items: center; justify-content: center; font-size: 11px; font-family: "IBM Plex Mono", monospace;
+    background: var(--surface); color: var(--text-muted); z-index: 1;
+  }
+  .step.done .circ { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .step.current .circ { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--text-muted); max-width: 110px; }
+  .step.done .lbl, .step.current .lbl { color: var(--text); font-weight: 600; }
+  .step .sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border-strong); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--accent); }
+  @media (max-width: 620px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 10px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--text-muted); }
+  .kv .v { font-family: "IBM Plex Mono", monospace; color: var(--text); }
+
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text); margin: 0 0 12px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .chat-thread { display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 72%; padding: 9px 12px; border-radius: 8px; font-size: 12.5px; border: 1px solid var(--border-strong); }
+  .bubble.them { background: var(--box-fill); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .bubble.me { background: var(--accent-fill); border-color: var(--accent); align-self: flex-end; border-bottom-right-radius: 2px; color: var(--text); }
+  .bubble .meta { font-size: 10px; color: var(--text-faint); margin-top: 4px; font-family: "IBM Plex Mono", monospace; }
+
+  .timeline { display: flex; flex-direction: column; }
+  .tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .tl-item::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 2px; background: var(--border); }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--accent); flex: none; margin-top: 2px; }
+  .tl-dot.hollow { background: var(--surface); }
+  .tl-body .t { font-size: 12.5px; font-weight: 600; }
+  .tl-body .d { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage mono">Stage 3</span>
+    </div>
+    <div class="rail-sub">Internal Operations — Control Centre + Logistics &amp; Fulfilment — Low‑Fidelity Wireframe</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Structure only.</b> No colour, type, or brand styling — that's Stage 4. Every screen here is internal-only: access is role-scoped to Agronomist, Logistics, or Admin/Finance (PRD Section 5) — never shown to Farmer, Buyer, or Vendor accounts.
+    </div>
+
+    <div class="rail-group-label">12 Screens · Control Centre + Logistics &amp; Fulfilment</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Built on Stage 2 IA — Internal Operations sitemap (Fig. 6) &amp; cross-portal handoff table (Sec. 5).<br>
+      Roles: Agronomist · Logistics · Admin/Finance.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 12</div>
+    </div>
+    <div class="canvas" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics", "Finance", "Reporting", "Admin"];
+
+  function chrome(current, roleTag, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l === current ? 'current' : '') + '">' + l + '</span>';
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark"></div><div class="word">Farm Master — Control Centre</div></div>' +
+        '<div class="navlinks">' + links + '</div>' +
+        '<div class="avatar"></div>' +
+      '</div>' +
+      '<div class="body-pad">' +
+        '<div style="margin-bottom:16px"><span class="wf-badge role">Role: ' + roleTag + '</span></div>' +
+        bodyHtml +
+      '</div>'
+    );
+  }
+
+  var screens = [
+    {
+      id: "dashboard",
+      title: "Control Centre Dashboard",
+      desc: "Season-in-progress snapshot for the Tema pilot — one shared entry point, but the tiles that render depend on the logged-in role (PRD Section 3.2 / Section 5 RBAC).",
+      body: function () {
+        return chrome("Dashboard", "Agronomist · Logistics · Admin/Finance (view scoped per login)",
+          '<div class="section-title">Pilot at a glance — Tema, Maize, Season: Major 2026</div>' +
+          '<div class="grid g4" style="margin-bottom:20px">' +
+            stat("14", "Farmers active on formulas") +
+            stat("3", "Buyer orders in progress") +
+            stat("5", "Awaiting manual match") +
+            stat("2", "Loads in transit") +
+          '</div>' +
+          '<div class="section-title">Jump to</div>' +
+          '<div class="grid g3">' +
+            linkTile("Matching Queue", "5 buyer requirements need a farmer match") +
+            linkTile("Fulfilment Intake", "1 delivery awaiting grading") +
+            linkTile("Logistics Dispatch", "2 outbound, 1 inbound job today") +
+          '</div>' +
+          '<div class="divider"></div>' +
+          '<div class="wf-caption" style="margin:0">A Logistics login sees dispatch tiles only — no order value, settlement, or margin figures (PRD Section 5: dispatch visibility without financial reconciliation access).</div>'
+        );
+        function stat(n, cap) {
+          return '<div class="stat-tile"><div class="num">' + n + '</div><div class="cap">' + cap + '</div></div>';
+        }
+        function linkTile(label, cap) {
+          return '<div class="wf-panel"><div style="font-size:13px;font-weight:600;margin-bottom:4px">' + label + '</div><div class="wf-caption" style="margin:0">' + cap + '</div></div>';
+        }
+      },
+    },
+    {
+      id: "matching",
+      title: "Matching Queue (Manual)",
+      desc: "Buyer requirements (from Buyer Portal → Submit Requirement) queued against eligible farmers. Phase 1 matching is manual/agronomist-assisted — the automated matching engine is out of scope for Phase 1 (PRD Section 8).",
+      body: function () {
+        return chrome("Agronomy", "Agronomist",
+          '<div class="table-scroll"><table class="wf-table"><thead><tr>' +
+            '<th>Buyer requirement</th><th>Qty / grade</th><th>Region</th><th>Candidate farmers</th><th>Status</th>' +
+          '</tr></thead><tbody>' +
+            row("Ghana School Feeding Programme", "4.0 t · Grade 1 maize", "Tema", "6 matched by crop history", "<span class=\"wf-badge pending\">needs review</span>") +
+            row("Tema Grain Processors Ltd.", "6.5 t · Grade 1 maize", "Tema", "9 matched by crop history", "<span class=\"wf-badge pending\">needs review</span>") +
+            row("Coastal Feed Mills", "2.0 t · Grade 2 maize", "Tema", "4 matched by crop history", "<span class=\"wf-badge done\">assigned</span>") +
+          '</tbody></table></div>' +
+          '<div style="margin-top:14px;display:flex;gap:10px">' +
+            '<div class="wf-btn primary">Assign selected farmers →</div>' +
+            '<div class="wf-btn disabled">Auto-match (Phase 2)</div>' +
+          '</div>'
+        );
+        function row(req, qty, region, cand, status) {
+          return '<tr><td>' + req + '</td><td>' + qty + '</td><td>' + region + '</td><td>' + cand + '</td><td>' + status + '</td></tr>';
+        }
+      },
+    },
+    {
+      id: "formulabuilder",
+      title: "Production Formula Builder",
+      desc: "Agronomist converts an assigned buyer requirement into the planting calendar, input schedule, and quality checkpoints a farmer sees on their own Production Formula screen (Farmer Portal, Fig. 3).",
+      body: function () {
+        return chrome("Agronomy", "Agronomist",
+          '<div class="grid g2" style="margin-bottom:18px">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Sourced from</span>' +
+              '<div class="kv"><span class="k">Buyer requirement</span><span class="v">Ghana School Feeding Programme</span></div>' +
+              '<div class="kv"><span class="k">Crop / grade</span><span class="v">Maize, Grade 1</span></div>' +
+              '<div class="kv"><span class="k">Farmers assigned</span><span class="v">6</span></div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Planting calendar builder</span>' +
+              '<div class="stepper">' +
+                step("Land prep", "wk 1") + step("Planting", "wk 2") + step("Top-dress", "wk 4") + step("Weeding", "wk 6") + step("Harvest", "wk 11") +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="wf-panel" style="margin-bottom:14px">' +
+            '<span class="wf-label">Input schedule (editable)</span>' +
+            '<div class="kv"><span class="k">Seed — improved maize</span><span class="v">8 kg / farmer</span></div>' +
+            '<div class="kv"><span class="k">NPK fertiliser</span><span class="v">2 bags, wk 2</span></div>' +
+            '<div class="kv"><span class="k">Top-dress (Sulphate of Ammonia)</span><span class="v">1 bag, wk 4</span></div>' +
+          '</div>' +
+          '<div class="wf-btn primary">Publish formula to assigned farmers →</div>'
+        );
+        function step(lbl, sub) {
+          return '<div class="step"><div class="circ"></div><div class="lbl">' + lbl + '</div><div class="sub">' + sub + '</div></div>';
+        }
+      },
+    },
+    {
+      id: "visitlogs",
+      title: "Field Visit Logs",
+      desc: "Agronomist's record of scheduled and completed farm visits tied to each formula's quality checkpoints — the internal counterpart to the farmer's own Milestone Log (Farmer Portal, Fig. 3).",
+      body: function () {
+        return chrome("Agronomy", "Agronomist",
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+            '<div class="section-title" style="margin:0">Visit schedule — this week</div>' +
+            '<div class="wf-btn primary">+ Log visit</div>' +
+          '</div>' +
+          '<div class="timeline">' +
+            tl("Kofi Mensah — top-dress checkpoint", "Logged today · photo + GPS attached", true) +
+            tl("Ama Serwaa — planting verification", "Logged yesterday · photo attached", true) +
+            tl("Yaw Boateng — top-dress checkpoint", "Scheduled — due in 2 days", false) +
+          '</div>' +
+          '<div class="wf-caption" style="margin-top:10px">Capture is offline-tolerant — entries queue on-device and sync when connectivity returns (PRD Section 5).</div>'
+        );
+        function tl(t, d, done) {
+          return '<div class="tl-item"><div class="tl-dot ' + (done ? "" : "hollow") + '"></div><div class="tl-body"><div class="t">' + t + '</div><div class="d">' + d + '</div></div></div>';
+        }
+      },
+    },
+    {
+      id: "intake",
+      title: "Fulfilment Centre Intake &amp; Grading",
+      desc: "Produce arrives at the Tema fulfilment centre — weigh-in and grading against the buyer's specification. This is the precondition for buyer delivery and farmer settlement (PRD Section 6, Must-Have #4).",
+      body: function () {
+        return chrome("Fulfilment", "Admin/Finance (fulfilment centre staff)",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Intake — Kofi Mensah, delivery #0417</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-input"><span class="cap">Weigh-in (kg)</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Grade assigned</span><div class="field" style="display:flex;align-items:center;padding:0 10px"><span class="mono" style="font-size:11px">Grade 1 / Grade 2 / Reject</span></div></div>' +
+                '<div class="wf-img" style="height:70px">Photo — sample &amp; delivery</div>' +
+              '</div>' +
+              '<div class="wf-btn primary" style="width:100%;margin-top:12px">Confirm intake</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Connectivity</span>' +
+              '<div class="kv"><span class="k">Status</span><span class="v"><span class="wf-badge pending">offline — 3 queued</span></span></div>' +
+              '<div class="wf-caption">Offline-tolerant capture — intermittent connectivity at regional fulfilment centres is a confirmed constraint (PRD Section 5); entries sync automatically once online.</div>' +
+              '<div class="divider"></div>' +
+              '<div class="kv"><span class="k">Feeds</span><span class="v">Buyer Compliance Docs</span></div>' +
+              '<div class="kv"><span class="k">Feeds</span><span class="v">Farmer Wallet/Settlement</span></div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "dispatch",
+      title: "Logistics Dispatch",
+      desc: "Single dispatch view spanning outbound (inputs to farms) and inbound (produce to fulfilment centre) — per PRD Section 4.4. Fleet size is a pilot placeholder pending final confirmation.",
+      body: function () {
+        return chrome("Logistics", "Logistics",
+          '<div style="margin-bottom:16px"><span class="wf-badge">Fleet: 3–5 tricycles (pilot placeholder — PRD Section 1.1)</span></div>' +
+          '<div class="wf-tabs" style="margin-bottom:14px">' +
+            '<div class="wf-tab on">Outbound — inputs to farms</div>' +
+            '<div class="wf-tab">Inbound — produce to fulfilment centre</div>' +
+          '</div>' +
+          '<div class="table-scroll"><table class="wf-table"><thead><tr>' +
+            '<th>Job</th><th>Farmer / stop</th><th>Tricycle</th><th>Status</th>' +
+          '</tr></thead><tbody>' +
+            row("Input delivery — seed + NPK", "Ama Serwaa, Tema", "#1", "<span class=\"wf-badge pending\">en route</span>") +
+            row("Input delivery — top-dress", "Yaw Boateng, Tema", "#2", "<span class=\"wf-badge pending\">assigned</span>") +
+            row("Harvest pickup", "Kofi Mensah, Tema", "#3", "<span class=\"wf-badge done\">delivered</span>") +
+          '</tbody></table></div>' +
+          '<div class="wf-btn primary" style="margin-top:14px">Assign next job →</div>'
+        );
+        function row(job, stop, tri, status) {
+          return '<tr><td>' + job + '</td><td>' + stop + '</td><td>' + tri + '</td><td>' + status + '</td></tr>';
+        }
+      },
+    },
+    {
+      id: "proof",
+      title: "Proof of Pickup / Delivery",
+      desc: "Field confirmation captured by the rider at the point of pickup or delivery — signature, photo, and GPS/time stamp, linked to the dispatch job.",
+      body: function () {
+        return chrome("Logistics", "Logistics",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Job #3 — Harvest pickup, Kofi Mensah</span>' +
+              '<div class="wf-img" style="height:120px;margin-bottom:12px">Photo — loaded produce</div>' +
+              '<div class="wf-img" style="height:64px;margin-bottom:12px">Signature capture</div>' +
+              '<div class="wf-btn primary" style="width:100%">Confirm delivery</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Auto-captured</span>' +
+              '<div class="kv"><span class="k">GPS location</span><span class="v">5.6698° N, 0.0166° W</span></div>' +
+              '<div class="kv"><span class="k">Timestamp</span><span class="v">14:22, today</span></div>' +
+              '<div class="kv"><span class="k">Tricycle</span><span class="v">#3</span></div>' +
+              '<div class="wf-caption">Updates Buyer Portal Delivery Tracking and closes the loop for Fulfilment Centre intake.</div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "trunking",
+      title: "Trunking",
+      desc: "Bulk consolidated movement of graded produce out of the Tema fulfilment centre — distinct from last-mile tricycle collection. Kept deliberately thin for the pilot, since Tema is both the pilot's fulfilment centre and its only trunking origin; built to extend once additional regional centres come online (Phase 3).",
+      body: function () {
+        return chrome("Logistics", "Logistics",
+          '<div class="wf-panel" style="margin-bottom:14px">' +
+            '<span class="wf-label">Consolidated load — Tema fulfilment centre</span>' +
+            '<div class="kv"><span class="k">Graded produce ready</span><span class="v">8.5 t (Grade 1 + Grade 2)</span></div>' +
+            '<div class="kv"><span class="k">Destination</span><span class="v">Buyer delivery point / Farm Master trading margin settlement</span></div>' +
+            '<div class="kv"><span class="k">Vehicle</span><span class="v">Contracted trunking vehicle (non-tricycle)</span></div>' +
+          '</div>' +
+          '<div class="wf-btn primary">Schedule trunking dispatch →</div>' +
+          '<div class="wf-caption" style="margin-top:10px">Pilot scope: single origin (Tema). Multi-centre trunking routes are a Phase 3 regional-expansion concern (PRD Section 8).</div>'
+        );
+      },
+    },
+    {
+      id: "finance",
+      title: "Finance &amp; Reconciliation",
+      desc: "Automatic per-order reconciliation — commitment fee received, farmer settlement due, vendor payout due, and Farm Master's trading margin (PRD Section 4.4) — replacing manual spreadsheet reconciliation.",
+      body: function () {
+        return chrome("Finance", "Admin/Finance",
+          '<div class="wf-panel" style="margin-bottom:14px">' +
+            '<span class="wf-label">Order — Ghana School Feeding Programme (4.0 t)</span>' +
+            '<div class="kv"><span class="k">Commitment fee received</span><span class="v">GHS 1,260</span></div>' +
+            '<div class="kv"><span class="k">Farmer settlement due</span><span class="v">GHS 7,690</span></div>' +
+            '<div class="kv"><span class="k">Vendor payout due</span><span class="v">GHS 410</span></div>' +
+            '<div class="kv"><span class="k">Logistics fee (Farm Master)</span><span class="v">GHS 90</span></div>' +
+            '<div class="kv"><span class="k"><b>Aggregation &amp; trade margin</b></span><span class="v"><b>GHS 620</b></span></div>' +
+          '</div>' +
+          '<div class="grid g2">' +
+            '<div class="wf-panel"><span class="wf-label">Payment gateway</span>' +
+              '<div class="kv"><span class="k">Processor</span><span class="v">Paystack / Hubtel — TBD (PRD Section 1.1)</span></div>' +
+              '<div class="kv"><span class="k">Mobile money rails</span><span class="v">MTN MoMo, Vodafone Cash, AirtelTigo</span></div>' +
+            '</div>' +
+            '<div class="wf-panel"><span class="wf-label">Actions</span>' +
+              '<div class="wf-btn primary" style="width:100%;margin-bottom:8px">Release farmer settlement</div>' +
+              '<div class="wf-btn" style="width:100%">Release vendor payout</div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "reporting",
+      title: "Reporting",
+      desc: "Tracks the six revenue streams as Phase 1 success metrics (PRD Section 7) alongside pilot operating metrics — live and trackable, not yet about volume.",
+      body: function () {
+        return chrome("Reporting", "Admin/Finance",
+          '<div class="section-title">Revenue streams — live this season</div>' +
+          '<div class="grid g3" style="margin-bottom:20px">' +
+            stat("GHS 620", "Aggregation &amp; trade margin") +
+            stat("GHS 90", "Logistics support fees") +
+            statDeferred("Mechanisation support", "Phase 2") +
+            stat("1", "Vendor storefront billable (FM-owned)") +
+            statDeferred("Company-owned production", "Phase 4") +
+            statDeferred("Consultation services", "Phase 2+") +
+          '</div>' +
+          '<div class="section-title">Pilot metrics</div>' +
+          '<div class="grid g4">' +
+            stat("14", "Registered farmers") +
+            stat("3", "Active buyers onboarded") +
+            stat("8.5 t", "Volume aggregated") +
+            stat("92%", "Spec-compliance rate") +
+          '</div>' +
+          '<div class="wf-btn primary" style="margin-top:16px">Export report →</div>'
+        );
+        function stat(n, cap) {
+          return '<div class="stat-tile"><div class="num">' + n + '</div><div class="cap">' + cap + '</div></div>';
+        }
+        function statDeferred(cap, phase) {
+          return '<div class="stat-tile disabled"><div style="font-size:13px;font-weight:600">' + cap + '</div><span class="wf-badge deferred ph-badge">' + phase + '</span></div>';
+        }
+      },
+    },
+    {
+      id: "mofa",
+      title: "MoFA Data Exchange",
+      desc: "Two-way integration added at Stage 2 (Fig. 6): importing verified institutional buyer/accreditation data from MoFA, and exporting a generic compliance report — no MoFA data standard is confirmed yet (PRD Section 1.1 / 9).",
+      body: function () {
+        return chrome("Reporting", "Admin/Finance",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Import — MoFA accreditation data</span>' +
+              '<div class="kv"><span class="k">Ghana School Feeding Programme</span><span class="v"><span class="wf-badge done">verified</span></span></div>' +
+              '<div class="kv"><span class="k">Last sync</span><span class="v">2 Sep 2026</span></div>' +
+              '<div class="wf-btn" style="width:100%;margin-top:10px">Manual import (no live API yet)</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Export — compliance report</span>' +
+              '<div class="kv"><span class="k">Format</span><span class="v">Generic CSV / PDF</span></div>' +
+              '<div class="kv"><span class="k">Fields</span><span class="v">Volume, grade, buyer, delivery date</span></div>' +
+              '<div class="wf-caption">Template is a placeholder pending an actual MoFA data standard — to be refined later (PRD Section 9).</div>' +
+              '<div class="wf-btn primary" style="width:100%;margin-top:10px">Generate export →</div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "useradmin",
+      title: "User &amp; Role Admin",
+      desc: "Permission-scoped access across all six roles from day one (PRD Section 3.2 / Section 5) — enforced at the data layer, not just the UI. A Farmer must never see Buyer order data; Logistics gets dispatch visibility without financial reconciliation access.",
+      body: function () {
+        return chrome("Admin", "Admin/Finance",
+          '<div class="table-scroll"><table class="wf-table"><thead><tr>' +
+            '<th>User</th><th>Role</th><th>Scope</th><th>Status</th>' +
+          '</tr></thead><tbody>' +
+            row("Kwabena Osei", "Agronomist", "Formulas, visit logs, messaging — Tema", "<span class=\"wf-badge done\">active</span>") +
+            row("Abena Owusu", "Logistics", "Dispatch, proof of pickup/delivery — no financial data", "<span class=\"wf-badge done\">active</span>") +
+            row("Kojo Antwi", "Admin/Finance", "Reconciliation, reporting, MoFA export, user admin", "<span class=\"wf-badge done\">active</span>") +
+          '</tbody></table></div>' +
+          '<div class="wf-btn primary" style="margin-top:14px">+ Add internal user</div>' +
+          '<div class="wf-caption" style="margin-top:10px">Same enforcement model scopes the three external portals — a Farmer login never resolves Buyer order data or another farmer&#39;s settlement figures.</div>'
+        );
+        function row(name, role, scope, status) {
+          return '<tr><td>' + name + '</td><td>' + role + '</td><td>' + scope + '</td><td>' + status + '</td></tr>';
+        }
+      },
+    },
+  ];
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + '</span>';
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "dashboard");
+})();
+</script>
