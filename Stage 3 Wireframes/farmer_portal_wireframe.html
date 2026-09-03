@@ -1,0 +1,662 @@
+<title>Farmer Portal Wireframe</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --surface-alt: #f5f6f8;
+    --rail-bg: #e4e7eb;
+    --border: #cdd2d9;
+    --border-strong: #aab1bb;
+    --text: #1c212b;
+    --text-muted: #646d7a;
+    --text-faint: #8b93a1;
+    --box-fill: #e7e9ed;
+    --box-fill-alt: #dde0e5;
+    --hatch: #d3d7dd;
+    --accent: #3f5e82;
+    --accent-fill: #dbe4ee;
+    --accent-text: #ffffff;
+    --deferred-fill: #eceef1;
+    --deferred-text: #9aa1ac;
+    --focus: #3f5e82;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13161b;
+      --surface: #1a1e25;
+      --surface-alt: #20242c;
+      --rail-bg: #181c22;
+      --border: #333944;
+      --border-strong: #4a515e;
+      --text: #e7e9ed;
+      --text-muted: #9aa1ac;
+      --text-faint: #6f7684;
+      --box-fill: #262b33;
+      --box-fill-alt: #2c323b;
+      --hatch: #313742;
+      --accent: #8fb0d6;
+      --accent-fill: #2a3a4c;
+      --accent-text: #10141a;
+      --deferred-fill: #20242c;
+      --deferred-text: #656c78;
+      --focus: #8fb0d6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13161b;
+    --surface: #1a1e25;
+    --surface-alt: #20242c;
+    --rail-bg: #181c22;
+    --border: #333944;
+    --border-strong: #4a515e;
+    --text: #e7e9ed;
+    --text-muted: #9aa1ac;
+    --text-faint: #6f7684;
+    --box-fill: #262b33;
+    --box-fill-alt: #2c323b;
+    --hatch: #313742;
+    --accent: #8fb0d6;
+    --accent-fill: #2a3a4c;
+    --accent-text: #10141a;
+    --deferred-fill: #20242c;
+    --deferred-text: #656c78;
+    --focus: #8fb0d6;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  a { color: inherit; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail {
+    width: 272px;
+    flex: 0 0 272px;
+    background: var(--rail-bg);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px 24px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .rail-brand .name { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); }
+  .rail-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .pilot-chip {
+    display: inline-flex; gap: 6px; align-items: center; font-size: 11px;
+    font-family: "IBM Plex Mono", monospace; color: var(--text-muted);
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 3px; padding: 5px 8px; margin-bottom: 18px;
+  }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  .rail-note {
+    font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
+    background: var(--surface); border: 1px dashed var(--border-strong);
+    border-radius: 4px; padding: 10px 11px; margin-bottom: 18px;
+  }
+  .rail-note b { color: var(--text); }
+
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin: 4px 2px 6px; }
+
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 18px; }
+  .screen-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0;
+    text-align: left; padding: 8px 9px; border-radius: 4px; border: 1px solid transparent;
+    background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .screen-btn .num { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--text-faint); width: 15px; flex: none; }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .screen-btn.active { background: var(--accent-fill); border-color: var(--accent); color: var(--text); font-weight: 600; }
+  .screen-btn.active .num { color: var(--accent); }
+  .screen-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  .rail-footer { font-size: 11px; color: var(--text-faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 20px; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 12px; color: var(--text-faint); font-family: "IBM Plex Mono", monospace; }
+  .topbar .desc { font-size: 13px; color: var(--text-muted); max-width: 56ch; margin-top: 6px; }
+  .screen-tag {
+    font-size: 10.5px; font-family: "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent); background: var(--accent-fill); border: 1px solid var(--accent);
+    border-radius: 3px; padding: 4px 8px; white-space: nowrap; height: fit-content;
+  }
+
+  .canvas { max-width: 1040px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0; overflow: hidden; }
+
+  .wf-box { background: var(--box-fill); border: 1px solid var(--border-strong); border-radius: 3px; }
+  .wf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px; }
+  .wf-label {
+    font-size: 10.5px; font-family: "IBM Plex Mono", monospace; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 7px; display: block;
+  }
+  .wf-caption { font-size: 11px; color: var(--text-faint); margin-top: 6px; font-style: italic; }
+  .wf-line { height: 8px; background: var(--box-fill-alt); border-radius: 2px; margin-bottom: 6px; }
+  .wf-heading-line { height: 13px; width: 46%; background: var(--box-fill-alt); border-radius: 2px; margin-bottom: 10px; }
+  .wf-img {
+    background: repeating-linear-gradient(45deg, var(--hatch), var(--hatch) 1px, transparent 1px, transparent 9px);
+    border: 1px solid var(--border-strong); border-radius: 3px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-faint); font-size: 11px; font-family: "IBM Plex Mono", monospace;
+  }
+  .wf-btn {
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 12.5px;
+    font-weight: 600; padding: 9px 16px; border: 1px solid var(--border-strong); background: var(--box-fill-alt);
+    color: var(--text); cursor: default;
+  }
+  .wf-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .wf-btn.disabled { background: var(--deferred-fill); border-color: var(--border); color: var(--deferred-text); border-style: dashed; }
+  .wf-input { display: flex; flex-direction: column; gap: 5px; }
+  .wf-input .cap { font-size: 11px; color: var(--text-muted); }
+  .wf-input .field { height: 34px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 3px; }
+  .wf-input .field.tall { height: 70px; }
+  .wf-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-strong); }
+  .wf-tab {
+    padding: 8px 14px; font-size: 12px; color: var(--text-muted); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 4px 4px 0 0; background: var(--surface-alt);
+  }
+  .wf-tab.on { background: var(--surface); color: var(--text); font-weight: 600; border-color: var(--border-strong); }
+
+  .wf-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-family: "IBM Plex Mono", monospace;
+    padding: 3px 7px; border-radius: 3px; border: 1px solid var(--border-strong); color: var(--text-muted); white-space: nowrap;
+  }
+  .wf-badge.pending { color: var(--text-muted); }
+  .wf-badge.done { color: var(--accent); border-color: var(--accent); }
+  .wf-badge.deferred { color: var(--deferred-text); border-style: dashed; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid > * { min-width: 0; }
+  [style*="justify-content:space-between"] { flex-wrap: wrap; row-gap: 8px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 620px) { .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; border-bottom: 1px solid var(--border); background: var(--surface-alt); }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 5px; background: var(--box-fill-alt); border: 1px solid var(--border-strong); }
+  .app-header .logo .word { font-size: 13px; font-weight: 700; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: var(--text-muted); }
+  .app-header .navlinks span.current { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--box-fill-alt); border: 1px solid var(--border-strong); }
+  @media (max-width: 700px) { .app-header .navlinks { display: none; } }
+
+  .body-pad { padding: 22px; }
+
+  .stat-tile { border: 1px solid var(--border); border-radius: 5px; padding: 13px 14px; background: var(--surface); }
+  .stat-tile .num { font-size: 21px; font-weight: 700; font-family: "IBM Plex Mono", monospace; }
+  .stat-tile .cap { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .stat-tile.disabled { opacity: 0.55; }
+  .stat-tile .ph-badge { margin-top: 6px; }
+
+  .table-scroll { overflow-x: auto; }
+  table.wf-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.wf-table th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border-strong); }
+  table.wf-table td { padding: 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  table.wf-table td .wf-line { margin: 0; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border-strong); display: flex;
+    align-items: center; justify-content: center; font-size: 11px; font-family: "IBM Plex Mono", monospace;
+    background: var(--surface); color: var(--text-muted); z-index: 1;
+  }
+  .step.done .circ { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .step.current .circ { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--text-muted); max-width: 110px; }
+  .step.done .lbl, .step.current .lbl { color: var(--text); font-weight: 600; }
+  .step .sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border-strong); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--accent); }
+  @media (max-width: 620px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 10px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--text-muted); }
+  .kv .v { font-family: "IBM Plex Mono", monospace; color: var(--text); }
+
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text); margin: 0 0 12px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .chat-thread { display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 72%; padding: 9px 12px; border-radius: 8px; font-size: 12.5px; border: 1px solid var(--border-strong); }
+  .bubble.them { background: var(--box-fill); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .bubble.me { background: var(--accent-fill); border-color: var(--accent); align-self: flex-end; border-bottom-right-radius: 2px; color: var(--text); }
+  .bubble .meta { font-size: 10px; color: var(--text-faint); margin-top: 4px; font-family: "IBM Plex Mono", monospace; }
+
+  .timeline { display: flex; flex-direction: column; }
+  .tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .tl-item::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 2px; background: var(--border); }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--accent); flex: none; margin-top: 2px; }
+  .tl-dot.hollow { background: var(--surface); }
+  .tl-body .t { font-size: 12.5px; font-weight: 600; }
+  .tl-body .d { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage mono">Stage 3</span>
+    </div>
+    <div class="rail-sub">Farmer Portal — Low‑Fidelity Wireframe</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Structure only.</b> No colour, type, or brand styling — that's Stage 4. This checks layout, content hierarchy, and screen-to-screen flow before anything is visually designed.
+    </div>
+
+    <div class="rail-group-label">10 Screens · Farmer Journey Order</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Built on Stage 2 IA — Farmer Portal sitemap (Fig. 3) &amp; Farmer journey (Fig. 8).<br>
+      Journey: register → accept → produce → harvest → settle.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Farmer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 10</div>
+    </div>
+    <div class="canvas" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Opportunities", "My Formula", "Wallet"];
+
+  function chrome(current, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l === current ? 'current' : '') + '">' + l + '</span>';
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark"></div><div class="word">Farm Master — Farmer</div></div>' +
+        '<div class="navlinks">' + links + '</div>' +
+        '<div class="avatar"></div>' +
+      '</div>' +
+      '<div class="body-pad">' + bodyHtml + '</div>'
+    );
+  }
+
+  function textLines(n, lastShort) {
+    var out = "";
+    for (var i = 0; i < n; i++) {
+      var w = i === n - 1 && lastShort ? "38%" : (92 - i * 6) + "%";
+      out += '<div class="wf-line" style="width:' + w + '"></div>';
+    }
+    return out;
+  }
+
+  var screens = [
+    {
+      id: "registration",
+      title: "Registration &amp; KYC",
+      desc: "Entry point for smallholder farmers — kept to fields that also serve field-verification, since Farm Master agronomists cross-check this at the first farm visit.",
+      body: function () {
+        return (
+          '<div class="body-pad">' +
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Identity</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-input"><span class="cap">Full name</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Ghana Card number</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Phone (MoMo-linked)</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Preferred language</span><div class="field"></div></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Farm details</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-img" style="height:120px">Map pin — farm GPS location</div>' +
+                '<div class="wf-input"><span class="cap">Region</span><div class="field" style="display:flex;align-items:center;padding:0 10px;background:var(--accent-fill);border-color:var(--accent)"><span class="mono" style="font-size:11px;color:var(--accent)">Greater Accra — Tema (pilot)</span></div></div>' +
+                '<div class="grid g2" style="gap:10px">' +
+                  '<div class="wf-input"><span class="cap">Farm size (acres)</span><div class="field"></div></div>' +
+                  '<div class="wf-input"><span class="cap">Crop history</span><div class="field"></div></div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-top:18px;display:flex;gap:10px;align-items:center">' +
+            '<div class="wf-btn primary">Register</div>' +
+            '<span class="wf-caption" style="margin:0">Verified by an agronomist at the first farm visit — not a hard gate to entry.</span>' +
+          '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "dashboard",
+      title: "Farmer Dashboard",
+      desc: "Home screen — kept to one clear status message and four actions. Icon-forward, low-asset treatment for entry-level phones is a Stage 4 concern; this stage only fixes what's on the screen.",
+      body: function () {
+        return chrome("Dashboard",
+          '<div class="wf-panel" style="margin-bottom:18px;background:var(--accent-fill);border-color:var(--accent)">' +
+            '<span class="wf-label" style="color:var(--accent)">Active opportunity</span>' +
+            '<div style="font-size:14px;font-weight:600;margin-bottom:4px">Maize — production formula, week 4 of 11</div>' +
+            '<div class="wf-caption" style="margin:0">Next: apply first top-dressing fertiliser (see My Formula)</div>' +
+          '</div>' +
+          '<div class="section-title">Quick actions</div>' +
+          '<div class="grid g4" style="margin-bottom:20px">' +
+            actionTile("Opportunity Board", "1 new match") +
+            actionTile("My Formula", "wk 4 of 11") +
+            actionTile("Order Inputs", "2 items due") +
+            actionTile("Request Pickup", "not ready yet") +
+          '</div>' +
+          '<div class="section-title">This season</div>' +
+          '<div class="grid g2">' +
+            deferredTile("Performance Profile", "Yield history &amp; reliability score") +
+            deferredTile("Farmer Union Management", "Manage member farmers") +
+          '</div>'
+        );
+        function actionTile(label, cap) {
+          return '<div class="stat-tile"><div style="font-size:13px;font-weight:600">' + label + '</div><div class="cap">' + cap + '</div></div>';
+        }
+        function deferredTile(label, cap) {
+          return '<div class="stat-tile disabled"><div style="font-size:13px;font-weight:600">' + label + '</div><div class="cap">' + cap + '</div><span class="wf-badge deferred ph-badge">Phase 2</span></div>';
+        }
+      },
+    },
+    {
+      id: "board",
+      title: "Opportunity Board",
+      desc: "Filters shown but mostly pre-set for the pilot — one region, one crop — so the board reads as a short, relevant list rather than an empty filter UI.",
+      body: function () {
+        return chrome("Opportunities",
+          '<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">' +
+            '<span class="wf-badge">Region: Tema (pilot)</span>' +
+            '<span class="wf-badge">Crop: Maize (pilot)</span>' +
+            '<span class="wf-badge pending">Season: Major 2026</span>' +
+          '</div>' +
+          '<div class="grid g3">' +
+            oppCard("Ghana School Feeding Programme", "MoFA-linked · Institutional", "4.0 t · GHS 2,100/t", "Accept by 12 Sep") +
+            oppCard("Tema Grain Processors Ltd.", "Private buyer", "6.5 t · GHS 2,200/t", "Accept by 15 Sep") +
+            oppCard("Coastal Feed Mills", "Private buyer", "2.0 t · GHS 2,050/t", "Accept by 18 Sep") +
+          '</div>'
+        );
+        function oppCard(buyer, tag, qty, deadline) {
+          return '<div class="wf-panel">' +
+            '<span class="wf-label">' + tag + '</span>' +
+            '<div style="font-size:13px;font-weight:600;margin-bottom:8px">' + buyer + '</div>' +
+            '<div class="kv"><span class="k">Quantity / price</span><span class="v">' + qty + '</span></div>' +
+            '<div class="kv"><span class="k">Deadline</span><span class="v">' + deadline + '</span></div>' +
+            '<div class="wf-btn primary" style="width:100%;margin-top:10px">View &amp; accept</div>' +
+          '</div>';
+        }
+      },
+    },
+    {
+      id: "detail",
+      title: "Opportunity Detail → Accept",
+      desc: "What accepting actually commits the farmer to, stated plainly before the accept action — not just a specification dump.",
+      body: function () {
+        return chrome("Opportunities",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Ghana School Feeding Programme</span>' +
+              '<div class="kv"><span class="k">Crop / grade</span><span class="v">Maize, Grade 1</span></div>' +
+              '<div class="kv"><span class="k">Quantity requested</span><span class="v">4.0 t</span></div>' +
+              '<div class="kv"><span class="k">Price</span><span class="v">GHS 2,100 / t</span></div>' +
+              '<div class="kv"><span class="k">Delivery window</span><span class="v">By 20 Dec 2026</span></div>' +
+              '<div class="kv"><span class="k">Pickup point</span><span class="v">Tema fulfilment centre</span></div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">By accepting, you agree to</span>' +
+              '<div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">' +
+                checkline("Follow the production formula issued by your agronomist") +
+                checkline("Log planting and input milestones on this portal") +
+                checkline("Deliver Grade 1 maize to the Tema fulfilment centre by the deadline") +
+                checkline("Input and logistics costs are deducted at settlement") +
+              '</div>' +
+              '<div class="wf-btn primary" style="width:100%;margin-top:16px">Accept opportunity</div>' +
+            '</div>' +
+          '</div>'
+        );
+        function checkline(t) {
+          return '<div style="display:flex;gap:8px;align-items:flex-start"><div class="wf-box" style="width:14px;height:14px;flex:none;margin-top:2px"></div><span>' + t + '</span></div>';
+        }
+      },
+    },
+    {
+      id: "formula",
+      title: "My Production Formula",
+      desc: "The core value exchange (PRD Section 6, Must-Have #2) — planting calendar, inputs, spacing, and quality checkpoints all tied to the accepted opportunity.",
+      body: function () {
+        return chrome("My Formula",
+          '<div class="wf-panel" style="margin-bottom:18px">' +
+            '<span class="wf-label">Planting calendar — week 4 of 11</span>' +
+            '<div class="stepper">' +
+              step("Land prep", true, false) + step("Planting", true, false) +
+              step("Top-dress", false, true) + step("Weeding", false, false) + step("Harvest", false, false) +
+            '</div>' +
+          '</div>' +
+          '<div class="grid g2">' +
+            '<div class="wf-panel"><span class="wf-label">Input schedule</span>' +
+              '<div class="kv"><span class="k">Seed — improved maize</span><span class="v">8 kg</span></div>' +
+              '<div class="kv"><span class="k">NPK fertiliser</span><span class="v">2 bags, wk 2</span></div>' +
+              '<div class="kv"><span class="k">Top-dress (Sulphate of Ammonia)</span><span class="v">1 bag, wk 4</span></div>' +
+              '<div class="wf-btn primary" style="width:100%;margin-top:10px">Order these inputs →</div>' +
+            '</div>' +
+            '<div class="wf-panel"><span class="wf-label">Spacing &amp; quality checkpoints</span>' +
+              '<div class="kv"><span class="k">Row spacing</span><span class="v">75 cm</span></div>' +
+              '<div class="kv"><span class="k">Plant spacing</span><span class="v">40 cm</span></div>' +
+              '<div class="kv"><span class="k">Checkpoint — wk 4</span><span class="v">Agronomist visit due</span></div>' +
+              '<div class="kv"><span class="k">Checkpoint — wk 9</span><span class="v">Pre-harvest grading</span></div>' +
+            '</div>' +
+          '</div>'
+        );
+        function step(lbl, done, current) {
+          return '<div class="step ' + (done ? "done" : current ? "current" : "") + '"><div class="circ">' + (done ? "✓" : "") + '</div><div class="lbl">' + lbl + '</div></div>';
+        }
+      },
+    },
+    {
+      id: "milestones",
+      title: "Milestone Log",
+      desc: "Field data capture — offline-tolerant per PRD Section 5, so entries queue locally and sync when connectivity returns (a Stage 6 build concern; structure only here).",
+      body: function () {
+        return chrome("My Formula",
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+            '<div class="section-title" style="margin:0">Logged milestones</div>' +
+            '<div class="wf-btn primary">+ Log milestone</div>' +
+          '</div>' +
+          '<div class="timeline">' +
+            tl("Top-dress fertiliser applied", "Logged today · photo attached", true) +
+            tl("Land prepared, planting complete", "Logged 3 weeks ago · photo attached", true) +
+            tl("Next: weeding — expected wk 6", "Not logged yet", false) +
+          '</div>'
+        );
+        function tl(t, d, done) {
+          return '<div class="tl-item"><div class="tl-dot ' + (done ? "" : "hollow") + '"></div><div class="tl-body"><div class="t">' + t + '</div><div class="d">' + d + '</div></div></div>';
+        }
+      },
+    },
+    {
+      id: "messaging",
+      title: "Agronomist Messaging",
+      desc: "Confirmed in Phase 1 pilot scope — the production formula alone isn't enough without a way to ask the assigned agronomist a question.",
+      body: function () {
+        return chrome("My Formula",
+          '<div class="wf-panel" style="margin-bottom:14px">' +
+            '<span class="wf-label">Assigned agronomist</span>' +
+            '<div style="font-size:13px;font-weight:600">Kwabena Osei — Tema district</div>' +
+          '</div>' +
+          '<div class="wf-panel" style="margin-bottom:14px">' +
+            '<span class="wf-label">Conversation</span>' +
+            '<div class="chat-thread">' +
+              '<div class="bubble them">When should I apply the top-dressing?<div class="meta">Kwabena · 2 days ago</div></div>' +
+              '<div class="bubble me">Apply it this week, before the rain forecast.<div class="meta">You · 2 days ago</div></div>' +
+              '<div class="bubble them">🎤 Voice note — 0:18<div class="meta">Kwabena · 1 day ago</div></div>' +
+              '<div class="bubble them">Farm visit logged — plants healthy, on schedule.<div class="meta">Kwabena · today</div></div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px">' +
+            '<div class="wf-input" style="flex:1"><div class="field"></div></div>' +
+            '<div class="wf-btn">🎤</div>' +
+            '<div class="wf-btn primary">Send</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "orderinputs",
+      title: "Order Inputs / Mechanisation Service Request",
+      desc: "Pre-filled from the production formula, not a separate errand. Relabelled from an earlier draft that implied a full booking calendar — this is a simple form (PRD/IA Section 6).",
+      body: function () {
+        return chrome("My Formula",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Inputs — pre-filled from formula</span>' +
+              inputRow("Seed — improved maize", "8 kg") +
+              inputRow("NPK fertiliser", "2 bags") +
+              inputRow("Top-dress (Sulphate of Ammonia)", "1 bag") +
+              '<div class="wf-btn primary" style="width:100%;margin-top:12px">Confirm input order →</div>' +
+              '<div class="wf-caption">Routes to Vendor Portal for fulfilment, then Farm Master logistics for delivery.</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Mechanisation service request (simple form)</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-input"><span class="cap">Service type</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Preferred date</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Notes</span><div class="field tall"></div></div>' +
+              '</div>' +
+              '<div class="wf-btn" style="width:100%;margin-top:12px">Submit request</div>' +
+            '</div>' +
+          '</div>'
+        );
+        function inputRow(name, qty) {
+          return '<div class="kv"><span class="k">' + name + '</span><span class="v">' + qty + '</span></div>';
+        }
+      },
+    },
+    {
+      id: "pickup",
+      title: "Harvest Pickup Request",
+      desc: "Farmer requests collection; the nearest regional fulfilment centre confirms the date and logistics slot.",
+      body: function () {
+        return chrome("Dashboard",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Request pickup</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-input"><span class="cap">Estimated quantity ready</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Preferred pickup date</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Farm location</span><div class="field" style="display:flex;align-items:center;padding:0 10px"><span class="mono" style="font-size:11px;color:var(--text-muted)">Pinned at registration</span></div></div>' +
+              '</div>' +
+              '<div class="wf-btn primary" style="width:100%;margin-top:14px">Request pickup</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Status</span>' +
+              '<div class="kv"><span class="k">Nearest fulfilment centre</span><span class="v">Tema (pilot)</span></div>' +
+              '<div class="kv"><span class="k">Current status</span><span class="v"><span class="wf-badge pending">awaiting request</span></span></div>' +
+              '<div class="wf-caption">Once confirmed, this pickup appears on the Logistics dispatch board (Stage 2, Fig. 6).</div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "wallet",
+      title: "Wallet &amp; Settlement Statement",
+      desc: "Tracks input costs, logistics fees, and net payment due after crop sale — replaces manual reconciliation (PRD Section 4.1).",
+      body: function () {
+        return chrome("Wallet",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Season statement — draft</span>' +
+              '<div class="kv"><span class="k">Expected sale (4.0t @ GHS 2,100)</span><span class="v">GHS 8,400</span></div>' +
+              '<div class="kv"><span class="k">Input costs (deducted)</span><span class="v">– GHS 620</span></div>' +
+              '<div class="kv"><span class="k">Logistics fees (deducted)</span><span class="v">– GHS 90</span></div>' +
+              '<div class="kv"><span class="k"><b>Estimated net settlement</b></span><span class="v"><b>GHS 7,690</b></span></div>' +
+              '<div class="wf-caption">Final figure confirmed after fulfilment centre grading.</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Payout method</span>' +
+              '<div class="kv"><span class="k">MoMo number</span><span class="v">•••• 4821</span></div>' +
+              '<div class="kv"><span class="k">Status</span><span class="v"><span class="wf-badge pending">pending harvest</span></span></div>' +
+              '<div class="wf-btn" style="width:100%;margin-top:12px">Download statement</div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+  ];
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + '</span>';
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "registration");
+})();
+</script>

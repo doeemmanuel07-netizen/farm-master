@@ -1,0 +1,790 @@
+<title>Buyer Portal Wireframe</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --surface-alt: #f5f6f8;
+    --rail-bg: #e4e7eb;
+    --border: #cdd2d9;
+    --border-strong: #aab1bb;
+    --text: #1c212b;
+    --text-muted: #646d7a;
+    --text-faint: #8b93a1;
+    --box-fill: #e7e9ed;
+    --box-fill-alt: #dde0e5;
+    --hatch: #d3d7dd;
+    --accent: #3f5e82;
+    --accent-fill: #dbe4ee;
+    --accent-text: #ffffff;
+    --deferred-fill: #eceef1;
+    --deferred-text: #9aa1ac;
+    --focus: #3f5e82;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13161b;
+      --surface: #1a1e25;
+      --surface-alt: #20242c;
+      --rail-bg: #181c22;
+      --border: #333944;
+      --border-strong: #4a515e;
+      --text: #e7e9ed;
+      --text-muted: #9aa1ac;
+      --text-faint: #6f7684;
+      --box-fill: #262b33;
+      --box-fill-alt: #2c323b;
+      --hatch: #313742;
+      --accent: #8fb0d6;
+      --accent-fill: #2a3a4c;
+      --accent-text: #10141a;
+      --deferred-fill: #20242c;
+      --deferred-text: #656c78;
+      --focus: #8fb0d6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13161b;
+    --surface: #1a1e25;
+    --surface-alt: #20242c;
+    --rail-bg: #181c22;
+    --border: #333944;
+    --border-strong: #4a515e;
+    --text: #e7e9ed;
+    --text-muted: #9aa1ac;
+    --text-faint: #6f7684;
+    --box-fill: #262b33;
+    --box-fill-alt: #2c323b;
+    --hatch: #313742;
+    --accent: #8fb0d6;
+    --accent-fill: #2a3a4c;
+    --accent-text: #10141a;
+    --deferred-fill: #20242c;
+    --deferred-text: #656c78;
+    --focus: #8fb0d6;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  a { color: inherit; }
+
+  /* ---------- shell ---------- */
+  .app {
+    display: flex;
+    min-height: 100vh;
+  }
+  .rail {
+    width: 272px;
+    flex: 0 0 272px;
+    background: var(--rail-bg);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px 24px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .rail-brand {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .rail-brand .name { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
+  .rail-brand .stage {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+  }
+  .rail-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+  .pilot-chip {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--text-muted);
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 8px;
+    margin-bottom: 18px;
+  }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  .rail-note {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: 4px;
+    padding: 10px 11px;
+    margin-bottom: 18px;
+  }
+  .rail-note b { color: var(--text); }
+
+  .rail-group-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin: 4px 2px 6px;
+  }
+
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 18px; }
+  .screen-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    padding: 8px 9px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .screen-btn .num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--text-faint);
+    width: 15px;
+    flex: none;
+  }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .screen-btn.active {
+    background: var(--accent-fill);
+    border-color: var(--accent);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .screen-btn.active .num { color: var(--accent); }
+  .screen-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  .rail-footer {
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 28px 32px 80px;
+  }
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 20px; margin: 0 0 3px; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 12px; color: var(--text-faint); font-family: "IBM Plex Mono", monospace; }
+  .topbar .desc { font-size: 13px; color: var(--text-muted); max-width: 56ch; margin-top: 6px; }
+  .screen-tag {
+    font-size: 10.5px;
+    font-family: "IBM Plex Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-fill);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 4px 8px;
+    white-space: nowrap;
+    height: fit-content;
+  }
+
+  .canvas {
+    max-width: 1040px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /* ---------- wireframe primitives ---------- */
+  .wf-box {
+    background: var(--box-fill);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+  }
+  .wf-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+  }
+  .wf-label {
+    font-size: 10.5px;
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 7px;
+    display: block;
+  }
+  .wf-caption {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .wf-line {
+    height: 8px;
+    background: var(--box-fill-alt);
+    border-radius: 2px;
+    margin-bottom: 6px;
+  }
+  .wf-heading-line {
+    height: 13px;
+    width: 46%;
+    background: var(--box-fill-alt);
+    border-radius: 2px;
+    margin-bottom: 10px;
+  }
+  .wf-img {
+    background:
+      repeating-linear-gradient(45deg, var(--hatch), var(--hatch) 1px, transparent 1px, transparent 9px);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    font-size: 11px;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .wf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border: 1px solid var(--border-strong);
+    background: var(--box-fill-alt);
+    color: var(--text);
+    cursor: default;
+  }
+  .wf-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
+  .wf-btn.disabled {
+    background: var(--deferred-fill);
+    border-color: var(--border);
+    color: var(--deferred-text);
+    border-style: dashed;
+  }
+  .wf-input {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .wf-input .cap { font-size: 11px; color: var(--text-muted); }
+  .wf-input .field {
+    height: 34px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+  }
+  .wf-input .field.tall { height: 70px; }
+  .wf-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-strong); }
+  .wf-tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    background: var(--surface-alt);
+  }
+  .wf-tab.on { background: var(--surface); color: var(--text); font-weight: 600; border-color: var(--border-strong); }
+
+  .wf-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    font-family: "IBM Plex Mono", monospace;
+    padding: 3px 7px;
+    border-radius: 3px;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .wf-badge.pending { color: var(--text-muted); }
+  .wf-badge.done { color: var(--accent); border-color: var(--accent); }
+  .wf-badge.deferred { color: var(--deferred-text); border-style: dashed; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid > * { min-width: 0; }
+  [style*="justify-content:space-between"] { flex-wrap: wrap; row-gap: 8px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 620px) { .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+  }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark {
+    width: 26px; height: 26px; border-radius: 5px;
+    background: var(--box-fill-alt); border: 1px solid var(--border-strong);
+  }
+  .app-header .logo .word { font-size: 13px; font-weight: 700; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: var(--text-muted); }
+  .app-header .navlinks span.current { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--box-fill-alt); border: 1px solid var(--border-strong); }
+  @media (max-width: 700px) { .app-header .navlinks { display: none; } }
+
+  .body-pad { padding: 22px; }
+
+  .stat-tile {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 13px 14px;
+    background: var(--surface);
+  }
+  .stat-tile .num { font-size: 21px; font-weight: 700; font-family: "IBM Plex Mono", monospace; }
+  .stat-tile .cap { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  .table-scroll { overflow-x: auto; }
+  table.wf-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.wf-table th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-faint); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border-strong);
+  }
+  table.wf-table td { padding: 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  table.wf-table td .wf-line { margin: 0; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: "IBM Plex Mono", monospace;
+    background: var(--surface); color: var(--text-muted); z-index: 1;
+  }
+  .step.done .circ { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .step.current .circ { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--text-muted); max-width: 110px; }
+  .step.done .lbl, .step.current .lbl { color: var(--text); font-weight: 600; }
+  .step .sub { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+  .step:not(:last-child)::after {
+    content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border-strong); z-index: 0;
+  }
+  .step.done:not(:last-child)::after { background: var(--accent); }
+  @media (max-width: 620px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 10px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .kv { display: flex; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--text-muted); }
+  .kv .v { font-family: "IBM Plex Mono", monospace; color: var(--text); }
+
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text); margin: 0 0 12px; }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail {
+      width: 100%; flex: none; height: auto; position: static;
+      border-right: none; border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+    }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage mono">Stage 3</span>
+    </div>
+    <div class="rail-sub">Buyer Portal — Low‑Fidelity Wireframe</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Structure only.</b> No colour, type, or brand styling — that's Stage 4. This checks layout, content hierarchy, and screen-to-screen flow before anything is visually designed.
+    </div>
+
+    <div class="rail-group-label">8 Screens · Buyer Journey Order</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Built on Stage 2 IA — Buyer Portal sitemap (Fig. 4) &amp; Buyer journey (Fig. 7).<br>
+      Journey: submit → pay → track → receive → settle.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Buyer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 8</div>
+    </div>
+    <div class="canvas" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Submit Requirement", "My Orders", "Documents", "Account"];
+
+  function chrome(current, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l === current ? 'current' : '') + '">' + l + '</span>';
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark"></div><div class="word">Farm Master — Buyer</div></div>' +
+        '<div class="navlinks">' + links + '</div>' +
+        '<div class="avatar"></div>' +
+      '</div>' +
+      '<div class="body-pad">' + bodyHtml + '</div>'
+    );
+  }
+
+  function textLines(n, lastShort) {
+    var out = "";
+    for (var i = 0; i < n; i++) {
+      var w = i === n - 1 && lastShort ? "38%" : (92 - i * 6) + "%";
+      out += '<div class="wf-line" style="width:' + w + '"></div>';
+    }
+    return out;
+  }
+
+  var screens = [
+    {
+      id: "registration",
+      title: "Registration &amp; Verification",
+      desc: "Public sign-up, split into two verification tracks per the confirmed pilot buyer strategy (cold-onboarded, incl. one MoFA-linked buyer).",
+      body: function () {
+        return (
+          '<div class="body-pad">' +
+          '<div class="section-title">Buyer type</div>' +
+          '<div class="wf-tabs" style="margin-bottom:18px">' +
+            '<div class="wf-tab on">Institutional / MoFA-linked</div>' +
+            '<div class="wf-tab">Private Buyer</div>' +
+          '</div>' +
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Organisation details</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-input"><span class="cap">Organisation / agency name</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Contact person</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Phone (MoMo-linked preferred)</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Email</span><div class="field"></div></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Institutional verification</span>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="wf-input"><span class="cap">MoFA accreditation / reference no.</span><div class="field"></div></div>' +
+                '<div class="wf-input"><span class="cap">Programme (e.g. school feeding)</span><div class="field"></div></div>' +
+                '<div class="wf-img" style="height:64px">Upload: accreditation letter</div>' +
+                '<div class="wf-caption">Checked against MoFA Data Exchange (Control Centre) once submitted — see Stage 2, Fig. 6.</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-top:18px;display:flex;gap:10px;align-items:center">' +
+            '<div class="wf-btn primary">Submit for verification</div>' +
+            '<span class="wf-badge pending">● pending review</span>' +
+          '</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "dashboard",
+      title: "Buyer Dashboard",
+      desc: "Home screen after login — status of active orders at a glance, with the next action always one click away.",
+      body: function () {
+        return chrome("Dashboard",
+          '<div class="section-title">This season, at a glance</div>' +
+          '<div class="grid g4" style="margin-bottom:20px">' +
+            '<div class="stat-tile"><div class="num">3</div><div class="cap">Active orders</div></div>' +
+            '<div class="stat-tile"><div class="num">1</div><div class="cap">Commitment fee due</div></div>' +
+            '<div class="stat-tile"><div class="num">12.4t</div><div class="cap">Maize in transit</div></div>' +
+            '<div class="stat-tile"><div class="num">96%</div><div class="cap">Spec-compliance rate</div></div>' +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+            '<div class="section-title" style="margin:0">Recent orders</div>' +
+            '<div class="wf-btn primary">+ Submit crop requirement</div>' +
+          '</div>' +
+          '<div class="table-scroll"><table class="wf-table"><thead><tr><th>Order</th><th>Crop</th><th>Qty</th><th>Stage</th><th>Next action</th></tr></thead><tbody>' +
+            row("BYR-0142", "Maize", "8.0t", "Aggregation", "badge-done", "Track delivery") +
+            row("BYR-0139", "Maize", "3.5t", "Production", "badge-current", "View formula status") +
+            row("BYR-0131", "Maize", "1.0t", "Commitment fee due", "badge-pending", "Pay commitment fee") +
+          '</tbody></table></div>'
+        );
+        function row(id, crop, qty, stage, cls, action) {
+          var badge = cls === "badge-done" ? '<span class="wf-badge done">' + stage + '</span>'
+            : cls === "badge-current" ? '<span class="wf-badge">' + stage + '</span>'
+            : '<span class="wf-badge pending">' + stage + '</span>';
+          return '<tr><td class="mono">' + id + '</td><td>' + crop + '</td><td class="mono">' + qty + '</td><td>' + badge + '</td><td><div class="wf-line" style="width:70%"></div></td></tr>';
+        }
+      },
+    },
+    {
+      id: "submit",
+      title: "Submit Crop Requirement",
+      desc: "The order-initiating form — the transaction that starts the whole aggregation cycle (PRD Section 6, Must-Have #1).",
+      body: function () {
+        return chrome("Submit Requirement",
+          '<div class="section-title">Requirement details</div>' +
+          '<div class="grid g2">' +
+            '<div class="wf-input"><span class="cap">Crop / variety</span><div class="field" style="display:flex;align-items:center;padding:0 10px;background:var(--accent-fill);border-color:var(--accent)"><span class="mono" style="font-size:11px;color:var(--accent)">Maize — pilot crop (locked)</span></div></div>' +
+            '<div class="wf-input"><span class="cap">Grade / quality specification</span><div class="field"></div></div>' +
+            '<div class="wf-input"><span class="cap">Target quantity (tonnage)</span><div class="field"></div></div>' +
+            '<div class="wf-input"><span class="cap">Price indication (GHS / tonne)</span><div class="field"></div></div>' +
+            '<div class="wf-input"><span class="cap">Delivery location</span><div class="field"></div></div>' +
+            '<div class="wf-input"><span class="cap">Delivery timeline</span><div class="field"></div></div>' +
+          '</div>' +
+          '<div class="wf-input" style="margin-top:14px"><span class="cap">Notes / special requirements</span><div class="field tall"></div></div>' +
+          '<div class="divider"></div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center">' +
+            '<span class="wf-caption" style="margin:0">Submitting routes this to Farm Master agronomy for a production formula (Stage 2, handoff #1–2).</span>' +
+            '<div class="wf-btn primary">Continue to commitment fee →</div>' +
+          '</div>'
+        );
+      },
+    },
+    {
+      id: "payment",
+      title: "Commitment Fee Payment",
+      desc: "Activates agronomy + aggregation effort on the order. Gateway not yet locked — Paystack / Hubtel shortlisted (PRD Section 1.1).",
+      body: function () {
+        return chrome("Submit Requirement",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Order summary</span>' +
+              '<div class="kv"><span class="k">Order</span><span class="v">BYR-0143 (draft)</span></div>' +
+              '<div class="kv"><span class="k">Crop</span><span class="v">Maize</span></div>' +
+              '<div class="kv"><span class="k">Quantity</span><span class="v">5.0 t</span></div>' +
+              '<div class="kv"><span class="k">Delivery</span><span class="v">Tema, 6 wks</span></div>' +
+              '<div class="kv"><span class="k">Commitment fee</span><span class="v">GHS 450.00</span></div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Payment method</span>' +
+              '<div style="display:flex;flex-direction:column;gap:8px">' +
+                methodRow("MTN MoMo", true) +
+                methodRow("Vodafone Cash", false) +
+                methodRow("AirtelTigo Money", false) +
+                methodRow("Card — via Paystack / Hubtel (TBD)", false) +
+              '</div>' +
+              '<div class="wf-btn primary" style="margin-top:14px;width:100%">Pay GHS 450.00</div>' +
+              '<div class="wf-caption">On success: order activates, buyer routed to Order Status (next screen).</div>' +
+            '</div>' +
+          '</div>'
+        );
+        function methodRow(label, checked) {
+          return '<div style="display:flex;align-items:center;gap:9px;border:1px solid var(--border-strong);border-radius:4px;padding:9px 11px">' +
+            '<div class="wf-box" style="width:16px;height:16px;border-radius:50%;flex:none;' + (checked ? 'background:var(--accent);border-color:var(--accent)' : '') + '"></div>' +
+            '<span style="font-size:12.5px">' + label + '</span></div>';
+        }
+      },
+    },
+    {
+      id: "status",
+      title: "Order Status Dashboard",
+      desc: "Real-time visibility into matching → production → aggregation → shipment, so buyers stop calling Farm Master for updates.",
+      body: function () {
+        return chrome("My Orders",
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px">' +
+            '<div><span class="section-title" style="margin:0">Order BYR-0139</span><div class="wf-caption" style="margin-top:4px">Maize · 3.5t · Tema fulfilment centre</div></div>' +
+            '<span class="wf-badge">In production</span>' +
+          '</div>' +
+          '<div class="wf-panel" style="margin-bottom:20px">' +
+            '<div class="stepper">' +
+              step("1", "Matching", "3 farmers matched", true, false) +
+              step("2", "Production", "Formula issued, wk 4 of 11", false, true) +
+              step("3", "Aggregation", "Not started", false, false) +
+              step("4", "Shipment", "Not started", false, false) +
+            '</div>' +
+          '</div>' +
+          '<div class="grid g2">' +
+            '<div class="wf-panel"><span class="wf-label">Matched farmers</span>' + textLines(3, true) + '</div>' +
+            '<div class="wf-panel"><span class="wf-label">Production milestones</span>' + textLines(4, true) + '</div>' +
+          '</div>'
+        );
+        function step(n, lbl, sub, done, current) {
+          return '<div class="step ' + (done ? "done" : current ? "current" : "") + '">' +
+            '<div class="circ">' + (done ? "✓" : n) + '</div>' +
+            '<div class="lbl">' + lbl + '</div><div class="sub">' + sub + '</div></div>';
+        }
+      },
+    },
+    {
+      id: "docs",
+      title: "Specification &amp; Compliance Documents",
+      desc: "Grading standards, certificates, and inspection reports — the paper trail institutional and MoFA-linked buyers need.",
+      body: function () {
+        return chrome("Documents",
+          '<div class="section-title">Order BYR-0139 — documents</div>' +
+          '<div class="table-scroll"><table class="wf-table"><thead><tr><th>Document</th><th>Type</th><th>Status</th><th></th></tr></thead><tbody>' +
+            docRow("Grading standard — Maize Grade 1", "Standard", "done", "View") +
+            docRow("Inspection report — wk 4 field visit", "Inspection", "done", "View") +
+            docRow("Aggregation certificate", "Certificate", "pending", "Awaiting intake") +
+            docRow("MoFA compliance export (CSV/PDF)", "MoFA report", "deferred", "Generated at delivery") +
+          '</tbody></table></div>' +
+          '<div class="wf-caption" style="margin-top:12px">MoFA export format: volume, quality grade, buyer, delivery date — generic template per PRD Section 1.1, pending an official MoFA standard.</div>'
+        );
+        function docRow(name, type, status, action) {
+          var badge = status === "done" ? '<span class="wf-badge done">verified</span>'
+            : status === "pending" ? '<span class="wf-badge pending">pending</span>'
+            : '<span class="wf-badge deferred">on delivery</span>';
+          return '<tr><td>' + name + '</td><td class="mono" style="color:var(--text-muted)">' + type + '</td><td>' + badge + '</td><td><div class="wf-line" style="width:44px"></div></td></tr>';
+        }
+      },
+    },
+    {
+      id: "tracking",
+      title: "Fulfilment &amp; Delivery Tracking",
+      desc: "Which fulfilment centre is aggregating toward the order, and the estimated delivery date.",
+      body: function () {
+        return chrome("My Orders",
+          '<div class="grid g2">' +
+            '<div>' +
+              '<span class="wf-label">Aggregation point</span>' +
+              '<div class="wf-img" style="height:220px;margin-bottom:10px">Map placeholder — Tema fulfilment centre</div>' +
+              '<div class="kv"><span class="k">Centre</span><span class="v">Tema (pilot)</span></div>' +
+              '<div class="kv"><span class="k">Grading status</span><span class="v">2 of 3 lots graded</span></div>' +
+              '<div class="kv"><span class="k">Est. delivery</span><span class="v">14 days</span></div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Delivery log</span>' +
+              logRow("Lot #3 intake — graded A", "Today") +
+              logRow("Lot #2 intake — graded A", "3 days ago") +
+              logRow("Lot #1 intake — graded B", "6 days ago") +
+              logRow("Pickup scheduled, Farmer #08", "9 days ago") +
+            '</div>' +
+          '</div>'
+        );
+        function logRow(txt, when) {
+          return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border)">' +
+            '<span style="font-size:12px">' + txt + '</span><span class="mono" style="font-size:11px;color:var(--text-faint);white-space:nowrap">' + when + '</span></div>';
+        }
+      },
+    },
+    {
+      id: "invoice",
+      title: "Final Invoice &amp; Settlement",
+      desc: "Closes the order — agreed price, delivered quantity, deductions, and net payable, with the option to reorder flagged as Phase 2.",
+      body: function () {
+        return chrome("My Orders",
+          '<div class="grid g2">' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">Invoice — order BYR-0142</span>' +
+              '<div class="kv"><span class="k">Agreed price / tonne</span><span class="v">GHS 2,150</span></div>' +
+              '<div class="kv"><span class="k">Delivered quantity</span><span class="v">8.0 t (spec-compliant)</span></div>' +
+              '<div class="kv"><span class="k">Subtotal</span><span class="v">GHS 17,200</span></div>' +
+              '<div class="kv"><span class="k">Commitment fee applied</span><span class="v">– GHS 450</span></div>' +
+              '<div class="kv"><span class="k"><b>Net payable</b></span><span class="v"><b>GHS 16,750</b></span></div>' +
+              '<div style="display:flex;gap:10px;margin-top:14px">' +
+                '<div class="wf-btn primary">Settle invoice</div>' +
+                '<div class="wf-btn">Download PDF</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="wf-panel">' +
+              '<span class="wf-label">After settlement</span>' +
+              '<div style="display:flex;flex-direction:column;gap:10px">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                  '<span style="font-size:12.5px">Place standing / recurring order</span>' +
+                  '<span class="wf-badge deferred">Phase 2</span>' +
+                '</div>' +
+                '<div class="wf-btn disabled" style="width:100%">Set up standing order</div>' +
+                '<div class="wf-caption">Kept visible for continuity with Stage 2 IA (Fig. 4) — disabled for the pilot per PRD Section 8.</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      },
+    },
+  ];
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + '</span>';
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "registration");
+})();
+</script>
