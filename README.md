@@ -45,17 +45,20 @@ Intake, Finance & Reconciliation, Reporting, MoFA Data Exchange).
 
 ## Tech stack
 
-**Backend: Python 3.12 + FastAPI + SQLAlchemy + SQLite.** Not Flask, and not
-PostgreSQL yet — this was a deliberate call made when Stage 6 started: this
-environment had Python already available but not Node.js, and FastAPI was
-picked over Flask for its built-in request/response validation (Pydantic)
-and automatic OpenAPI docs, which matter for a project with this many roles
-and endpoints. SQLite is the local dev database; every model uses standard
-SQLAlchemy types with no SQLite-specific features, so pointing
-`FARM_MASTER_DATABASE_URL` at a PostgreSQL instance for production — the
-PRD's "central relational database" requirement — is a connection-string
-change, not a rewrite. Full reasoning in
-[Farm_Master_SDD_Stage6.docx](Farm_Master_SDD_Stage6.docx), Section 2.
+**Backend: Python 3.12 + FastAPI + SQLAlchemy + PostgreSQL 17.** Both
+confirmed, no remaining ambiguity on the stack. FastAPI was picked over
+Flask for its built-in request/response validation (Pydantic) and automatic
+OpenAPI docs, which matter for a project with this many roles and
+endpoints — reversion was assessed and explicitly declined, since it would
+only change how the same logic is expressed, not any behaviour. The
+database started on SQLite for local-dev convenience and was migrated to a
+real PostgreSQL instance on 3 September 2026, satisfying the PRD's "central
+relational database" requirement directly rather than as a future step; no
+model changes were needed, but every enum-backed field (roles, statuses)
+was explicitly retested against Postgres's stricter native ENUM handling.
+Full reasoning and migration details in
+[Farm_Master_SDD_Stage6.docx](Farm_Master_SDD_Stage6.docx), Section 2 and
+Section 11.
 
 **Frontend:** plain HTML/CSS/JS, no build step or framework — the same
 visual design system approved in Stage 4, now calling real endpoints
@@ -76,10 +79,11 @@ Then open:
 - <http://127.0.0.1:8000/vendor-flow>
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
-The first run seeds a SQLite database with one dev user per role (see
-[Stage 6 Build/README.md](Stage%206%20Build/README.md) for credentials and
-environment variables — all seeded passwords are dev-only, never real
-credentials).
+This expects a local PostgreSQL instance (see
+[Stage 6 Build/README.md](Stage%206%20Build/README.md) for the connection
+string and dev-only credentials). The first run creates the tables and
+seeds one dev user per role — all seeded passwords are dev-only, never real
+credentials.
 
 ## Repo structure
 

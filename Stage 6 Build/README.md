@@ -7,15 +7,39 @@ tested. See `Farm_Master_SDD_Stage6.docx` (repo root) for architecture and
 
 ## Stack
 
-- **Backend:** Python 3.12 + FastAPI + SQLAlchemy + SQLite (dev).
-  Node.js is not installed in the reference environment this was built in —
-  Python was already available, so that's what's used. See the SDD, Section 2,
-  for the full reasoning; the API is framework-agnostic if a Node/React stack
-  is preferred later.
+- **Backend:** Python 3.12 + FastAPI + SQLAlchemy + PostgreSQL 17. Both
+  confirmed 3 September 2026 — no remaining ambiguity on the stack. Started
+  on SQLite for local-dev convenience during early Stage 6 work, then
+  migrated to a real PostgreSQL instance once production needed it; no
+  model changes were required, but every enum-backed field (roles,
+  statuses) was explicitly retested against Postgres's stricter native
+  ENUM handling. See the SDD, Sections 2 and 11, for the full reasoning.
 - **Frontend:** plain HTML/CSS/JS (no build step), the same visual system as
   Stages 3–5, served by the backend itself.
 
 ## Setup
+
+This expects a local PostgreSQL 17 instance with a `farmmaster` role and a
+`farm_master` database already created (dev-only credentials — never reuse
+these anywhere real):
+
+```
+Host:     127.0.0.1
+Port:     5432
+Database: farm_master
+Role:     farmmaster
+Password: farmmaster_dev_pw
+```
+
+If that role/database don't exist yet, create them once as the Postgres
+superuser:
+
+```sql
+CREATE ROLE farmmaster WITH LOGIN PASSWORD 'farmmaster_dev_pw';
+CREATE DATABASE farm_master OWNER farmmaster;
+```
+
+Then:
 
 ```bash
 cd "Stage 6 Build/backend"
@@ -23,7 +47,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-The first run creates `farm_master.db` (SQLite) next to the app and seeds:
+The first run creates the tables in `farm_master` and seeds:
 
 - One user per role (all passwords: `password123` — **dev-only, never reuse
   as a real credential**):
@@ -51,7 +75,7 @@ Re-running the seed is safe; it skips seeding if data already exists.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `FARM_MASTER_DATABASE_URL` | `sqlite:///./farm_master.db` | SQLAlchemy connection string. Point this at a PostgreSQL URL for production — no code change needed. |
+| `FARM_MASTER_DATABASE_URL` | `postgresql+psycopg://farmmaster:farmmaster_dev_pw@127.0.0.1:5432/farm_master` | SQLAlchemy connection string. Override for a different host/role, or to point at a managed Postgres instance in production. |
 | `FARM_MASTER_JWT_SECRET` | a dev-only placeholder string | **Must** be overridden with a real secret outside local dev. Never commit a production value. |
 
 ## Manual verification (what's already been tested)
