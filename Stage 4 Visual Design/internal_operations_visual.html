@@ -1,0 +1,519 @@
+<title>Internal Operations — Visual Design</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 264px; flex: 0 0 264px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .screen-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; text-align: left; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; min-height: 40px; }
+  .screen-btn .num { font-size: 10.5px; color: var(--faint); width: 15px; flex: none; font-weight: 700; }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface); color: var(--ink); }
+  .screen-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .screen-btn.active .num { color: rgba(255,255,255,0.75); }
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 21px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 12px; }
+  .app-header .logo .word { font-size: 13.5px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 16px; flex-wrap: wrap; }
+  .app-header .navlinks span { font-size: 11.5px; color: rgba(255,255,255,0.72); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); flex: none; }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 4px; width: 20px; cursor: pointer; flex: none; }
+  .app-header .hamburger span { height: 2px; background: #fff; border-radius: 1px; }
+
+  .body-pad { padding: 20px; }
+  .meta-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .card-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
+  .caption { font-size: 11.5px; color: var(--faint); margin-top: 6px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 8px; font-size: 13px; font-weight: 700; padding: 10px 16px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: default; min-height: 44px; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.disabled { background: var(--bg); border-color: var(--border); color: var(--faint); border-style: dashed; }
+  .btn.block { width: 100%; }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .field-group .field { height: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; padding: 0 11px; font-size: 12.5px; color: var(--faint); }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .tab { padding: 9px 16px; font-size: 12.5px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tab.on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  .badge.deferred { background: var(--bg); color: var(--faint); border: 1px dashed var(--border); }
+  .badge.role { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+  .badge.device { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-dark); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @container (max-width: 1023px) { .grid.g3, .grid.g4 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) {
+    .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; }
+    .app-header .navlinks { display: none; }
+    .app-header .hamburger { display: flex; }
+  }
+
+  .stat-tile { border: 1px solid var(--border); border-radius: 8px; padding: 12px 13px; background: var(--surface); }
+  .stat-tile .num { font-size: 19px; font-weight: 800; font-family: "IBM Plex Mono", monospace; color: var(--primary); }
+  .stat-tile .cap { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+  .stat-tile.disabled { opacity: 0.5; }
+
+  .table-scroll { overflow-x: auto; }
+  table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; padding: 9px 10px; border-bottom: 2px solid var(--border); }
+  table.data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface); color: var(--muted); z-index: 1; }
+  .step.done .circ { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step.current .circ { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 15%, var(--surface)); }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--muted); font-weight: 700; max-width: 110px; }
+  .step .sub { font-size: 10px; color: var(--faint); margin-top: 2px; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink); }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 13px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--primary); }
+  @container (max-width: 767px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 12px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+  }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+
+  .section-title { font-size: 12.5px; font-weight: 800; color: var(--ink); margin: 0 0 12px; }
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+  .timeline { display: flex; flex-direction: column; }
+  .tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .tl-item::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 2px; background: var(--border); }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 2px solid var(--primary); flex: none; margin-top: 2px; }
+  .tl-dot.hollow { background: var(--surface); border-color: var(--border); }
+  .tl-body .t { font-size: 13px; font-weight: 700; }
+  .tl-body .d { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+
+  .img-ph { border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), color-mix(in srgb, var(--gold) 10%, var(--surface))); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; font-weight: 600; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 4</span>
+    </div>
+    <div class="rail-sub">Internal Operations — Visual Design</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Split treatment — confirmed 3 Sep 2026.</b> Office-role screens (Agronomist, Admin/Finance) use the dense treatment below. Logistics field screens (Dispatch, Proof of Pickup/Delivery, Trunking) are tagged <span class="badge device" style="vertical-align:middle">Phone-first</span> — try the Phone toggle on those three specifically.
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">12 Screens · Control Centre + Logistics &amp; Fulfilment</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Style guide: Farm_Master_Style_Guide_Stage4.docx.<br>
+      Structure built on Stage 3 internal_operations_wireframe.html.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 12</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics", "Finance", "Reporting", "Admin"];
+
+  function chrome(current, roleTag, deviceTag, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>";
+    }).join("");
+    var deviceBadge = deviceTag === "phone"
+      ? '<span class="badge device">📱 Phone-first — confirmed</span>'
+      : '<span class="badge muted">🖥 Tablet/Desktop-first — confirmed</span>';
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Control Centre</div></div>' +
+        '<div class="navlinks">' + links + "</div>" +
+        '<div class="hamburger"><span></span><span></span><span></span></div>' +
+        '<div class="avatar"></div>' +
+      "</div>" +
+      '<div class="body-pad">' +
+        '<div class="meta-row"><span class="badge role">Role: ' + roleTag + "</span>" + deviceBadge + "</div>" +
+        bodyHtml +
+      "</div>"
+    );
+  }
+
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function stat(n, cap, disabled) { return '<div class="stat-tile' + (disabled ? " disabled" : "") + '"><div class="num">' + n + '</div><div class="cap">' + cap + "</div></div>"; }
+  function tl(t, d, done) { return '<div class="tl-item"><div class="tl-dot ' + (done ? "" : "hollow") + '"></div><div class="tl-body"><div class="t">' + t + '</div><div class="d">' + d + "</div></div></div>"; }
+
+  var screens = [
+    {
+      id: "dashboard",
+      title: "Control Centre Dashboard",
+      desc: "Season-in-progress snapshot — one shared entry point, but tiles render based on the logged-in role.",
+      device: "desktop",
+      body: function () {
+        return chrome("Dashboard", "Agronomist · Logistics · Admin/Finance (scoped per login)", "desktop",
+          '<div class="section-title">Pilot at a glance — Tema, Maize, Season: Major 2026</div>' +
+          '<div class="grid g4" style="margin-bottom:20px">' + stat("14", "Farmers active on formulas") + stat("3", "Buyer orders in progress") + stat("5", "Awaiting manual match") + stat("2", "Loads in transit") + "</div>" +
+          '<div class="section-title">Jump to</div>' +
+          '<div class="grid g3">' +
+            linkTile("Matching Queue", "5 buyer requirements need a farmer match") +
+            linkTile("Fulfilment Intake", "1 delivery awaiting grading") +
+            linkTile("Logistics Dispatch", "2 outbound, 1 inbound job today") +
+          "</div>" +
+          '<div class="divider"></div>' +
+          '<div class="caption">A Logistics login sees dispatch tiles only — no order value, settlement, or margin figures.</div>'
+        );
+        function linkTile(label, cap) { return '<div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:4px">' + label + '</div><div class="caption" style="margin:0">' + cap + "</div></div>"; }
+      },
+    },
+    {
+      id: "matching",
+      title: "Matching Queue (Manual)",
+      desc: "Buyer requirements queued against eligible farmers. Phase 1 matching is manual/agronomist-assisted.",
+      device: "desktop",
+      body: function () {
+        return chrome("Agronomy", "Agronomist", "desktop",
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>Buyer requirement</th><th>Qty / grade</th><th>Region</th><th>Candidate farmers</th><th>Status</th></tr></thead><tbody>' +
+            row("Ghana School Feeding Programme", "4.0 t · Grade 1 maize", "Tema", "6 matched by crop history", '<span class="badge pending">Needs review</span>') +
+            row("Tema Grain Processors Ltd.", "6.5 t · Grade 1 maize", "Tema", "9 matched by crop history", '<span class="badge pending">Needs review</span>') +
+            row("Coastal Feed Mills", "2.0 t · Grade 2 maize", "Tema", "4 matched by crop history", '<span class="badge success">Assigned</span>') +
+          "</tbody></table></div>" +
+          '<div style="margin-top:14px;display:flex;gap:10px"><div class="btn primary">Assign selected farmers →</div><div class="btn disabled">Auto-match (Phase 2)</div></div>'
+        );
+        function row(req, qty, region, cand, status) { return "<tr><td>" + req + "</td><td>" + qty + "</td><td>" + region + "</td><td>" + cand + "</td><td>" + status + "</td></tr>"; }
+      },
+    },
+    {
+      id: "formulabuilder",
+      title: "Production Formula Builder",
+      desc: "Agronomist converts an assigned buyer requirement into the planting calendar, input schedule, and quality checkpoints a farmer sees on their own screen.",
+      device: "desktop",
+      body: function () {
+        return chrome("Agronomy", "Agronomist", "desktop",
+          '<div class="grid g2" style="margin-bottom:16px">' +
+            '<div class="card"><div class="card-label">Sourced from</div>' + kv("Buyer requirement", "Ghana School Feeding Programme") + kv("Crop / grade", "Maize, Grade 1") + kv("Farmers assigned", "6") + "</div>" +
+            '<div class="card"><div class="card-label">Planting calendar builder</div><div class="stepper">' + step("Land prep", "wk 1") + step("Planting", "wk 2") + step("Top-dress", "wk 4") + step("Weeding", "wk 6") + step("Harvest", "wk 11") + "</div></div>" +
+          "</div>" +
+          '<div class="card" style="margin-bottom:14px"><div class="card-label">Input schedule (editable)</div>' + kv("Seed — improved maize", "8 kg / farmer") + kv("NPK fertiliser", "2 bags, wk 2") + kv("Top-dress (Sulphate of Ammonia)", "1 bag, wk 4") + "</div>" +
+          '<div class="btn primary">Publish formula to assigned farmers →</div>'
+        );
+        function step(lbl, sub) { return '<div class="step"><div class="circ"></div><div class="lbl">' + lbl + '</div><div class="sub">' + sub + "</div></div>"; }
+      },
+    },
+    {
+      id: "visitlogs",
+      title: "Field Visit Logs",
+      desc: "Agronomist's record of scheduled and completed farm visits — the internal counterpart to the farmer's own Milestone Log.",
+      device: "desktop",
+      body: function () {
+        return chrome("Agronomy", "Agronomist", "desktop",
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px"><div class="section-title" style="margin:0">Visit schedule — this week</div><div class="btn primary">+ Log visit</div></div>' +
+          '<div class="timeline">' + tl("Kofi Mensah — top-dress checkpoint", "Logged today · photo + GPS attached", true) + tl("Ama Serwaa — planting verification", "Logged yesterday · photo attached", true) + tl("Yaw Boateng — top-dress checkpoint", "Scheduled — due in 2 days", false) + "</div>" +
+          '<div class="caption" style="margin-top:10px">Capture is offline-tolerant — entries queue on-device and sync when connectivity returns.</div>'
+        );
+      },
+    },
+    {
+      id: "intake",
+      title: "Fulfilment Centre Intake &amp; Grading",
+      desc: "Produce arrives at the Tema fulfilment centre — weigh-in and grading against the buyer's specification.",
+      device: "desktop",
+      body: function () {
+        return chrome("Fulfilment", "Admin/Finance (fulfilment centre staff)", "desktop",
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Intake — Kofi Mensah, delivery #0417</div>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' + field("Weigh-in (kg)", "") +
+              '<div class="field-group"><span class="cap">Grade assigned</span><div class="field">Grade 1 / Grade 2 / Reject</div></div>' +
+              '<div class="img-ph" style="height:70px">📷 Photo — sample &amp; delivery</div>' +
+              "</div>" +
+              '<div class="btn primary block" style="margin-top:12px">Confirm intake</div>' +
+            "</div>" +
+            '<div class="card"><div class="card-label">Connectivity</div>' +
+              kv("Status", "") + '<div class="badge pending" style="margin-top:-4px">Offline — 3 queued</div>' +
+              '<div class="caption">Intermittent connectivity at regional fulfilment centres is a confirmed constraint; entries sync automatically once online.</div>' +
+              '<div class="divider"></div>' + kv("Feeds", "Buyer Compliance Docs") + kv("Feeds", "Farmer Wallet/Settlement") +
+            "</div>" +
+          "</div>"
+        );
+        function field(cap, val) { return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field">' + (val || "") + "</div></div>"; }
+      },
+    },
+    {
+      id: "dispatch",
+      title: "Logistics Dispatch",
+      desc: "Single dispatch view spanning outbound (inputs to farms) and inbound (produce to fulfilment centre). Fleet size is a pilot placeholder.",
+      device: "phone",
+      body: function () {
+        return chrome("Logistics", "Logistics", "phone",
+          '<div style="margin-bottom:14px"><span class="badge muted">Fleet: 3–5 tricycles (pilot placeholder)</span></div>' +
+          '<div class="tabs"><div class="tab on">Outbound — inputs to farms</div><div class="tab">Inbound — produce to fulfilment centre</div></div>' +
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>Job</th><th>Farmer / stop</th><th>Tricycle</th><th>Status</th></tr></thead><tbody>' +
+            row("Input delivery — seed + NPK", "Ama Serwaa, Tema", "#1", '<span class="badge pending">En route</span>') +
+            row("Input delivery — top-dress", "Yaw Boateng, Tema", "#2", '<span class="badge pending">Assigned</span>') +
+            row("Harvest pickup", "Kofi Mensah, Tema", "#3", '<span class="badge success">Delivered</span>') +
+          "</tbody></table></div>" +
+          '<div class="btn primary" style="margin-top:14px">Assign next job →</div>'
+        );
+        function row(job, stop, tri, status) { return "<tr><td>" + job + "</td><td>" + stop + "</td><td>" + tri + "</td><td>" + status + "</td></tr>"; }
+      },
+    },
+    {
+      id: "proof",
+      title: "Proof of Pickup / Delivery",
+      desc: "Field confirmation captured by the rider at the point of pickup or delivery — signature, photo, GPS/time stamp.",
+      device: "phone",
+      body: function () {
+        return chrome("Logistics", "Logistics", "phone",
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Job #3 — Harvest pickup, Kofi Mensah</div>' +
+              '<div class="img-ph" style="height:120px;margin-bottom:12px">📷 Photo — loaded produce</div>' +
+              '<div class="img-ph" style="height:64px;margin-bottom:12px">✍️ Signature capture</div>' +
+              '<div class="btn primary block">Confirm delivery</div>' +
+            "</div>" +
+            '<div class="card"><div class="card-label">Auto-captured</div>' +
+              kv("GPS location", "5.6698°N, 0.0166°W") + kv("Timestamp", "14:22, today") + kv("Tricycle", "#3") +
+              '<div class="caption">Updates Buyer Portal Delivery Tracking and closes the loop for Fulfilment Centre intake.</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "trunking",
+      title: "Trunking",
+      desc: "Bulk consolidated movement of graded produce out of the Tema fulfilment centre — distinct from last-mile tricycle collection.",
+      device: "phone",
+      body: function () {
+        return chrome("Logistics", "Logistics", "phone",
+          '<div class="card" style="margin-bottom:14px"><div class="card-label">Consolidated load — Tema fulfilment centre</div>' +
+            kv("Graded produce ready", "8.5 t (Grade 1 + Grade 2)") + kv("Destination", "Buyer delivery point") + kv("Vehicle", "Contracted trunking vehicle") +
+          "</div>" +
+          '<div class="btn primary">Schedule trunking dispatch →</div>' +
+          '<div class="caption" style="margin-top:10px">Pilot scope: single origin (Tema). Multi-centre routes are a Phase 3 concern.</div>'
+        );
+      },
+    },
+    {
+      id: "finance",
+      title: "Finance &amp; Reconciliation",
+      desc: "Automatic per-order reconciliation — commitment fee, farmer settlement, vendor payout, and Farm Master's trading margin.",
+      device: "desktop",
+      body: function () {
+        return chrome("Finance", "Admin/Finance", "desktop",
+          '<div class="card" style="margin-bottom:14px"><div class="card-label">Order — Ghana School Feeding Programme (4.0 t)</div>' +
+            kv("Commitment fee received", "GHS 1,260") + kv("Farmer settlement due", "GHS 7,690") + kv("Vendor payout due", "GHS 410") + kv("Logistics fee (Farm Master)", "GHS 90") +
+            '<div class="kv" style="border-top:1px solid var(--border);margin-top:2px;padding-top:12px"><span class="k" style="font-weight:800;color:var(--ink)">Aggregation &amp; trade margin</span><span class="v" style="font-size:14px;color:var(--primary)">GHS 620</span></div>' +
+          "</div>" +
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Payment gateway</div>' + kv("Processor", "Paystack / Hubtel — TBD") + kv("Mobile money rails", "MTN, Vodafone, AirtelTigo") + "</div>" +
+            '<div class="card"><div class="card-label">Actions</div><div class="btn primary block" style="margin-bottom:8px">Release farmer settlement</div><div class="btn block">Release vendor payout</div></div>' +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "reporting",
+      title: "Reporting",
+      desc: "Tracks the six revenue streams as Phase 1 success metrics alongside pilot operating metrics.",
+      device: "desktop",
+      body: function () {
+        return chrome("Reporting", "Admin/Finance", "desktop",
+          '<div class="section-title">Revenue streams — live this season</div>' +
+          '<div class="grid g3" style="margin-bottom:20px">' +
+            stat("GHS 620", "Aggregation &amp; trade margin") + stat("GHS 90", "Logistics support fees") + statDef("Mechanisation support", "Phase 2") +
+            stat("1", "Vendor storefront billable (FM-owned)") + statDef("Company-owned production", "Phase 4") + statDef("Consultation services", "Phase 2+") +
+          "</div>" +
+          '<div class="section-title">Pilot metrics</div>' +
+          '<div class="grid g4">' + stat("14", "Registered farmers") + stat("3", "Active buyers onboarded") + stat("8.5 t", "Volume aggregated") + stat("92%", "Spec-compliance rate") + "</div>" +
+          '<div class="btn primary" style="margin-top:16px">Export report →</div>'
+        );
+        function statDef(cap, phase) { return '<div class="stat-tile disabled"><div style="font-size:12.5px;font-weight:700">' + cap + '</div><span class="badge deferred" style="margin-top:6px">' + phase + "</span></div>"; }
+      },
+    },
+    {
+      id: "mofa",
+      title: "MoFA Data Exchange",
+      desc: "Two-way integration: importing verified institutional buyer/accreditation data from MoFA, exporting a generic compliance report.",
+      device: "desktop",
+      body: function () {
+        return chrome("Reporting", "Admin/Finance", "desktop",
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">Import — MoFA accreditation data</div>' +
+              '<div class="kv"><span class="k">Ghana School Feeding Programme</span><span class="v"><span class="badge success">Verified</span></span></div>' + kv("Last sync", "2 Sep 2026") +
+              '<div class="btn block" style="margin-top:10px">Manual import (no live API yet)</div>' +
+            "</div>" +
+            '<div class="card"><div class="card-label">Export — compliance report</div>' +
+              kv("Format", "Generic CSV / PDF") + kv("Fields", "Volume, grade, buyer, date") +
+              '<div class="caption">Template is a placeholder pending an actual MoFA data standard.</div>' +
+              '<div class="btn primary block" style="margin-top:10px">Generate export →</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "useradmin",
+      title: "User &amp; Role Admin",
+      desc: "Permission-scoped access across all six roles from day one, enforced at the data layer.",
+      device: "desktop",
+      body: function () {
+        return chrome("Admin", "Admin/Finance", "desktop",
+          '<div class="table-scroll"><table class="data-table"><thead><tr><th>User</th><th>Role</th><th>Scope</th><th>Status</th></tr></thead><tbody>' +
+            row("Kwabena Osei", "Agronomist", "Formulas, visit logs, messaging — Tema", '<span class="badge success">Active</span>') +
+            row("Abena Owusu", "Logistics", "Dispatch, proof of pickup/delivery — no financial data", '<span class="badge success">Active</span>') +
+            row("Kojo Antwi", "Admin/Finance", "Reconciliation, reporting, MoFA export, user admin", '<span class="badge success">Active</span>') +
+          "</tbody></table></div>" +
+          '<div class="btn primary" style="margin-top:14px">+ Add internal user</div>' +
+          '<div class="caption" style="margin-top:10px">Same enforcement model scopes the three external portals — a Farmer login never resolves Buyer order data or another farmer’s settlement figures.</div>'
+        );
+        function row(name, role, scope, status) { return "<tr><td>" + name + "</td><td>" + role + "</td><td>" + scope + "</td><td>" + status + "</td></tr>"; }
+      },
+    },
+  ];
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + (s.device === "phone" ? " 📱" : "") + "</span>";
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) {
+    b.addEventListener("click", function () { setDevice(b.dataset.device); });
+  });
+  setDevice("desktop");
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "dashboard");
+})();
+</script>
