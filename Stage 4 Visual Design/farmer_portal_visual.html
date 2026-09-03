@@ -1,0 +1,595 @@
+<title>Farmer Portal — Visual Design</title>
+<style>
+  :root {
+    --primary: #1F5E3D;
+    --primary-dark: #143D28;
+    --gold: #E8A83C;
+    --gold-dark: #C98A22;
+    --ink: #1A1F1B;
+    --muted: #5B6B5E;
+    --faint: #8A9A8C;
+    --bg: #F7F8F4;
+    --surface: #FFFFFF;
+    --border: #DDE3D9;
+    --success: #2F9E44;
+    --danger: #C0392B;
+    --info: #3B6E8F;
+    --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  svg.icon { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 264px; flex: 0 0 264px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); letter-spacing: 0.01em; }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
+  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 32px; }
+  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+  nav.screens { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .screen-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; text-align: left; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; min-height: 40px; }
+  .screen-btn .num { font-size: 10.5px; color: var(--faint); width: 15px; flex: none; font-weight: 700; }
+  .screen-btn span:last-child { min-width: 0; overflow-wrap: break-word; }
+  .screen-btn:hover { background: var(--surface); color: var(--ink); }
+  .screen-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .screen-btn.active .num { color: rgba(255,255,255,0.75); }
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 22px; margin: 0 0 3px; letter-spacing: -0.01em; font-weight: 800; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 60ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
+
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
+  .canvas.device-desktop { max-width: 1040px; }
+  .canvas.device-tablet { max-width: 834px; }
+  .canvas.device-phone { max-width: 390px; }
+
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 28px; height: 28px; border-radius: 8px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 13px; }
+  .app-header .logo .word { font-size: 14px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 20px; }
+  .app-header .navlinks span { font-size: 12.5px; color: rgba(255,255,255,0.75); font-weight: 600; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 4px; width: 20px; cursor: pointer; }
+  .app-header .hamburger span { height: 2px; background: #fff; border-radius: 1px; }
+
+  .bottom-nav { display: none; position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 6px; }
+  .bottom-nav .row { display: flex; justify-content: space-around; }
+  .bottom-nav .item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--faint); font-size: 10px; font-weight: 700; min-width: 44px; min-height: 44px; justify-content: center; }
+  .bottom-nav .item.current { color: var(--primary); }
+  .bottom-nav .item.current svg.icon { stroke: var(--primary); }
+
+  .body-pad { padding: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .card.accent { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .card.accent .muted-on-accent { color: rgba(255,255,255,0.8); }
+  .card-label { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .card.accent .card-label { color: rgba(255,255,255,0.75); }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .caption { font-size: 12px; color: var(--faint); margin-top: 6px; }
+  .card.accent .caption { color: rgba(255,255,255,0.75); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; font-size: 14px; font-weight: 700; padding: 12px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: default; min-height: 48px; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.ghost-on-accent { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); color: #fff; }
+  .btn.block { width: 100%; }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field-group .field { height: 46px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; padding: 0 12px; font-size: 13px; color: var(--faint); }
+  .field-group .field.tall { height: 80px; align-items: flex-start; padding-top: 10px; }
+  .field-group .field.filled { color: var(--ink); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); font-weight: 600; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @container (max-width: 1023px) { .grid.g3, .grid.g4 { grid-template-columns: repeat(2, 1fr); } }
+  @container (max-width: 767px) { .grid.g2, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
+
+  .action-tile { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  .action-tile .icon-wrap { width: 36px; height: 36px; border-radius: 10px; background: color-mix(in srgb, var(--primary) 12%, transparent); display: flex; align-items: center; justify-content: center; }
+  .action-tile .icon-wrap svg.icon { stroke: var(--primary); }
+  .action-tile .label { font-size: 13.5px; font-weight: 700; }
+  .action-tile .sub { font-size: 11.5px; color: var(--faint); }
+  .action-tile.disabled { opacity: 0.5; }
+
+  .stepper { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+  .step .circ { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface); color: var(--muted); z-index: 1; }
+  .step.done .circ { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step.current .circ { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 15%, var(--surface)); }
+  .step .lbl { font-size: 11.5px; margin-top: 8px; color: var(--muted); font-weight: 600; max-width: 110px; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink); }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 14px; left: 50%; width: 100%; height: 2px; background: var(--border); z-index: 0; }
+  .step.done:not(:last-child)::after { background: var(--primary); }
+  @container (max-width: 767px) {
+    .stepper { flex-direction: column; align-items: stretch; gap: 14px; }
+    .step { flex-direction: row; text-align: left; gap: 12px; }
+    .step .lbl { max-width: none; margin-top: 0; }
+    .step:not(:last-child)::after { display: none; }
+    .app-header .navlinks { display: none; }
+    .app-header .hamburger { display: none; }
+    .bottom-nav { display: block; }
+    .canvas { padding-bottom: 0; }
+  }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; padding: 9px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; }
+  .card.accent .kv .k { color: rgba(255,255,255,0.75); }
+  .card.accent .kv .v { color: #fff; }
+  .card.accent .kv { border-bottom-color: rgba(255,255,255,0.25); }
+
+  .section-title { font-size: 13px; font-weight: 800; letter-spacing: 0.01em; color: var(--ink); margin: 0 0 12px; display: flex; align-items: center; gap: 7px; }
+
+  .timeline { display: flex; flex-direction: column; }
+  .tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .tl-item::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 2px; background: var(--border); }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 2px solid var(--primary); flex: none; margin-top: 2px; }
+  .tl-dot.hollow { background: var(--surface); border-color: var(--border); }
+  .tl-body .t { font-size: 13px; font-weight: 700; }
+  .tl-body .d { font-size: 11.5px; color: var(--faint); margin-top: 2px; }
+
+  .chat-thread { display: flex; flex-direction: column; gap: 10px; }
+  .bubble { max-width: 76%; padding: 10px 13px; border-radius: 14px; font-size: 13px; }
+  .bubble.them { background: var(--surface); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .bubble.me { background: var(--primary); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .bubble .meta { font-size: 10px; opacity: 0.65; margin-top: 4px; }
+
+  .checkline { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+  .checkline .tick { width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--success) 18%, transparent); display: flex; align-items: center; justify-content: center; flex: none; margin-top: 1px; }
+  .checkline .tick svg.icon { width: 13px; height: 13px; stroke: var(--success); stroke-width: 2.5; }
+
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    nav.screens { flex-direction: row; flex-wrap: wrap; }
+    .screen-btn { width: auto; }
+    .rail-note, .rail-footer { display: none; }
+    .main { padding: 20px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 4</span>
+    </div>
+    <div class="rail-sub">Farmer Portal — Visual Design</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Deep Green &amp; Maize Gold</b> — confirmed 3 Sep 2026. Same structure and breakpoints as the Stage 3 wireframe; only color, type, iconography, and density changed. Phone tier now uses a bottom tab bar (thumb reach) instead of a top hamburger.
+    </div>
+
+    <div class="device-toggle" id="deviceToggle">
+      <div class="device-btn" data-device="desktop">Desktop</div>
+      <div class="device-btn" data-device="tablet">Tablet</div>
+      <div class="device-btn" data-device="phone">Phone</div>
+    </div>
+
+    <div class="rail-group-label">10 Screens · Farmer Journey Order</div>
+    <nav class="screens" id="nav"></nav>
+
+    <div class="rail-footer">
+      Style guide: Farm_Master_Style_Guide_Stage4.docx.<br>
+      Structure built on Stage 3 farmer_portal_wireframe.html.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Farmer Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">SCREEN 1 / 10</div>
+    </div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var PORTAL_NAV = [
+    { label: "Dashboard", icon: "home" },
+    { label: "Opportunities", icon: "leaf" },
+    { label: "My Formula", icon: "clipboard" },
+    { label: "Wallet", icon: "wallet" }
+  ];
+
+  var ICONS = {
+    home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    leaf: '<path d="M20 4C12 4 6 10 6 18c8 0 14-6 14-14z"/><path d="M6 18C10 14 14 10 20 4"/>',
+    clipboard: '<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12l2 2 4-4"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M9 15l2 2 4-4"/>',
+    chat: '<path d="M4 5h16v11H8l-4 4z"/>',
+    bag: '<path d="M6 8h12l-1 12H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+    truck: '<rect x="2" y="8" width="12" height="8"/><path d="M14 11h4l3 3v2h-7z"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+    wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="14" r="1.3"/>',
+    id: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M6 16c0-1.5 1-2.5 2-2.5s2 1 2 2.5"/><path d="M13 10h6M13 14h6"/>',
+    check: '<path d="M5 13l4 4L19 7"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'
+  };
+  function icon(name) { return '<svg class="icon" viewBox="0 0 24 24">' + (ICONS[name] || "") + "</svg>"; }
+
+  function chrome(currentIcon, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) {
+      return '<span class="' + (l.icon === currentIcon ? "current" : "") + '">' + l.label + "</span>";
+    }).join("");
+    var bottomItems = PORTAL_NAV.map(function (l) {
+      return '<div class="item ' + (l.icon === currentIcon ? "current" : "") + '">' + icon(l.icon) + "<span>" + l.label + "</span></div>";
+    }).join("");
+    return (
+      '<div class="app-header">' +
+        '<div class="logo"><div class="mark">FM</div><div class="word">Farm Master</div></div>' +
+        '<div class="navlinks">' + links + "</div>" +
+        '<div class="hamburger"><span></span><span></span><span></span></div>' +
+        '<div class="avatar"></div>' +
+      "</div>" +
+      '<div class="body-pad">' + bodyHtml + "</div>" +
+      '<div class="bottom-nav"><div class="row">' + bottomItems + "</div></div>"
+    );
+  }
+
+  var screens = [
+    {
+      id: "registration",
+      title: "Registration &amp; KYC",
+      desc: "Entry point for smallholder farmers — verified by an agronomist at the first farm visit, not a hard gate to entry.",
+      body: function () {
+        return (
+          '<div class="body-pad">' +
+          '<div class="grid g2">' +
+            '<div class="card">' +
+              '<div class="card-label">' + icon("id") + "Identity</div>" +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                field("Full name", "") + field("Ghana Card number", "") + field("Phone (MoMo-linked)", "") + field("Preferred language", "") +
+              "</div>" +
+            "</div>" +
+            '<div class="card">' +
+              '<div class="card-label">' + icon("leaf") + "Farm details</div>" +
+              '<div style="display:flex;flex-direction:column;gap:12px">' +
+                '<div class="field-group"><div class="field" style="height:110px;background:color-mix(in srgb, var(--primary) 8%, var(--surface));color:var(--primary);font-weight:700;justify-content:center;text-align:center">📍 Farm GPS location</div></div>' +
+                fieldFilled("Region", "Greater Accra — Tema (pilot)") +
+                '<div class="grid g2" style="gap:10px">' + field("Farm size (acres)", "") + field("Crop history", "") + "</div>" +
+              "</div>" +
+            "</div>" +
+          "</div>" +
+          '<div style="margin-top:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+            '<div class="btn primary">Register</div>' +
+            '<span class="caption" style="margin:0">Verified by an agronomist at the first farm visit.</span>' +
+          "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "dashboard",
+      title: "Farmer Dashboard",
+      desc: "One clear status message and four actions — icon-forward, minimal asset weight for entry-level phones.",
+      body: function () {
+        return chrome("home",
+          '<div class="card accent" style="margin-bottom:18px">' +
+            '<div class="card-label">' + icon("leaf") + "Active opportunity</div>" +
+            '<div class="card-title">Maize — production formula, week 4 of 11</div>' +
+            '<div class="caption">Next: apply first top-dressing fertiliser (see My Formula)</div>' +
+          "</div>" +
+          '<div class="section-title">Quick actions</div>' +
+          '<div class="grid g4" style="margin-bottom:20px">' +
+            actionTile("leaf", "Opportunities", "1 new match") +
+            actionTile("clipboard", "My Formula", "wk 4 of 11") +
+            actionTile("bag", "Order Inputs", "2 items due") +
+            actionTile("truck", "Request Pickup", "not ready yet") +
+          "</div>" +
+          '<div class="section-title">This season</div>' +
+          '<div class="grid g2">' +
+            deferredTile("Performance Profile", "Yield history &amp; reliability score") +
+            deferredTile("Farmer Union Management", "Manage member farmers") +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "board",
+      title: "Opportunity Board",
+      desc: "Filters pre-set to one region, one crop, so the board reads as a short relevant list.",
+      body: function () {
+        return chrome("leaf",
+          '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">' +
+            '<span class="badge muted">Region: Tema</span><span class="badge muted">Crop: Maize</span><span class="badge pending">Season: Major 2026</span>' +
+          "</div>" +
+          '<div class="grid g3">' +
+            oppCard("Ghana School Feeding Programme", "MoFA-linked", "4.0 t · GHS 2,100/t", "Accept by 12 Sep") +
+            oppCard("Tema Grain Processors Ltd.", "Private buyer", "6.5 t · GHS 2,200/t", "Accept by 15 Sep") +
+            oppCard("Coastal Feed Mills", "Private buyer", "2.0 t · GHS 2,050/t", "Accept by 18 Sep") +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "detail",
+      title: "Opportunity Detail → Accept",
+      desc: "What accepting commits the farmer to, stated plainly before the accept action.",
+      body: function () {
+        return chrome("leaf",
+          '<div class="grid g2">' +
+            '<div class="card">' +
+              '<div class="card-label">Ghana School Feeding Programme</div>' +
+              kv("Crop / grade", "Maize, Grade 1") + kv("Quantity requested", "4.0 t") + kv("Price", "GHS 2,100 / t") + kv("Delivery window", "By 20 Dec 2026") + kv("Pickup point", "Tema fulfilment centre") +
+            "</div>" +
+            '<div class="card">' +
+              '<div class="card-label">By accepting, you agree to</div>' +
+              '<div style="display:flex;flex-direction:column;gap:10px">' +
+                checkline("Follow the production formula issued by your agronomist") +
+                checkline("Log planting and input milestones on this portal") +
+                checkline("Deliver Grade 1 maize to the Tema fulfilment centre by the deadline") +
+                checkline("Input and logistics costs are deducted at settlement") +
+              "</div>" +
+              '<div class="btn primary block" style="margin-top:16px">Accept opportunity</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "formula",
+      title: "My Production Formula",
+      desc: "The core value exchange — planting calendar, inputs, spacing, and quality checkpoints.",
+      body: function () {
+        return chrome("clipboard",
+          '<div class="card" style="margin-bottom:16px">' +
+            '<div class="card-label">Planting calendar — week 4 of 11</div>' +
+            '<div class="stepper">' + step("Land prep", true, false) + step("Planting", true, false) + step("Top-dress", false, true) + step("Weeding", false, false) + step("Harvest", false, false) + "</div>" +
+          "</div>" +
+          '<div class="grid g2">' +
+            '<div class="card"><div class="card-label">' + icon("bag") + "Input schedule</div>" +
+              kv("Seed — improved maize", "8 kg") + kv("NPK fertiliser", "2 bags, wk 2") + kv("Top-dress (Sulphate of Ammonia)", "1 bag, wk 4") +
+              '<div class="btn primary block" style="margin-top:10px">Order these inputs →</div>' +
+            "</div>" +
+            '<div class="card"><div class="card-label">Spacing &amp; quality checkpoints</div>' +
+              kv("Row spacing", "75 cm") + kv("Plant spacing", "40 cm") + kv("Checkpoint — wk 4", "Agronomist visit due") + kv("Checkpoint — wk 9", "Pre-harvest grading") +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "milestones",
+      title: "Milestone Log",
+      desc: "Offline-tolerant field data capture — entries queue locally and sync when connectivity returns.",
+      body: function () {
+        return chrome("clipboard",
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">' +
+            '<div class="section-title" style="margin:0">' + icon("calendar") + "Logged milestones</div>" +
+            '<div class="btn primary">+ Log milestone</div>' +
+          "</div>" +
+          '<div class="timeline">' +
+            tl("Top-dress fertiliser applied", "Logged today · photo attached", true) +
+            tl("Land prepared, planting complete", "Logged 3 weeks ago · photo attached", true) +
+            tl("Next: weeding — expected wk 6", "Not logged yet", false) +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "messaging",
+      title: "Agronomist Messaging",
+      desc: "A way to ask the assigned agronomist a question — the production formula alone isn't enough without it.",
+      body: function () {
+        return chrome("clipboard",
+          '<div class="card" style="margin-bottom:14px">' +
+            '<div class="card-label">' + icon("chat") + "Assigned agronomist</div>" +
+            '<div class="card-title" style="margin:0">Kwabena Osei — Tema district</div>' +
+          "</div>" +
+          '<div class="card" style="margin-bottom:14px">' +
+            '<div class="chat-thread">' +
+              '<div class="bubble them">When should I apply the top-dressing?<div class="meta">Kwabena · 2 days ago</div></div>' +
+              '<div class="bubble me">Apply it this week, before the rain forecast.<div class="meta">You · 2 days ago</div></div>' +
+              '<div class="bubble them">' + icon("mic") + ' Voice note — 0:18<div class="meta">Kwabena · 1 day ago</div></div>' +
+              '<div class="bubble them">Farm visit logged — plants healthy, on schedule.<div class="meta">Kwabena · today</div></div>' +
+            "</div>" +
+          "</div>" +
+          '<div style="display:flex;gap:8px">' +
+            '<div class="field-group" style="flex:1"><div class="field"></div></div>' +
+            '<div class="btn">' + icon("mic") + "</div>" +
+            '<div class="btn primary">Send</div>' +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "orderinputs",
+      title: "Order Inputs / Mechanisation Service Request",
+      desc: "Pre-filled from the production formula — a simple form, not a booking calendar.",
+      body: function () {
+        return chrome("clipboard",
+          '<div class="grid g2">' +
+            '<div class="card">' +
+              '<div class="card-label">' + icon("bag") + "Inputs — pre-filled from formula</div>" +
+              kv("Seed — improved maize", "8 kg") + kv("NPK fertiliser", "2 bags") + kv("Top-dress (Sulphate of Ammonia)", "1 bag") +
+              '<div class="btn primary block" style="margin-top:12px">Confirm input order →</div>' +
+              '<div class="caption">Routes to Vendor Portal, then Farm Master logistics.</div>' +
+            "</div>" +
+            '<div class="card">' +
+              '<div class="card-label">Mechanisation service request (simple form)</div>' +
+              '<div style="display:flex;flex-direction:column;gap:12px">' + field("Service type", "") + field("Preferred date", "") + fieldTall("Notes") + "</div>" +
+              '<div class="btn block" style="margin-top:12px">Submit request</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "pickup",
+      title: "Harvest Pickup Request",
+      desc: "The nearest regional fulfilment centre confirms the date and logistics slot.",
+      body: function () {
+        return chrome("home",
+          '<div class="grid g2">' +
+            '<div class="card">' +
+              '<div class="card-label">' + icon("truck") + "Request pickup</div>" +
+              '<div style="display:flex;flex-direction:column;gap:12px">' + field("Estimated quantity ready", "") + field("Preferred pickup date", "") + fieldFilled("Farm location", "Pinned at registration") + "</div>" +
+              '<div class="btn primary block" style="margin-top:14px">Request pickup</div>' +
+            "</div>" +
+            '<div class="card">' +
+              '<div class="card-label">Status</div>' +
+              kv("Nearest fulfilment centre", "Tema") + kv("Current status", "") +
+              '<div class="badge pending" style="margin-top:-6px">awaiting request</div>' +
+              '<div class="caption">Once confirmed, appears on Logistics Dispatch.</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+    {
+      id: "wallet",
+      title: "Wallet &amp; Settlement Statement",
+      desc: "Input costs, logistics fees, and net payment due after crop sale — replaces manual reconciliation.",
+      body: function () {
+        return chrome("wallet",
+          '<div class="grid g2">' +
+            '<div class="card accent">' +
+              '<div class="card-label">Season statement — draft</div>' +
+              kv("Expected sale (4.0t @ GHS 2,100)", "GHS 8,400") + kv("Input costs (deducted)", "– GHS 620") + kv("Logistics fees (deducted)", "– GHS 90") +
+              '<div class="kv" style="border-top:1px solid rgba(255,255,255,0.3);margin-top:4px;padding-top:12px"><span class="k" style="font-weight:800;color:#fff">Estimated net settlement</span><span class="v" style="font-size:16px">GHS 7,690</span></div>' +
+              '<div class="caption">Final figure confirmed after fulfilment centre grading.</div>' +
+            "</div>" +
+            '<div class="card">' +
+              '<div class="card-label">Payout method</div>' +
+              kv("MoMo number", "•••• 4821") + kv("Status", "") + '<div class="badge pending">pending harvest</div>' +
+              '<div class="btn block" style="margin-top:12px">Download statement</div>' +
+            "</div>" +
+          "</div>"
+        );
+      },
+    },
+  ];
+
+  function field(cap, val) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field">' + (val || "") + "</div></div>";
+  }
+  function fieldFilled(cap, val) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field filled">' + val + "</div></div>";
+  }
+  function fieldTall(cap) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><div class="field tall"></div></div>';
+  }
+  function kv(k, v) {
+    return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>";
+  }
+  function actionTile(iconName, label, sub) {
+    return '<div class="action-tile"><div class="icon-wrap">' + icon(iconName) + '</div><div class="label">' + label + '</div><div class="sub">' + sub + "</div></div>";
+  }
+  function deferredTile(label, cap) {
+    return '<div class="action-tile disabled"><div class="label">' + label + '</div><div class="sub">' + cap + '</div><span class="badge muted" style="margin-top:4px;width:fit-content">Phase 2</span></div>';
+  }
+  function oppCard(buyer, tag, qty, deadline) {
+    return '<div class="card"><div class="card-label">' + tag + '</div><div class="card-title">' + buyer + "</div>" + kv("Quantity / price", qty) + kv("Deadline", deadline) + '<div class="btn primary block" style="margin-top:10px">View &amp; accept</div></div>';
+  }
+  function checkline(t) {
+    return '<div class="checkline"><div class="tick">' + icon("check") + "</div><span>" + t + "</span></div>";
+  }
+  function step(lbl, done, current) {
+    return '<div class="step ' + (done ? "done" : current ? "current" : "") + '"><div class="circ">' + (done ? icon("check").replace('class="icon"', 'class="icon" style="width:14px;height:14px;stroke:#fff"') : "") + '</div><div class="lbl">' + lbl + "</div></div>";
+  }
+  function tl(t, d, done) {
+    return '<div class="tl-item"><div class="tl-dot ' + (done ? "" : "hollow") + '"></div><div class="tl-body"><div class="t">' + t + '</div><div class="d">' + d + "</div></div></div>";
+  }
+
+  var nav = document.getElementById("nav");
+  screens.forEach(function (s, i) {
+    var btn = document.createElement("button");
+    btn.className = "screen-btn";
+    btn.innerHTML = '<span class="num">' + String(i + 1).padStart(2, "0") + '</span><span>' + s.title.replace(/&amp;/g, "&") + "</span>";
+    btn.addEventListener("click", function () { show(s.id); });
+    btn.id = "nav-" + s.id;
+    nav.appendChild(btn);
+  });
+
+  function show(id) {
+    var idx = screens.findIndex(function (s) { return s.id === id; });
+    var s = screens[idx];
+    document.querySelectorAll(".screen-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.getElementById("nav-" + id).classList.add("active");
+    document.getElementById("screen-title").innerHTML = s.title;
+    document.getElementById("screen-crumb").innerHTML = s.title.replace(/&amp;/g, "&");
+    document.getElementById("screen-desc").innerHTML = s.desc;
+    document.getElementById("screen-tag").textContent = "SCREEN " + (idx + 1) + " / " + screens.length;
+    document.getElementById("canvas").innerHTML = s.body();
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+  }
+
+  var DEVICE_LABEL = {
+    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
+    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android) — bottom nav active"
+  };
+  function setDevice(d) {
+    document.getElementById("canvas").className = "canvas device-" + d;
+    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
+    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
+  }
+  document.querySelectorAll(".device-btn").forEach(function (b) {
+    b.addEventListener("click", function () { setDevice(b.dataset.device); });
+  });
+  setDevice("desktop");
+
+  var initial = (location.hash || "").replace("#", "");
+  show(screens.some(function (s) { return s.id === initial; }) ? initial : "registration");
+})();
+</script>
