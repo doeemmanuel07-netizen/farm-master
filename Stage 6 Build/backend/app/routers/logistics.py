@@ -1,0 +1,88 @@
+"""
+Logistics Dispatch -- the real backend behind logistics_dispatch_flow_live.html.
+PRD Section 6 Must-Have #3 ("Vendor input ordering routed to logistics
+dispatch"); IA Section 3.5, Fig. 6. See models.DispatchJob for why every
+job created this pass comes from a CONFIRMED MechanisationRequest rather
+than real input ordering, which has no backend yet.
+
+Logistics and field roles are confirmed phone-first (PRD Section 5.1,
+Emmanuel, 3 Sep 2026) -- the frontend flow defaults to the phone viewport
+rather than desktop for that reason.
+"""
+
+from datetime import datetime
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import User, Role, DispatchJob, DispatchJobStatus, MechanisationRequest
+from ..auth import require_roles
+from ..schemas import DispatchJobResponse, DispatchAssignRequest
+
+router = APIRouter(prefix="/logistics", tags=["logistics"])
+
+
+def _job_view(job: DispatchJob, db: Session) -> DispatchJobResponse:
+    req = db.query(MechanisationRequest).filter(MechanisationRequest.id == job.mechanisation_request_id).first()
+    return DispatchJobResponse(
+        id=job.id,
+        farmer_name=req.farmer_name,
+        service=req.service,
+        area_acres=req.area_acres,
+        confirmed_date=req.confirmed_date,
+        direction=job.direction,
+        status=job.status,
+        tricycle_label=job.tricycle_label,
+        delivered_at=job.delivered_at,
+    )
+
+
+@router.get("/jobs", response_model=List[DispatchJobResponse])
+def list_jobs(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    jobs = db.query(DispatchJob).order_by(DispatchJob.created_at.desc()).all()
+    return [_job_view(j, db) for j in jobs]
+
+
+@router.post("/jobs/{job_id}/dispatch", response_model=DispatchJobResponse)
+def dispatch_job(
+    job_id: str,
+    payload: DispatchAssignRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    job = db.query(DispatchJob).filter(DispatchJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Dispatch job not found.")
+    if job.status != DispatchJobStatus.ASSIGNED:
+        raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not ready to dispatch.")
+
+    job.tricycle_label = payload.tricycle_label
+    job.status = DispatchJobStatus.EN_ROUTE
+    job.dispatched_by = user.id
+    db.commit()
+    db.refresh(job)
+    return _job_view(job, db)
+
+
+@router.post("/jobs/{job_id}/deliver", response_model=DispatchJobResponse)
+def deliver_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    job = db.query(DispatchJob).filter(DispatchJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Dispatch job not found.")
+    if job.status != DispatchJobStatus.EN_ROUTE:
+        raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not en route.")
+
+    job.status = DispatchJobStatus.DELIVERED
+    job.delivered_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+    return _job_view(job, db)

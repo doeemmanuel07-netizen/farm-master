@@ -13,6 +13,7 @@ from .routers import farmer as farmer_router
 from .routers import vendor as vendor_router
 from .routers import admin as admin_router
 from .routers import agronomist as agronomist_router
+from .routers import logistics as logistics_router
 
 app = FastAPI(
     title="Farm Master API",
@@ -35,6 +36,7 @@ app.include_router(farmer_router.router)
 app.include_router(vendor_router.router)
 app.include_router(admin_router.router)
 app.include_router(agronomist_router.router)
+app.include_router(logistics_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
@@ -63,6 +65,10 @@ if FRONTEND_DIR.exists():
     @app.get("/register-flow")
     def register_flow_page():
         return FileResponse(str(FRONTEND_DIR / "registration_otp_flow_live.html"))
+
+    @app.get("/dispatch-flow")
+    def dispatch_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "logistics_dispatch_flow_live.html"))
 
 
 @app.on_event("startup")

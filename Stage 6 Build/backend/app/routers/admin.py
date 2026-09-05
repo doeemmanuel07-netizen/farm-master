@@ -15,6 +15,7 @@ from ..database import get_db
 from ..models import User, Role, UserStatus, AuditLog, RegistrationApproval, RateConfig, MechanisationRequest, MechanisationRequestStatus
 from ..auth import require_roles
 from ..audit import log_audit
+from ..dispatch import create_dispatch_job
 from ..schemas import (
     RoleChangeRequest, AuditLogEntry, RateConfigResponse, RateConfigUpdate,
     MechanisationRequestResponse, RegistrationApprovalResponse,
@@ -125,6 +126,7 @@ def approve_date_override(
     req.status = MechanisationRequestStatus.CONFIRMED
     db.commit()
     db.refresh(req)
+    create_dispatch_job(db, req)
 
     log_audit(
         db, admin, "date_conflict_override_approved",

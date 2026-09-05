@@ -4,7 +4,10 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
-from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus, UserStatus, OtpPurpose
+from .models import (
+    Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
+    UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus,
+)
 
 
 class LoginRequest(BaseModel):
@@ -48,6 +51,25 @@ class VerifyOtpRequest(BaseModel):
 class RegisterVerifyResponse(BaseModel):
     status: UserStatus
     message: str
+
+
+class DispatchJobResponse(BaseModel):
+    id: str
+    farmer_name: str
+    service: str
+    area_acres: float
+    confirmed_date: Optional[str]
+    direction: DispatchDirection
+    status: DispatchJobStatus
+    tricycle_label: Optional[str]
+    delivered_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class DispatchAssignRequest(BaseModel):
+    tricycle_label: str
 
 
 class RegistrationApprovalResponse(BaseModel):

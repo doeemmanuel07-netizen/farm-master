@@ -270,6 +270,45 @@ class MechanisationRequest(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class DispatchDirection(str, enum.Enum):
+    OUTBOUND = "outbound"  # inputs/equipment/service to the farm
+    INBOUND = "inbound"  # produce to the fulfilment centre
+
+
+class DispatchJobStatus(str, enum.Enum):
+    ASSIGNED = "assigned"
+    EN_ROUTE = "en_route"
+    DELIVERED = "delivered"
+
+
+class DispatchJob(Base):
+    """
+    Logistics Dispatch (IA Section 3.5, Fig. 6; PRD Section 6 Must-Have #3
+    "Vendor input ordering routed to logistics dispatch"). Real "input
+    ordering" (a Farmer buying seed/fertiliser from a Vendor's Product
+    Catalogue) has no backend of its own yet -- Farmer Portal's Order Inputs
+    and Vendor Portal's Product Catalogue are both still unbuilt (see
+    README "Not yet built"). The one real, confirmed outbound job source
+    today is a CONFIRMED MechanisationRequest (vendor.py's confirm, or
+    admin.py's override approval), so that's what actually creates a
+    DispatchJob -- see app/dispatch.py. direction is OUTBOUND for every job
+    created this pass; INBOUND (harvest pickup -> fulfilment centre) has no
+    source until PRD Must-Have #4 (Fulfilment Centre Intake/Grading) is
+    built, but the column exists now because the Stage 3/4 wireframes
+    already show both tabs as one confirmed screen.
+    """
+    __tablename__ = "dispatch_jobs"
+
+    id = Column(String, primary_key=True, default=uid)
+    mechanisation_request_id = Column(String, ForeignKey("mechanisation_requests.id"), nullable=False)
+    direction = Column(SAEnum(DispatchDirection), nullable=False, default=DispatchDirection.OUTBOUND)
+    status = Column(SAEnum(DispatchJobStatus), nullable=False, default=DispatchJobStatus.ASSIGNED)
+    tricycle_label = Column(String, nullable=True)  # e.g. "#1" -- PRD Section 1.1's 3-5 tricycle pilot placeholder
+    dispatched_by = Column(String, ForeignKey("users.id"), nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class RegistrationApproval(Base):
     """
     Backend counterpart of the Registration Approval Queue screen (IA Section

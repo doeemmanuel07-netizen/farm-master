@@ -31,7 +31,7 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus five flows implemented and tested end to end against a
+retrofitted) plus six flows implemented and tested end to end against a
 real database and a real frontend:
 
 - Buyer commitment-fee payment
@@ -47,6 +47,15 @@ real database and a real frontend:
   farmer list directly from the Opportunity rows the Matching Queue already
   created rather than re-deriving them, and reuses the exact input-schedule
   math from the Farmer flow (see `app/formula.py`) rather than duplicating it.
+- Logistics Dispatch (Internal Operations) — completes PRD Section 6
+  Must-Have #3 ("Vendor input ordering routed to logistics dispatch") for
+  the one real job source that exists: a `POST /vendor/requests/{id}/confirm`
+  or Super-Admin override-approval automatically creates a real dispatch
+  job, which Logistics can then assign a tricycle to and mark delivered.
+  Confirmed phone-first per PRD Section 5.1, so this flow opens on the
+  phone viewport by default, unlike every other flow. Real input ordering
+  (a Farmer buying seed/fertiliser from a Vendor's Product Catalogue) has
+  no backend yet — see "Not yet built" below.
 
 Also added 5 September 2026, cutting across every flow above: **real-time
 OTP verification** via both phone and email, at both registration and
@@ -58,10 +67,12 @@ treatment as mobile money: no SMS/email provider is chosen yet, so both
 OTP codes are returned directly in the API response instead of actually
 being sent.
 
-Not yet built: the rest of Internal Operations (Logistics Dispatch,
-Fulfilment Intake, Finance & Reconciliation, Reporting, MoFA Data
-Exchange), the User & Role Admin screen's account-creation UI for internal
-staff, and any real mobile money or OTP gateway integration.
+Not yet built: real input ordering (Farmer Order Inputs, Vendor Product
+Catalogue — PRD Must-Have #3's literal scope, as distinct from the
+mechanisation-request dispatch that is built), the rest of Internal
+Operations (Fulfilment Intake, Finance & Reconciliation, Reporting, MoFA
+Data Exchange), the User & Role Admin screen's account-creation UI for
+internal staff, and any real mobile money or OTP gateway integration.
 
 **Known gap, tracked for a separate task (not this one):** the Matching
 Queue records which farmer an Opportunity was assigned to
@@ -107,6 +118,7 @@ Then open:
 - <http://127.0.0.1:8000/vendor-flow>
 - <http://127.0.0.1:8000/matching-flow> — Agronomist Matching Queue (Internal Operations)
 - <http://127.0.0.1:8000/formula-builder-flow> — Production Formula Builder (Internal Operations)
+- <http://127.0.0.1:8000/dispatch-flow> — Logistics Dispatch (Internal Operations, phone-first)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 Every flow above now signs in through two steps — password, then an OTP

@@ -10,9 +10,10 @@ and must never be reused as one.
 from .database import Base, engine, SessionLocal
 from .models import (
     User, Role, UserStatus, RateConfig, Opportunity, MechanisationRequest,
-    BuyerRequirement, RequirementStatus,
+    MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
 )
 from .auth import hash_password
+from .dispatch import create_dispatch_job
 
 # Formula Builder demo data -- a requirement already past Matching Queue
 # assignment (status PRODUCTION, real Opportunity rows with
@@ -177,13 +178,30 @@ def seed():
         if db.query(MechanisationRequest).count() == 0:
             vendor = db.query(User).filter(User.role == Role.VENDOR).first()
             if vendor:
+                created = []
                 for farmer_name, service, area, requested_by in SEED_MECH_REQUESTS:
-                    db.add(MechanisationRequest(
+                    req = MechanisationRequest(
                         vendor_id=vendor.id, farmer_name=farmer_name, service=service,
                         area_acres=area, requested_by_date=requested_by,
-                    ))
+                    )
+                    db.add(req)
+                    created.append(req)
                 db.commit()
                 print(f"Seeded {len(SEED_MECH_REQUESTS)} mechanisation requests.")
+
+                # Logistics Dispatch demo data -- confirm the first request
+                # (within its own requested window, so no override needed)
+                # so the dispatch queue has something real on first run, same
+                # treatment as the Matching Queue/Formula Builder seed data
+                # above.
+                first = created[0]
+                db.refresh(first)
+                first.confirmed_date = first.requested_by_date
+                first.status = MechanisationRequestStatus.CONFIRMED
+                db.commit()
+                db.refresh(first)
+                create_dispatch_job(db, first)
+                print("Confirmed 1 mechanisation request and seeded its dispatch job (Logistics Dispatch demo data).")
         else:
             print("Mechanisation requests already exist, skipping seed.")
     finally:

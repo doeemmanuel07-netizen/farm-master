@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Role, RateConfig, MechanisationRequest, MechanisationRequestStatus
 from ..auth import require_roles
+from ..dispatch import create_dispatch_job
 from ..schemas import MechanisationRequestResponse, ConfirmRequestBody
 
 router = APIRouter(prefix="/vendor", tags=["vendor"])
@@ -101,6 +102,7 @@ def confirm_request(
     req.override_needed = False
     db.commit()
     db.refresh(req)
+    create_dispatch_job(db, req)
     return _with_quote(db, req)
 
 

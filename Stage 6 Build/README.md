@@ -1,13 +1,21 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus five flows, end to end and tested: Buyer
+segregation of duties) plus six flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
-a paid buyer requirement to one or more farmers -- and the Production
-Formula Builder, where an Agronomist turns an assigned requirement into a
-planting calendar and input schedule and publishes it to those farmers.
+a paid buyer requirement to one or more farmers -- the Production Formula
+Builder, where an Agronomist turns an assigned requirement into a planting
+calendar and input schedule and publishes it to those farmers -- and
+Logistics Dispatch, where a confirmed vendor mechanisation request
+automatically becomes a real dispatch job that Logistics assigns a
+tricycle to and marks delivered.
+
+Logistics Dispatch completes PRD Section 6 Must-Have #3 ("Vendor input
+ordering routed to logistics dispatch") for the one real job source that
+exists today -- see "Known limitations" for the gap between that and the
+must-have's literal scope.
 
 Added 5 September 2026, cutting across all of the above: real-time OTP
 verification via both phone and email, at both registration and login, for
@@ -18,7 +26,7 @@ stay Super-Admin-provisioned and only see the OTP step at login. Delivery
 is SIMULATED (see "Known limitations") -- both codes come back in the API
 response instead of an actual SMS/email being sent.
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-14) for
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-15) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -90,6 +98,9 @@ The first run creates the tables in `farm_master` and seeds:
   `PRODUCTION`, real `Opportunity` rows with `assigned_farmer_id` set) so
   the Production Formula Builder has something real to build a formula for
   on first run.
+- One mechanisation request already confirmed (within its own requested
+  window) with a real `DispatchJob` row so the Logistics Dispatch queue has
+  something to assign and deliver on first run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -102,6 +113,8 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Vendor flow: <http://127.0.0.1:8000/vendor-flow>
 - Live Agronomist Matching Queue: <http://127.0.0.1:8000/matching-flow>
 - Live Production Formula Builder: <http://127.0.0.1:8000/formula-builder-flow>
+- Live Logistics Dispatch: <http://127.0.0.1:8000/dispatch-flow> (opens on
+  the phone viewport by default -- confirmed phone-first, PRD Section 5.1)
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -164,6 +177,17 @@ empty formula; a farmer or finance token gets `403` on all three routes
 `/formula-builder-flow` end to end, both the editable (unpublished) and
 locked (published) states, at desktop and phone widths.
 
+Logistics Dispatch, specifically: a fresh `POST /vendor/requests/{id}/confirm`
+(in-window) and a fresh `POST /admin/vendor-requests/{id}/approve-override`
+(out-of-window) both auto-create a real `DispatchJob`, verified by checking
+`GET /logistics/jobs` grows by one after each; `POST .../dispatch` moves
+`assigned` -> `en_route` and a second call correctly `409`s; `POST
+.../deliver` moves `en_route` -> `delivered` and a second call correctly
+`409`s; a vendor token gets `403` on all three routes. Also clicked through
+the full flow in `/dispatch-flow` at the phone viewport -- sign in, OTP,
+dispatch a job, mark it delivered, and confirmed the Inbound tab renders an
+honest empty state rather than fake data.
+
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
 
@@ -205,6 +229,24 @@ is a real network call to the backend, not a simulation.
   Section 3.2, and today that only happens via `seed.py`; `PUT
   /admin/users/{id}/role` can change an existing account's role but there's
   no "create an internal account" endpoint yet.
-- The rest of Internal Operations (Logistics Dispatch, Fulfilment Intake,
-  Finance & Reconciliation, Reporting, MoFA Data Exchange) is not yet
-  built — see the SDD, Section 8, for the full list.
+- **Logistics Dispatch covers a narrower job source than PRD Must-Have #3's
+  literal text.** "Vendor input ordering routed to logistics dispatch"
+  describes a Farmer buying seed/fertiliser from a Vendor's Product
+  Catalogue -- neither Farmer Portal's Order Inputs nor Vendor Portal's
+  Product Catalogue has a backend yet. The only real, confirmed job source
+  today is a `CONFIRMED` `MechanisationRequest`, so that's what actually
+  creates a `DispatchJob` (`app/dispatch.py`). Documented here as a
+  deliberate scope decision, not a silent reinterpretation of the
+  must-have -- see SDD Section 15.
+- Every `DispatchJob` created this pass is `direction=outbound` (inputs/
+  service to the farm). `inbound` (produce to the fulfilment centre) has no
+  source until PRD Must-Have #4 (Fulfilment Centre Intake/Grading) is
+  built -- the Inbound tab in `/dispatch-flow` renders an honest empty
+  state rather than fake data.
+- No audit-log entry is written for dispatch/deliver actions -- they're
+  operational, not a role/permission change or a financial action (PRD
+  Section 5's audit scope), consistent with how routine state changes are
+  treated elsewhere in this codebase.
+- The rest of Internal Operations (Fulfilment Intake, Finance &
+  Reconciliation, Reporting, MoFA Data Exchange) is not yet built — see
+  the SDD, Section 8, for the full list.
