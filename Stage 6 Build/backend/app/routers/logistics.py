@@ -1,9 +1,11 @@
 """
 Logistics Dispatch -- the real backend behind logistics_dispatch_flow_live.html.
 PRD Section 6 Must-Have #3 ("Vendor input ordering routed to logistics
-dispatch"); IA Section 3.5, Fig. 6. See models.DispatchJob for why every
-job created this pass comes from a CONFIRMED MechanisationRequest rather
-than real input ordering, which has no backend yet.
+dispatch") and #4 ("...fulfilment centre intake/grading"); IA Section 3.5,
+Fig. 6. Outbound jobs come from a CONFIRMED MechanisationRequest; inbound
+jobs come from a HarvestPickupRequest (added alongside Fulfilment Intake,
+PRD Must-Have #4) -- see models.DispatchJob for why exactly one of the two
+source FKs is ever set.
 
 Logistics and field roles are confirmed phone-first (PRD Section 5.1,
 Emmanuel, 3 Sep 2026) -- the frontend flow defaults to the phone viewport
@@ -17,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, DispatchJob, DispatchJobStatus, MechanisationRequest
+from ..models import User, Role, DispatchJob, DispatchJobStatus, MechanisationRequest, HarvestPickupRequest
 from ..auth import require_roles
 from ..schemas import DispatchJobResponse, DispatchAssignRequest
 
@@ -25,13 +27,30 @@ router = APIRouter(prefix="/logistics", tags=["logistics"])
 
 
 def _job_view(job: DispatchJob, db: Session) -> DispatchJobResponse:
-    req = db.query(MechanisationRequest).filter(MechanisationRequest.id == job.mechanisation_request_id).first()
+    if job.mechanisation_request_id:
+        req = db.query(MechanisationRequest).filter(MechanisationRequest.id == job.mechanisation_request_id).first()
+        return DispatchJobResponse(
+            id=job.id,
+            job_type="mechanisation",
+            farmer_name=req.farmer_name,
+            description=req.service,
+            area_acres=req.area_acres,
+            confirmed_date=req.confirmed_date,
+            direction=job.direction,
+            status=job.status,
+            tricycle_label=job.tricycle_label,
+            delivered_at=job.delivered_at,
+        )
+
+    req = db.query(HarvestPickupRequest).filter(HarvestPickupRequest.id == job.harvest_pickup_request_id).first()
+    farmer = db.query(User).filter(User.id == req.farmer_id).first()
     return DispatchJobResponse(
         id=job.id,
-        farmer_name=req.farmer_name,
-        service=req.service,
-        area_acres=req.area_acres,
-        confirmed_date=req.confirmed_date,
+        job_type="harvest_pickup",
+        farmer_name=farmer.full_name,
+        description="Harvest pickup",
+        quantity_tonnes=req.quantity_ready_tonnes,
+        preferred_pickup_date=req.preferred_pickup_date,
         direction=job.direction,
         status=job.status,
         tricycle_label=job.tricycle_label,

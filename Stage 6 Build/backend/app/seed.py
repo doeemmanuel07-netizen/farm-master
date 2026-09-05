@@ -7,13 +7,16 @@ so the pilot can be exercised locally. This is not a production credential
 and must never be reused as one.
 """
 
+from datetime import datetime
+
 from .database import Base, engine, SessionLocal
 from .models import (
     User, Role, UserStatus, RateConfig, Opportunity, MechanisationRequest,
     MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
+    HarvestPickupRequest, DispatchJobStatus,
 )
 from .auth import hash_password
-from .dispatch import create_dispatch_job
+from .dispatch import create_dispatch_job, create_inbound_dispatch_job
 
 # Formula Builder demo data -- a requirement already past Matching Queue
 # assignment (status PRODUCTION, real Opportunity rows with
@@ -66,6 +69,16 @@ SEED_MECH_REQUESTS = [
     ("Kojo Mensah", "Ploughing", 1.5, "2026-09-08"),
     ("Ama Serwaa", "Ridging", 1.0, "2026-09-06"),
     ("Yaw Boateng", "Harrowing", 2.2, "2026-09-10"),
+]
+
+# Fulfilment Intake / Logistics inbound demo data -- one pickup already
+# DELIVERED (so the Fulfilment Intake queue has something to grade) and one
+# still ASSIGNED (so the Logistics Dispatch inbound tab isn't always empty
+# either), same treatment as every other screen's seed data.
+SEED_HARVEST_PICKUPS = [
+    # farmer_email, quantity_ready_tonnes, preferred_pickup_date, deliver_immediately
+    ("farmer@farmmaster.test", 3.8, "2026-09-12", True),
+    ("kojo.mensah@farmmaster.test", 2.5, "2026-09-14", False),
 ]
 
 SEED_RATES = [
@@ -204,6 +217,27 @@ def seed():
                 print("Confirmed 1 mechanisation request and seeded its dispatch job (Logistics Dispatch demo data).")
         else:
             print("Mechanisation requests already exist, skipping seed.")
+
+        if db.query(HarvestPickupRequest).count() == 0:
+            for farmer_email, qty, preferred_date, deliver_now in SEED_HARVEST_PICKUPS:
+                farmer = db.query(User).filter(User.email == farmer_email).first()
+                if not farmer:
+                    continue
+                req = HarvestPickupRequest(
+                    farmer_id=farmer.id, quantity_ready_tonnes=qty, preferred_pickup_date=preferred_date,
+                )
+                db.add(req)
+                db.commit()
+                db.refresh(req)
+                job = create_inbound_dispatch_job(db, req)
+                if deliver_now:
+                    job.tricycle_label = "#2"
+                    job.status = DispatchJobStatus.DELIVERED
+                    job.delivered_at = datetime.utcnow()
+                    db.commit()
+            print(f"Seeded {len(SEED_HARVEST_PICKUPS)} harvest pickup requests (Fulfilment Intake / Logistics inbound demo data).")
+        else:
+            print("Harvest pickup requests already exist, skipping seed.")
     finally:
         db.close()
 

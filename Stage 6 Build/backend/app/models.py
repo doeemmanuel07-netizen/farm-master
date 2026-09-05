@@ -288,24 +288,86 @@ class DispatchJob(Base):
     ordering" (a Farmer buying seed/fertiliser from a Vendor's Product
     Catalogue) has no backend of its own yet -- Farmer Portal's Order Inputs
     and Vendor Portal's Product Catalogue are both still unbuilt (see
-    README "Not yet built"). The one real, confirmed outbound job source
-    today is a CONFIRMED MechanisationRequest (vendor.py's confirm, or
-    admin.py's override approval), so that's what actually creates a
-    DispatchJob -- see app/dispatch.py. direction is OUTBOUND for every job
-    created this pass; INBOUND (harvest pickup -> fulfilment centre) has no
-    source until PRD Must-Have #4 (Fulfilment Centre Intake/Grading) is
-    built, but the column exists now because the Stage 3/4 wireframes
-    already show both tabs as one confirmed screen.
+    README "Not yet built"). The one real, confirmed outbound job source is
+    a CONFIRMED MechanisationRequest (vendor.py's confirm, or admin.py's
+    override approval).
+
+    Exactly one of mechanisation_request_id / harvest_pickup_request_id is
+    set (application-enforced -- see app/dispatch.py's two creation
+    functions -- not a DB constraint, consistent with this codebase's
+    existing style of app-level invariants). Added 5 Sep 2026 alongside
+    HarvestPickupRequest (PRD Section 6 Must-Have #4) so the Stage 3/4
+    wireframes' single dispatch queue, spanning both tabs, is genuinely one
+    table rather than two near-identical ones.
     """
     __tablename__ = "dispatch_jobs"
 
     id = Column(String, primary_key=True, default=uid)
-    mechanisation_request_id = Column(String, ForeignKey("mechanisation_requests.id"), nullable=False)
+    mechanisation_request_id = Column(String, ForeignKey("mechanisation_requests.id"), nullable=True)
+    harvest_pickup_request_id = Column(String, ForeignKey("harvest_pickup_requests.id"), nullable=True)
     direction = Column(SAEnum(DispatchDirection), nullable=False, default=DispatchDirection.OUTBOUND)
     status = Column(SAEnum(DispatchJobStatus), nullable=False, default=DispatchJobStatus.ASSIGNED)
     tricycle_label = Column(String, nullable=True)  # e.g. "#1" -- PRD Section 1.1's 3-5 tricycle pilot placeholder
     dispatched_by = Column(String, ForeignKey("users.id"), nullable=True)
     delivered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class HarvestPickupRequest(Base):
+    """
+    Farmer Portal's Harvest Pickup Request screen (Stage 3 wireframe) --
+    PRD Section 6 Must-Have #4, the produce-in half of the physical loop.
+    Deliberately not linked to a specific Opportunity/ProductionFormula:
+    the approved wireframe models this as "I have this much ready, come get
+    it" (quantity + preferred date), not an order-specific pickup -- farm
+    location isn't captured either, since it isn't captured at
+    registration yet (PRD Section 3.1's farm location/GPS KYC field is not
+    built -- a pre-existing gap, not introduced here).
+
+    Unlike a MechanisationRequest, there's no vendor-confirmation step: the
+    request creates its DispatchJob immediately (app/dispatch.py's
+    create_inbound_dispatch_job), since nobody needs to "accept" a
+    farmer's own harvest being ready.
+    """
+    __tablename__ = "harvest_pickup_requests"
+
+    id = Column(String, primary_key=True, default=uid)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    quantity_ready_tonnes = Column(Float, nullable=False)
+    preferred_pickup_date = Column(String, nullable=False)  # ISO date, e.g. "2026-09-20"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GradeResult(str, enum.Enum):
+    GRADE_1 = "grade_1"
+    GRADE_2 = "grade_2"
+    REJECT = "reject"
+
+
+class FulfilmentIntake(Base):
+    """
+    Fulfilment Centre Intake & Grading (Stage 3 wireframe) -- the back half
+    of PRD Must-Have #4, and the precondition for buyer delivery and farmer
+    settlement. Gated on the corresponding DispatchJob being DELIVERED
+    (produce has physically arrived) -- see routers/fulfilment.py. The
+    wireframe assigns this screen to "Finance (fulfilment centre staff)",
+    not Logistics, so intake/grading is Role.FINANCE-gated here, matching
+    that already-confirmed design rather than folding it into Logistics.
+
+    One row per HarvestPickupRequest (unique) -- a request can only be
+    graded once. Photo capture (shown in the wireframe) is not implemented,
+    consistent with no other flow in this codebase doing real file upload.
+    Feeding this into Buyer Compliance Docs or Farmer Wallet/Settlement
+    (also shown in the wireframe) is PRD Must-Have #5 (Order Reconciliation)
+    and Reporting -- out of scope here, not silently assumed.
+    """
+    __tablename__ = "fulfilment_intakes"
+
+    id = Column(String, primary_key=True, default=uid)
+    harvest_pickup_request_id = Column(String, ForeignKey("harvest_pickup_requests.id"), nullable=False, unique=True)
+    weigh_in_kg = Column(Float, nullable=False)
+    grade = Column(SAEnum(GradeResult), nullable=False)
+    graded_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

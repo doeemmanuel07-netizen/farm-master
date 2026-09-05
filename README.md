@@ -31,7 +31,7 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus six flows implemented and tested end to end against a
+retrofitted) plus eight flows implemented and tested end to end against a
 real database and a real frontend:
 
 - Buyer commitment-fee payment
@@ -56,6 +56,15 @@ real database and a real frontend:
   phone viewport by default, unlike every other flow. Real input ordering
   (a Farmer buying seed/fertiliser from a Vendor's Product Catalogue) has
   no backend yet — see "Not yet built" below.
+- Harvest Pickup Request + Fulfilment Centre Intake & Grading (Farmer +
+  Internal Operations) — completes PRD Section 6 Must-Have #4. A Farmer
+  requesting pickup immediately creates a real inbound Logistics Dispatch
+  job (no confirmation step needed — nobody has to "accept" your own
+  harvest being ready); once Logistics marks it delivered, Finance can
+  weigh in and grade it. `DispatchJob` was generalised to carry either a
+  mechanisation request or a harvest pickup, so the dispatch queue stays
+  one real table instead of two. Feeding a graded intake into buyer
+  compliance docs or farmer settlement is PRD Must-Have #5 — not built yet.
 
 Also added 5 September 2026, cutting across every flow above: **real-time
 OTP verification** via both phone and email, at both registration and
@@ -69,10 +78,11 @@ being sent.
 
 Not yet built: real input ordering (Farmer Order Inputs, Vendor Product
 Catalogue — PRD Must-Have #3's literal scope, as distinct from the
-mechanisation-request dispatch that is built), the rest of Internal
-Operations (Fulfilment Intake, Finance & Reconciliation, Reporting, MoFA
-Data Exchange), the User & Role Admin screen's account-creation UI for
-internal staff, and any real mobile money or OTP gateway integration.
+mechanisation-request dispatch that is built), Order Reconciliation (PRD
+Must-Have #5), the rest of Internal Operations (Finance & Reconciliation,
+Reporting, MoFA Data Exchange), the User & Role Admin screen's
+account-creation UI for internal staff, and any real mobile money or OTP
+gateway integration.
 
 **Known gap, tracked for a separate task (not this one):** the Matching
 Queue records which farmer an Opportunity was assigned to
@@ -80,6 +90,20 @@ Queue records which farmer an Opportunity was assigned to
 filter on it — every active farmer can currently see and accept an
 opportunity assigned to someone else. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
 "Known limitations" for detail.
+
+**Responsive QA pass (5 September 2026):** every flow above was verified
+at desktop (1280px), tablet (768px), and phone (375px) — no horizontal
+page overflow, no interactive element under the PRD Section 5.1-confirmed
+44px touch-target minimum. This pass found and fixed a systemic bug: none
+of the frontend files had a `<meta name="viewport">` tag, so every
+phone/tablet CSS rule built across all of Stage 6 never actually applied
+on a real device (real browsers were silently rendering at a ~980px
+zoomed-out layout instead). Also fixed: several sub-44px controls (device
+toggle, restart button, planting-calendar week inputs, small table-action
+buttons), and a real rendering bug in Logistics Dispatch where an inbound
+(harvest-pickup) job showed "undefined" and "null acres" because the card
+renderer hadn't been updated for the new job type. This check is now
+mandatory for every new screen going forward, not retrofitted after.
 
 ## Tech stack
 
@@ -119,6 +143,8 @@ Then open:
 - <http://127.0.0.1:8000/matching-flow> — Agronomist Matching Queue (Internal Operations)
 - <http://127.0.0.1:8000/formula-builder-flow> — Production Formula Builder (Internal Operations)
 - <http://127.0.0.1:8000/dispatch-flow> — Logistics Dispatch (Internal Operations, phone-first)
+- <http://127.0.0.1:8000/harvest-pickup-flow> — Farmer Harvest Pickup Request
+- <http://127.0.0.1:8000/fulfilment-intake-flow> — Fulfilment Centre Intake & Grading (Internal Operations)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 Every flow above now signs in through two steps — password, then an OTP

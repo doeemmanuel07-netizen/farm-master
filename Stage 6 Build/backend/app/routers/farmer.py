@@ -15,10 +15,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, Opportunity, OpportunityStatus, ProductionFormula
+from ..models import User, Role, Opportunity, OpportunityStatus, ProductionFormula, HarvestPickupRequest, DispatchJob
 from ..auth import require_roles
 from ..formula import compute_formula_inputs
-from ..schemas import OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse
+from ..dispatch import create_inbound_dispatch_job
+from ..schemas import (
+    OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
+    HarvestPickupRequestCreate, HarvestPickupRequestResponse,
+)
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
 
@@ -88,3 +92,48 @@ def my_formulas(
     user: User = Depends(require_roles(Role.FARMER)),
 ):
     return db.query(ProductionFormula).filter(ProductionFormula.farmer_id == user.id).order_by(ProductionFormula.created_at.desc()).all()
+
+
+def _pickup_view(req: HarvestPickupRequest, db: Session) -> HarvestPickupRequestResponse:
+    job = db.query(DispatchJob).filter(DispatchJob.harvest_pickup_request_id == req.id).first()
+    return HarvestPickupRequestResponse(
+        id=req.id,
+        quantity_ready_tonnes=req.quantity_ready_tonnes,
+        preferred_pickup_date=req.preferred_pickup_date,
+        dispatch_status=job.status,
+        created_at=req.created_at,
+    )
+
+
+@router.post("/harvest-pickup", response_model=HarvestPickupRequestResponse)
+def request_harvest_pickup(
+    payload: HarvestPickupRequestCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    """
+    PRD Section 6 Must-Have #4. Unlike a vendor mechanisation request,
+    there's no confirmation step -- nobody needs to "accept" a farmer's own
+    harvest being ready, so this creates the real DispatchJob immediately
+    (Stage 3 wireframe: "Once confirmed, this pickup appears on the
+    Logistics dispatch board").
+    """
+    req = HarvestPickupRequest(
+        farmer_id=user.id,
+        quantity_ready_tonnes=payload.quantity_ready_tonnes,
+        preferred_pickup_date=payload.preferred_pickup_date,
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    create_inbound_dispatch_job(db, req)
+    return _pickup_view(req, db)
+
+
+@router.get("/harvest-pickup/mine", response_model=List[HarvestPickupRequestResponse])
+def my_harvest_pickups(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    reqs = db.query(HarvestPickupRequest).filter(HarvestPickupRequest.farmer_id == user.id).order_by(HarvestPickupRequest.created_at.desc()).all()
+    return [_pickup_view(r, db) for r in reqs]

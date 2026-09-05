@@ -1,6 +1,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Production Formula Builder — Live Backend</title>
+<title>Fulfilment Centre Intake — Live Backend</title>
 <style>
   :root {
     --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
@@ -95,27 +95,17 @@
   .btn.block { width: 100%; }
   .btn:hover { background: var(--bg); }
   .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn.small { min-height: 44px; padding: 7px 12px; font-size: 12.5px; }
 
   .field-group { display: flex; flex-direction: column; gap: 5px; }
   .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
-  .field-group input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; height: 44px; }
-  .field-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+  .field-group input, .field-group select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; height: 44px; }
+  .field-group input:focus, .field-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
 
   .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; }
   .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
   .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
   .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-
-  .grid { display: grid; gap: 14px; }
-  .g2 { grid-template-columns: 1fr 1fr; }
-  @container (max-width: 767px) { .grid.g2 { grid-template-columns: 1fr; } }
-
-  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
-  .kv:last-child { border-bottom: none; }
-  .kv .k { color: var(--muted); }
-  .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
-
-  .section-title { font-size: 12.5px; font-weight: 800; color: var(--ink); margin: 0 0 12px; }
 
   .table-scroll { overflow-x: auto; }
   table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
@@ -124,13 +114,14 @@
   table.data-table tr.clickable { cursor: pointer; }
   table.data-table tr.clickable:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
 
-  .stepper { display: flex; flex-wrap: wrap; gap: 10px; }
-  .step { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 78px; }
-  .step .circ { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); }
-  .step .lbl { font-size: 11.5px; font-weight: 700; color: var(--ink); text-align: center; }
-  .step .sub { font-size: 10.5px; color: var(--faint); font-family: "IBM Plex Mono", monospace; }
-  .week-input { width: 56px; height: 44px; text-align: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: 13px; }
-  .week-input:focus { outline: none; border-color: var(--primary); }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  @container (max-width: 767px) { .grid.g2 { grid-template-columns: 1fr; } }
 
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -144,11 +135,6 @@
     border-radius: 8px; padding: 10px 12px; margin-top: 12px;
   }
   .inline-alert.show { display: flex; }
-  .inline-note {
-    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--info);
-    background: color-mix(in srgb, var(--info) 10%, transparent); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent);
-    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
-  }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
@@ -170,11 +156,11 @@
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
     </div>
-    <div class="rail-sub">Production Formula Builder — Live Backend</div>
+    <div class="rail-sub">Fulfilment Centre Intake — Live Backend</div>
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>Builds on the Matching Queue, doesn't re-split it.</b> The per-farmer tonnage and input schedule shown here are read from the real Opportunity rows the Matching Queue already created — this screen only adds the planting calendar and the publish decision.
+      <b>PRD Section 6 Must-Have #4.</b> Grading is gated on the pickup's dispatch job being DELIVERED -- produce that hasn't physically arrived can't be graded. Stage 3 wireframe assigns this screen to Finance, not Logistics.
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -210,44 +196,44 @@
 
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics"];
+  var PORTAL_NAV = ["Dashboard", "Fulfilment", "Finance", "Reporting"];
   var API = "";
 
   var state = {
     token: null,
-    email: "agronomist@farmmaster.test",
+    email: "finance@farmmaster.test",
     password: "password123",
     challengeId: null,
     otpPhone: "",
     otpEmail: "",
-    requirements: [],
-    req: null,
-    builder: null,
-    weeks: null,
+    queue: [],
+    entry: null,
+    weighIn: "",
+    grade: "grade_1",
+    result: null,
     step: "login",
   };
 
   var STEPS = [
     { id: "login", label: "Sign in" },
     { id: "otp", label: "Verify OTP" },
-    { id: "queue", label: "Formula Queue" },
-    { id: "builder", label: "Build Formula" },
-    { id: "result", label: "Formula Published" },
+    { id: "queue", label: "Intake Queue" },
+    { id: "grade", label: "Weigh-in & Grade" },
   ];
 
-  function authHeaders(token, extra) {
+  function authHeaders(extra) {
     var h = extra || {};
-    if (token) h["Authorization"] = "Bearer " + token;
+    if (state.token) h["Authorization"] = "Bearer " + state.token;
     return h;
   }
-  async function apiGet(path, token) {
-    var res = await fetch(API + path, { headers: authHeaders(token || state.token) });
+  async function apiGet(path) {
+    var res = await fetch(API + path, { headers: authHeaders() });
     var data = await res.json().catch(function () { return {}; });
     if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
     return data;
   }
-  async function apiSend(method, path, body, token) {
-    var res = await fetch(API + path, { method: method, headers: authHeaders(token || state.token, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined });
+  async function apiPost(path, body) {
+    var res = await fetch(API + path, { method: "POST", headers: authHeaders(body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined });
     var data = await res.json().catch(function () { return {}; });
     if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
     return data;
@@ -260,14 +246,10 @@
       '<div class="body-pad">' + bodyHtml + "</div>"
     );
   }
+  function field(id, cap, val, type) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
+  }
   function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
-  function step(lbl, val) { return '<div class="step"><div class="circ"></div><div class="lbl">' + lbl + '</div><div class="sub">' + val + '</div></div>'; }
-  function weekField(id, label, val) {
-    return '<div class="step"><span style="font-size:11.5px;font-weight:700">' + label + '</span><input class="week-input" id="' + id + '" type="number" min="1" max="20" value="' + val + '"><span class="sub">week</span></div>';
-  }
-  function formulaBadge(published) {
-    return published ? '<span class="badge success">Published</span>' : '<span class="badge pending">Needs formula</span>';
-  }
 
   function render() {
     var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
@@ -280,8 +262,8 @@
       document.getElementById("screen-desc").textContent = "Real authentication -- a genuine JWT, not a local flag.";
       document.getElementById("canvas").innerHTML = (
         '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
-          '<div class="field-group"><span class="cap">Email</span><input id="email" type="text" value="' + state.email + '"></div>' +
-          '<div style="margin-top:12px"><div class="field-group"><span class="cap">Password</span><input id="password" type="password" value="' + state.password + '"></div></div>' +
+          field("email", "Email", state.email) +
+          '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + "</div>" +
           '<button class="btn primary block" id="loginBtn" style="margin-top:16px">Sign in</button>' +
           '<div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div>' +
           '<div class="caption" style="margin-top:10px">Dev-only seed account (see README).</div>' +
@@ -295,12 +277,12 @@
     if (state.step === "otp") {
       document.getElementById("screen-title").textContent = "Verify OTP";
       document.getElementById("screen-crumb").textContent = "Verify OTP";
-      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, no SMS/email gateway is wired up yet, so both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, so both codes are pre-filled here instead of actually being sent.";
       document.getElementById("canvas").innerHTML = (
         '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
           '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your phone and email instead of seeing these pre-filled.</div>' +
-          '<div class="field-group"><span class="cap">Phone OTP code</span><input id="otpPhone" type="text" value="' + state.otpPhone + '"></div>' +
-          '<div style="margin-top:12px"><div class="field-group"><span class="cap">Email OTP code</span><input id="otpEmail" type="text" value="' + state.otpEmail + '"></div></div>' +
+          field("otpPhone", "Phone OTP code", state.otpPhone) +
+          '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + "</div>" +
           '<button class="btn primary block" id="otpBtn" style="margin-top:16px">Verify &amp; continue</button>' +
           '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
         "</div></div>"
@@ -311,108 +293,59 @@
     }
 
     if (state.step === "queue") {
-      var production = state.requirements.filter(function (r) { return r.status === "production"; });
-      document.getElementById("screen-title").textContent = "Production Formula Builder";
-      document.getElementById("screen-crumb").textContent = "Formula Queue";
-      document.getElementById("screen-desc").textContent = "Fetched live from GET /agronomist/requirements -- requirements the Matching Queue has already assigned to farmers, whether or not a formula has been published yet.";
-      document.getElementById("canvas").innerHTML = chrome("Agronomy",
+      document.getElementById("screen-title").textContent = "Fulfilment Centre Intake & Grading";
+      document.getElementById("screen-crumb").textContent = "Intake Queue";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /fulfilment/intake-queue -- only pickups whose dispatch job is DELIVERED and not yet graded.";
+      document.getElementById("canvas").innerHTML = chrome("Fulfilment",
         '<div class="table-scroll"><table class="data-table"><thead><tr>' +
-          "<th>Buyer requirement</th><th>Qty / grade</th><th>Assigned farmers</th><th>Formula</th>" +
+          "<th>Farmer</th><th>Qty ready</th><th>Delivered</th><th></th>" +
         "</tr></thead><tbody>" +
-          production.map(function (r) {
-            return '<tr class="clickable" data-req="' + r.id + '"><td>' + r.buyer_name + "</td><td>" + r.quantity_tonnes.toFixed(1) + "t · " + r.grade + "</td><td>" + r.assigned_farmer_count + "</td><td>" + formulaBadge(r.formula_published) + "</td></tr>";
+          state.queue.map(function (q) {
+            return '<tr class="clickable" data-req="' + q.harvest_pickup_request_id + '"><td>' + q.farmer_name + "</td><td>" + q.quantity_ready_tonnes.toFixed(1) + "t</td><td>" + (q.delivered_at ? new Date(q.delivered_at).toLocaleString() : "—") + '</td><td><span class="badge pending">Awaiting intake</span></td></tr>';
           }).join("") +
         "</tbody></table></div>" +
-        (production.length === 0 ? '<div class="caption" style="margin-top:12px">No requirements have been assigned by the Matching Queue yet.</div>' : '<div class="caption" style="margin-top:12px">Click a row to open its Production Formula Builder.</div>')
+        (state.queue.length === 0 ? '<div class="caption" style="margin-top:12px">Nothing delivered and awaiting grading right now.</div>' : '<div class="caption" style="margin-top:12px">Click a row to weigh in and grade it.</div>')
       );
       document.querySelectorAll("[data-req]").forEach(function (row) {
-        row.addEventListener("click", async function () {
-          state.req = production.find(function (x) { return x.id === row.dataset.req; });
-          state.builder = await apiGet("/agronomist/requirements/" + state.req.id + "/formula");
-          state.weeks = {
-            land_prep_week: state.builder.plan.land_prep_week,
-            planting_week: state.builder.plan.planting_week,
-            topdress_week: state.builder.plan.topdress_week,
-            weeding_week: state.builder.plan.weeding_week,
-            harvest_week: state.builder.plan.harvest_week,
-          };
-          state.step = "builder";
+        row.addEventListener("click", function () {
+          state.entry = state.queue.find(function (q) { return q.harvest_pickup_request_id === row.dataset.req; });
+          state.weighIn = "";
+          state.grade = "grade_1";
+          state.step = "grade";
           render();
         });
       });
     }
 
-    if (state.step === "builder") {
-      var b = state.builder;
-      var published = b.plan.published;
-      document.getElementById("screen-title").textContent = "Build Formula — " + b.buyer_name;
-      document.getElementById("screen-crumb").textContent = "Build Formula";
-      document.getElementById("screen-desc").textContent = "The input schedule is computed server-side from RateConfig and the Matching Queue's own per-farmer tonnage -- editing here only changes the planting calendar, sourced from PUT /agronomist/requirements/{id}/formula.";
-      document.getElementById("canvas").innerHTML = chrome("Agronomy",
-        '<div class="grid g2" style="margin-bottom:14px">' +
-          '<div class="card"><div class="card-label">Sourced from</div>' +
-            kv("Buyer requirement", b.buyer_name) + kv("Crop / grade", "Maize, " + b.grade) +
-            kv("Farmers assigned", b.farmer_names.join(", ")) + kv("Per-farmer share", b.per_farmer_tonnes.toFixed(2) + " t") +
-          "</div>" +
-          '<div class="card"><div class="card-label">Input schedule (from RateConfig, per farmer)</div>' +
-            kv("Seed", b.seed_kg_per_farmer + " kg") + kv("NPK fertiliser", b.npk_bags_per_farmer + " bag(s)") + kv("Top-dress", b.topdress_bags_per_farmer + " bag(s)") +
-            '<div class="caption">Same formula as the Farmer Portal\'s own acceptance flow (app/formula.py) -- never computed twice.</div>' +
-          "</div>" +
-        "</div>" +
-        '<div class="card" style="margin-bottom:14px"><div class="card-label">Planting calendar' + (published ? " (locked -- published)" : " (editable)") + '</div>' +
-          '<div class="stepper">' +
-            (published
-              ? step("Land prep", "wk " + b.plan.land_prep_week) + step("Planting", "wk " + b.plan.planting_week) + step("Top-dress", "wk " + b.plan.topdress_week) + step("Weeding", "wk " + b.plan.weeding_week) + step("Harvest", "wk " + b.plan.harvest_week)
-              : weekField("w_land_prep", "Land prep", state.weeks.land_prep_week) + weekField("w_planting", "Planting", state.weeks.planting_week) + weekField("w_topdress", "Top-dress", state.weeks.topdress_week) + weekField("w_weeding", "Weeding", state.weeks.weeding_week) + weekField("w_harvest", "Harvest", state.weeks.harvest_week)
-            ) +
-          "</div>" +
-        "</div>" +
-        (published
-          ? '<div class="inline-note"><span>✓</span><span>Published ' + new Date(b.plan.published_at).toLocaleString() + " -- assigned farmers can see this on their own Production Formula screen.</span></div>"
-          : '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-              '<button class="btn" id="saveBtn">Save draft</button>' +
-              '<button class="btn primary" id="publishBtn">Publish formula to assigned farmers →</button>' +
+    if (state.step === "grade") {
+      var e = state.entry;
+      document.getElementById("screen-title").textContent = "Intake — " + e.farmer_name;
+      document.getElementById("screen-crumb").textContent = "Weigh-in & Grade";
+      document.getElementById("screen-desc").textContent = "Posted to POST /fulfilment/intake/{id}. Feeds Buyer Compliance Docs and Farmer Wallet/Settlement in the wireframe -- both are PRD Must-Have #5 (Order Reconciliation), not built yet, so this pass stops at recording the graded intake.";
+      document.getElementById("canvas").innerHTML = chrome("Fulfilment",
+        '<div class="grid g2">' +
+          '<div class="card"><div class="card-label">Intake — ' + e.farmer_name + '</div>' +
+            field("weighIn", "Weigh-in (kg)", state.weighIn) +
+            '<div class="field-group" style="margin-top:12px"><span class="cap">Grade assigned</span>' +
+              '<select id="gradeSelect">' +
+                '<option value="grade_1"' + (state.grade === "grade_1" ? " selected" : "") + '>Grade 1</option>' +
+                '<option value="grade_2"' + (state.grade === "grade_2" ? " selected" : "") + '>Grade 2</option>' +
+                '<option value="reject"' + (state.grade === "reject" ? " selected" : "") + '>Reject</option>' +
+              "</select>" +
             "</div>" +
-            '<div class="inline-alert" id="builderAlert"><span>⚠</span><span id="builderAlertText"></span></div>'
-        ) +
-        '<div style="margin-top:16px"><button class="btn" id="backBtn">← Back to Formula Queue</button></div>'
-      );
-
-      if (!published) {
-        ["w_land_prep", "w_planting", "w_topdress", "w_weeding", "w_harvest"].forEach(function (id, i) {
-          var key = ["land_prep_week", "planting_week", "topdress_week", "weeding_week", "harvest_week"][i];
-          document.getElementById(id).addEventListener("input", function (e) { state.weeks[key] = parseInt(e.target.value, 10) || 1; });
-        });
-        document.getElementById("saveBtn").addEventListener("click", function () { onSaveOrPublish(false); });
-        document.getElementById("publishBtn").addEventListener("click", function () { onSaveOrPublish(true); });
-      }
-      document.getElementById("backBtn").addEventListener("click", async function () {
-        state.requirements = await apiGet("/agronomist/requirements");
-        state.step = "queue";
-        render();
-      });
-    }
-
-    if (state.step === "result") {
-      var r = state.builder;
-      document.getElementById("screen-title").textContent = "Formula Published";
-      document.getElementById("screen-crumb").textContent = "Formula Published";
-      document.getElementById("screen-desc").textContent = "Confirmed in the database -- the assigned farmers' Production Formula view now reflects this calendar and input schedule.";
-      document.getElementById("canvas").innerHTML = chrome("Agronomy",
-        '<div style="max-width:420px;margin:20px auto;text-align:center">' +
-          '<div class="success-mark ok"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
-          '<div style="font-size:18px;font-weight:800;margin-bottom:6px">Formula published</div>' +
-          '<div class="card" style="text-align:left;margin:0 auto 20px;max-width:360px">' +
-            kv("Buyer", r.buyer_name) + kv("Farmers", r.farmer_names.join(", ")) + kv("Seed", r.seed_kg_per_farmer + " kg/farmer") +
+            '<button class="btn primary block" id="confirmIntakeBtn" style="margin-top:14px">Confirm intake →</button>' +
+            '<div class="inline-alert" id="gradeAlert"><span>⚠</span><span id="gradeAlertText"></span></div>' +
           "</div>" +
-          '<button class="btn primary block" id="toQueueBtn">Back to Formula Queue →</button>' +
+          '<div class="card"><div class="card-label">Expected</div>' +
+            kv("Quantity ready", e.quantity_ready_tonnes.toFixed(1) + " t") +
+            kv("Delivered", e.delivered_at ? new Date(e.delivered_at).toLocaleString() : "—") +
+            '<div class="caption">Offline-tolerant capture (PRD Section 5) and photo attachment are shown in the Stage 3 wireframe but not implemented here -- no flow in this codebase does real file upload.</div>' +
+          "</div>" +
         "</div>"
       );
-      document.getElementById("toQueueBtn").addEventListener("click", async function () {
-        state.requirements = await apiGet("/agronomist/requirements");
-        state.step = "queue";
-        render();
-      });
+      document.getElementById("weighIn").addEventListener("input", function (ev) { state.weighIn = ev.target.value; });
+      document.getElementById("gradeSelect").addEventListener("change", function (ev) { state.grade = ev.target.value; });
+      document.getElementById("confirmIntakeBtn").addEventListener("click", onConfirmIntake);
     }
   }
 
@@ -446,7 +379,7 @@
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.requirements = await apiGet("/agronomist/requirements");
+      state.queue = await apiGet("/fulfilment/intake-queue");
       state.step = "queue";
       render();
     } catch (e) {
@@ -457,33 +390,26 @@
     }
   }
 
-  async function onSaveOrPublish(thenPublish) {
-    var btnId = thenPublish ? "publishBtn" : "saveBtn";
-    var btn = document.getElementById(btnId);
-    var original = btn.textContent;
+  async function onConfirmIntake() {
+    var kg = parseFloat(state.weighIn);
+    if (!kg || kg <= 0) {
+      document.getElementById("gradeAlertText").textContent = "Enter a valid weigh-in (kg) before confirming.";
+      document.getElementById("gradeAlert").classList.add("show");
+      return;
+    }
+    var btn = document.getElementById("confirmIntakeBtn");
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> ' + (thenPublish ? "Publishing…" : "Saving…");
+    btn.innerHTML = '<span class="spinner"></span> Confirming…';
     try {
-      state.builder = await apiSend("PUT", "/agronomist/requirements/" + state.req.id + "/formula", state.weeks);
-      if (thenPublish) {
-        state.builder = await apiSend("POST", "/agronomist/requirements/" + state.req.id + "/formula/publish", null);
-        state.step = "result";
-        render();
-      } else {
-        state.weeks = {
-          land_prep_week: state.builder.plan.land_prep_week,
-          planting_week: state.builder.plan.planting_week,
-          topdress_week: state.builder.plan.topdress_week,
-          weeding_week: state.builder.plan.weeding_week,
-          harvest_week: state.builder.plan.harvest_week,
-        };
-        render();
-      }
+      state.result = await apiPost("/fulfilment/intake/" + state.entry.harvest_pickup_request_id, { weigh_in_kg: kg, grade: state.grade });
+      state.queue = await apiGet("/fulfilment/intake-queue");
+      state.step = "queue";
+      render();
     } catch (e) {
-      document.getElementById("builderAlertText").textContent = e.message;
-      document.getElementById("builderAlert").classList.add("show");
+      document.getElementById("gradeAlertText").textContent = e.message;
+      document.getElementById("gradeAlert").classList.add("show");
       btn.disabled = false;
-      btn.textContent = original;
+      btn.textContent = "Confirm intake →";
     }
   }
 
@@ -505,7 +431,7 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", requirements: [], req: null, builder: null, weeks: null, step: "login" };
+    state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", queue: [], entry: null, weighIn: "", grade: "grade_1", result: null, step: "login" };
     setDevice("desktop");
     render();
   });

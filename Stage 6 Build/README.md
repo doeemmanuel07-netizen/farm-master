@@ -1,21 +1,24 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus six flows, end to end and tested: Buyer
+segregation of duties) plus eight flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
 a paid buyer requirement to one or more farmers -- the Production Formula
 Builder, where an Agronomist turns an assigned requirement into a planting
-calendar and input schedule and publishes it to those farmers -- and
-Logistics Dispatch, where a confirmed vendor mechanisation request
-automatically becomes a real dispatch job that Logistics assigns a
-tricycle to and marks delivered.
+calendar and input schedule and publishes it to those farmers -- Logistics
+Dispatch, where a confirmed vendor mechanisation request or a farmer's
+harvest pickup request automatically becomes a real dispatch job that
+Logistics assigns a tricycle to and marks delivered -- and Harvest Pickup
+Request + Fulfilment Centre Intake & Grading, where a farmer's pickup
+request flows through dispatch to Finance, who weighs it in and grades it.
 
 Logistics Dispatch completes PRD Section 6 Must-Have #3 ("Vendor input
 ordering routed to logistics dispatch") for the one real job source that
-exists today -- see "Known limitations" for the gap between that and the
-must-have's literal scope.
+exists today, and Harvest Pickup + Fulfilment Intake completes Must-Have #4
+-- see "Known limitations" for the gap between Must-Have #3 and its
+literal scope.
 
 Added 5 September 2026, cutting across all of the above: real-time OTP
 verification via both phone and email, at both registration and login, for
@@ -26,7 +29,10 @@ stay Super-Admin-provisioned and only see the OTP step at login. Delivery
 is SIMULATED (see "Known limitations") -- both codes come back in the API
 response instead of an actual SMS/email being sent.
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-15) for
+A full responsive QA pass (5 September 2026) checked every flow at
+desktop/tablet/phone and found a systemic bug -- see "Known limitations."
+
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-17) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -101,6 +107,10 @@ The first run creates the tables in `farm_master` and seeds:
 - One mechanisation request already confirmed (within its own requested
   window) with a real `DispatchJob` row so the Logistics Dispatch queue has
   something to assign and deliver on first run.
+- Two harvest pickup requests, each with a real inbound `DispatchJob`: one
+  already `DELIVERED` (so the Fulfilment Intake queue has something to
+  grade on first run) and one still `ASSIGNED` (so the Logistics Dispatch
+  Inbound tab isn't always empty either).
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -115,6 +125,8 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Production Formula Builder: <http://127.0.0.1:8000/formula-builder-flow>
 - Live Logistics Dispatch: <http://127.0.0.1:8000/dispatch-flow> (opens on
   the phone viewport by default -- confirmed phone-first, PRD Section 5.1)
+- Live Farmer Harvest Pickup Request: <http://127.0.0.1:8000/harvest-pickup-flow>
+- Live Fulfilment Centre Intake & Grading: <http://127.0.0.1:8000/fulfilment-intake-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -188,6 +200,34 @@ the full flow in `/dispatch-flow` at the phone viewport -- sign in, OTP,
 dispatch a job, mark it delivered, and confirmed the Inbound tab renders an
 honest empty state rather than fake data.
 
+Harvest Pickup + Fulfilment Intake, specifically: `POST /farmer/harvest-pickup`
+creates a real inbound `DispatchJob` immediately (verified by checking it
+appears on `GET /logistics/jobs` right away, no confirmation step); the
+Fulfilment Intake queue (`GET /fulfilment/intake-queue`) correctly excludes
+jobs not yet `DELIVERED` and jobs already graded; grading before delivery
+returns `409`; `POST /fulfilment/intake/{id}` writes a real
+`fulfilment_intake_graded` audit entry; vendor and farmer tokens both get
+`403` on every Finance route. Also clicked through both new flows in the
+browser end to end -- a farmer requesting pickup in `/harvest-pickup-flow`,
+and Finance weighing in and grading it in `/fulfilment-intake-flow`, with
+the queue correctly emptying out afterward.
+
+**Responsive QA pass (5 September 2026):** every one of the eight flows
+above was checked at desktop (1280px), tablet (768px), and phone (375px)
+-- programmatically (`document.documentElement.scrollWidth` vs
+`clientWidth` for overflow; `getBoundingClientRect()` on every interactive
+element for touch-target size), not just by eye, since a screenshot taken
+while the browser pane isn't frontmost was found to render a stale frame
+in this environment. Found and fixed a systemic critical bug -- no file
+had a `<meta name="viewport">` tag, so every phone/tablet CSS rule built
+across all of Stage 6 never actually applied on a real device (confirmed:
+`clientWidth` reported `980` regardless of emulated device width until the
+tag was added). Also fixed several sub-44px controls and one real
+functional bug in Logistics Dispatch's job-card renderer (it still read
+`job.service`/`job.area_acres` unconditionally, which are `undefined` for
+a harvest-pickup job) -- see "Known limitations" for the full list. All
+eight flows now pass at all three breakpoints.
+
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
 
@@ -238,15 +278,29 @@ is a real network call to the backend, not a simulation.
   creates a `DispatchJob` (`app/dispatch.py`). Documented here as a
   deliberate scope decision, not a silent reinterpretation of the
   must-have -- see SDD Section 15.
-- Every `DispatchJob` created this pass is `direction=outbound` (inputs/
-  service to the farm). `inbound` (produce to the fulfilment centre) has no
-  source until PRD Must-Have #4 (Fulfilment Centre Intake/Grading) is
-  built -- the Inbound tab in `/dispatch-flow` renders an honest empty
-  state rather than fake data.
 - No audit-log entry is written for dispatch/deliver actions -- they're
   operational, not a role/permission change or a financial action (PRD
   Section 5's audit scope), consistent with how routine state changes are
-  treated elsewhere in this codebase.
-- The rest of Internal Operations (Fulfilment Intake, Finance &
-  Reconciliation, Reporting, MoFA Data Exchange) is not yet built — see
-  the SDD, Section 8, for the full list.
+  treated elsewhere in this codebase. Fulfilment Intake's grading action
+  *is* audited (`fulfilment_intake_graded`), since it's Finance-owned and
+  feeds settlement.
+- A graded Fulfilment Intake doesn't feed anywhere yet -- the Stage 3
+  wireframe shows it feeding Buyer Compliance Docs and Farmer Wallet/
+  Settlement, both of which are PRD Must-Have #5 (Order Reconciliation),
+  not built. This pass stops at recording the graded intake.
+- **Fixed 5 September 2026, responsive QA pass:** every frontend file was
+  missing `<meta name="viewport">`, so no phone/tablet CSS anywhere in
+  Stage 6 had ever actually applied on a real device. Also fixed:
+  sub-44px device-toggle/restart/flow-step controls (all files), sub-44px
+  planting-calendar week inputs (Formula Builder), sub-44px small action
+  buttons (Logistics Dispatch, Fulfilment Intake), and a Logistics
+  Dispatch rendering bug where an inbound job showed "undefined" and
+  "null acres". All eight flows now verified at 375/768/1280px with no
+  horizontal page overflow and no sub-44px interactive element. Two
+  apparent violations (Matching Queue's farmer-selection checkboxes,
+  Harvest Pickup's commitment checklist) were confirmed as false
+  positives -- both are wrapped in a `<label>` whose actual clickable area
+  is comfortably above 44px.
+- The rest of Internal Operations (Finance & Reconciliation, Reporting,
+  MoFA Data Exchange) is not yet built — see the SDD, Section 8, for the
+  full list.

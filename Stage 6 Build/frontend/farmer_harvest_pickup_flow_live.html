@@ -1,6 +1,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Production Formula Builder — Live Backend</title>
+<title>Harvest Pickup Request — Live Backend</title>
 <style>
   :root {
     --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
@@ -106,31 +106,10 @@
   .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
   .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
 
-  .grid { display: grid; gap: 14px; }
-  .g2 { grid-template-columns: 1fr 1fr; }
-  @container (max-width: 767px) { .grid.g2 { grid-template-columns: 1fr; } }
-
   .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
   .kv:last-child { border-bottom: none; }
   .kv .k { color: var(--muted); }
   .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
-
-  .section-title { font-size: 12.5px; font-weight: 800; color: var(--ink); margin: 0 0 12px; }
-
-  .table-scroll { overflow-x: auto; }
-  table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
-  table.data-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; padding: 9px 10px; border-bottom: 2px solid var(--border); }
-  table.data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
-  table.data-table tr.clickable { cursor: pointer; }
-  table.data-table tr.clickable:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
-
-  .stepper { display: flex; flex-wrap: wrap; gap: 10px; }
-  .step { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 78px; }
-  .step .circ { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); }
-  .step .lbl { font-size: 11.5px; font-weight: 700; color: var(--ink); text-align: center; }
-  .step .sub { font-size: 10.5px; color: var(--faint); font-family: "IBM Plex Mono", monospace; }
-  .week-input { width: 56px; height: 44px; text-align: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: 13px; }
-  .week-input:focus { outline: none; border-color: var(--primary); }
 
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -144,11 +123,6 @@
     border-radius: 8px; padding: 10px 12px; margin-top: 12px;
   }
   .inline-alert.show { display: flex; }
-  .inline-note {
-    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--info);
-    background: color-mix(in srgb, var(--info) 10%, transparent); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent);
-    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
-  }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
@@ -170,11 +144,11 @@
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
     </div>
-    <div class="rail-sub">Production Formula Builder — Live Backend</div>
+    <div class="rail-sub">Harvest Pickup Request — Live Backend</div>
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>Builds on the Matching Queue, doesn't re-split it.</b> The per-farmer tonnage and input schedule shown here are read from the real Opportunity rows the Matching Queue already created — this screen only adds the planting calendar and the publish decision.
+      <b>PRD Section 6 Must-Have #4.</b> No confirmation step -- nobody needs to "accept" your own harvest being ready. Submitting creates a real inbound dispatch job immediately, visible to Logistics right away.
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -198,7 +172,7 @@
     <div class="topbar">
       <div>
         <h1 id="screen-title">—</h1>
-        <div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div>
+        <div class="crumb">Farmer Portal / <span id="screen-crumb">—</span></div>
         <div class="desc" id="screen-desc"></div>
       </div>
       <div class="screen-tag" id="screen-tag">STEP 1 / 4</div>
@@ -210,44 +184,36 @@
 
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics"];
+  var PORTAL_NAV = ["Dashboard", "Opportunities", "Formula", "Wallet"];
   var API = "";
 
   var state = {
     token: null,
-    email: "agronomist@farmmaster.test",
+    email: "farmer@farmmaster.test",
     password: "password123",
     challengeId: null,
     otpPhone: "",
     otpEmail: "",
-    requirements: [],
-    req: null,
-    builder: null,
-    weeks: null,
+    quantity: "4.0",
+    pickupDate: "2026-09-15",
+    result: null,
     step: "login",
   };
 
   var STEPS = [
     { id: "login", label: "Sign in" },
     { id: "otp", label: "Verify OTP" },
-    { id: "queue", label: "Formula Queue" },
-    { id: "builder", label: "Build Formula" },
-    { id: "result", label: "Formula Published" },
+    { id: "request", label: "Request Pickup" },
+    { id: "result", label: "Pickup Requested" },
   ];
 
-  function authHeaders(token, extra) {
+  function authHeaders(extra) {
     var h = extra || {};
-    if (token) h["Authorization"] = "Bearer " + token;
+    if (state.token) h["Authorization"] = "Bearer " + state.token;
     return h;
   }
-  async function apiGet(path, token) {
-    var res = await fetch(API + path, { headers: authHeaders(token || state.token) });
-    var data = await res.json().catch(function () { return {}; });
-    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
-    return data;
-  }
-  async function apiSend(method, path, body, token) {
-    var res = await fetch(API + path, { method: method, headers: authHeaders(token || state.token, body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined });
+  async function apiPost(path, body) {
+    var res = await fetch(API + path, { method: "POST", headers: authHeaders(body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined });
     var data = await res.json().catch(function () { return {}; });
     if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
     return data;
@@ -256,17 +222,18 @@
   function chrome(current, bodyHtml) {
     var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
     return (
-      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Internal Ops</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
+      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Farmer</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
       '<div class="body-pad">' + bodyHtml + "</div>"
     );
   }
-  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
-  function step(lbl, val) { return '<div class="step"><div class="circ"></div><div class="lbl">' + lbl + '</div><div class="sub">' + val + '</div></div>'; }
-  function weekField(id, label, val) {
-    return '<div class="step"><span style="font-size:11.5px;font-weight:700">' + label + '</span><input class="week-input" id="' + id + '" type="number" min="1" max="20" value="' + val + '"><span class="sub">week</span></div>';
+  function field(id, cap, val, type) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
   }
-  function formulaBadge(published) {
-    return published ? '<span class="badge success">Published</span>' : '<span class="badge pending">Needs formula</span>';
+  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function dispatchBadge(status) {
+    if (status === "assigned") return '<span class="badge pending">Awaiting tricycle</span>';
+    if (status === "en_route") return '<span class="badge muted">En route</span>';
+    return '<span class="badge success">Delivered</span>';
   }
 
   function render() {
@@ -280,8 +247,8 @@
       document.getElementById("screen-desc").textContent = "Real authentication -- a genuine JWT, not a local flag.";
       document.getElementById("canvas").innerHTML = (
         '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
-          '<div class="field-group"><span class="cap">Email</span><input id="email" type="text" value="' + state.email + '"></div>' +
-          '<div style="margin-top:12px"><div class="field-group"><span class="cap">Password</span><input id="password" type="password" value="' + state.password + '"></div></div>' +
+          field("email", "Email", state.email) +
+          '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + "</div>" +
           '<button class="btn primary block" id="loginBtn" style="margin-top:16px">Sign in</button>' +
           '<div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div>' +
           '<div class="caption" style="margin-top:10px">Dev-only seed account (see README).</div>' +
@@ -295,12 +262,12 @@
     if (state.step === "otp") {
       document.getElementById("screen-title").textContent = "Verify OTP";
       document.getElementById("screen-crumb").textContent = "Verify OTP";
-      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, no SMS/email gateway is wired up yet, so both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, so both codes are pre-filled here instead of actually being sent.";
       document.getElementById("canvas").innerHTML = (
         '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
           '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your phone and email instead of seeing these pre-filled.</div>' +
-          '<div class="field-group"><span class="cap">Phone OTP code</span><input id="otpPhone" type="text" value="' + state.otpPhone + '"></div>' +
-          '<div style="margin-top:12px"><div class="field-group"><span class="cap">Email OTP code</span><input id="otpEmail" type="text" value="' + state.otpEmail + '"></div></div>' +
+          field("otpPhone", "Phone OTP code", state.otpPhone) +
+          '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + "</div>" +
           '<button class="btn primary block" id="otpBtn" style="margin-top:16px">Verify &amp; continue</button>' +
           '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
         "</div></div>"
@@ -310,109 +277,48 @@
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
 
-    if (state.step === "queue") {
-      var production = state.requirements.filter(function (r) { return r.status === "production"; });
-      document.getElementById("screen-title").textContent = "Production Formula Builder";
-      document.getElementById("screen-crumb").textContent = "Formula Queue";
-      document.getElementById("screen-desc").textContent = "Fetched live from GET /agronomist/requirements -- requirements the Matching Queue has already assigned to farmers, whether or not a formula has been published yet.";
-      document.getElementById("canvas").innerHTML = chrome("Agronomy",
-        '<div class="table-scroll"><table class="data-table"><thead><tr>' +
-          "<th>Buyer requirement</th><th>Qty / grade</th><th>Assigned farmers</th><th>Formula</th>" +
-        "</tr></thead><tbody>" +
-          production.map(function (r) {
-            return '<tr class="clickable" data-req="' + r.id + '"><td>' + r.buyer_name + "</td><td>" + r.quantity_tonnes.toFixed(1) + "t · " + r.grade + "</td><td>" + r.assigned_farmer_count + "</td><td>" + formulaBadge(r.formula_published) + "</td></tr>";
-          }).join("") +
-        "</tbody></table></div>" +
-        (production.length === 0 ? '<div class="caption" style="margin-top:12px">No requirements have been assigned by the Matching Queue yet.</div>' : '<div class="caption" style="margin-top:12px">Click a row to open its Production Formula Builder.</div>')
+    if (state.step === "request") {
+      document.getElementById("screen-title").textContent = "Request Harvest Pickup";
+      document.getElementById("screen-crumb").textContent = "Request Pickup";
+      document.getElementById("screen-desc").textContent = "Posted to POST /farmer/harvest-pickup. No approval step -- this immediately creates a real inbound Logistics Dispatch job.";
+      document.getElementById("canvas").innerHTML = chrome("Dashboard",
+        '<div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+          '<div class="card">' +
+            '<div class="card-label">Request pickup</div>' +
+            field("quantity", "Estimated quantity ready (tonnes)", state.quantity) +
+            '<div style="margin-top:12px">' + field("pickupDate", "Preferred pickup date", state.pickupDate, "date") + "</div>" +
+            '<div class="field-group" style="margin-top:12px"><span class="cap">Farm location</span><input value="Pinned at registration (not yet captured -- PRD Section 3.1 KYC gap)" disabled></div>' +
+            '<button class="btn primary block" id="requestBtn" style="margin-top:14px">Request pickup →</button>' +
+            '<div class="inline-alert" id="requestAlert"><span>⚠</span><span id="requestAlertText"></span></div>' +
+          "</div>" +
+          '<div class="card">' +
+            '<div class="card-label">Status</div>' +
+            kv("Nearest fulfilment centre", "Tema (pilot)") +
+            kv("Current status", '<span class="badge muted">awaiting request</span>') +
+            '<div class="caption">Once requested, this pickup appears on the Logistics Dispatch board (/dispatch-flow, Inbound tab).</div>' +
+          "</div>" +
+        "</div>"
       );
-      document.querySelectorAll("[data-req]").forEach(function (row) {
-        row.addEventListener("click", async function () {
-          state.req = production.find(function (x) { return x.id === row.dataset.req; });
-          state.builder = await apiGet("/agronomist/requirements/" + state.req.id + "/formula");
-          state.weeks = {
-            land_prep_week: state.builder.plan.land_prep_week,
-            planting_week: state.builder.plan.planting_week,
-            topdress_week: state.builder.plan.topdress_week,
-            weeding_week: state.builder.plan.weeding_week,
-            harvest_week: state.builder.plan.harvest_week,
-          };
-          state.step = "builder";
-          render();
-        });
-      });
-    }
-
-    if (state.step === "builder") {
-      var b = state.builder;
-      var published = b.plan.published;
-      document.getElementById("screen-title").textContent = "Build Formula — " + b.buyer_name;
-      document.getElementById("screen-crumb").textContent = "Build Formula";
-      document.getElementById("screen-desc").textContent = "The input schedule is computed server-side from RateConfig and the Matching Queue's own per-farmer tonnage -- editing here only changes the planting calendar, sourced from PUT /agronomist/requirements/{id}/formula.";
-      document.getElementById("canvas").innerHTML = chrome("Agronomy",
-        '<div class="grid g2" style="margin-bottom:14px">' +
-          '<div class="card"><div class="card-label">Sourced from</div>' +
-            kv("Buyer requirement", b.buyer_name) + kv("Crop / grade", "Maize, " + b.grade) +
-            kv("Farmers assigned", b.farmer_names.join(", ")) + kv("Per-farmer share", b.per_farmer_tonnes.toFixed(2) + " t") +
-          "</div>" +
-          '<div class="card"><div class="card-label">Input schedule (from RateConfig, per farmer)</div>' +
-            kv("Seed", b.seed_kg_per_farmer + " kg") + kv("NPK fertiliser", b.npk_bags_per_farmer + " bag(s)") + kv("Top-dress", b.topdress_bags_per_farmer + " bag(s)") +
-            '<div class="caption">Same formula as the Farmer Portal\'s own acceptance flow (app/formula.py) -- never computed twice.</div>' +
-          "</div>" +
-        "</div>" +
-        '<div class="card" style="margin-bottom:14px"><div class="card-label">Planting calendar' + (published ? " (locked -- published)" : " (editable)") + '</div>' +
-          '<div class="stepper">' +
-            (published
-              ? step("Land prep", "wk " + b.plan.land_prep_week) + step("Planting", "wk " + b.plan.planting_week) + step("Top-dress", "wk " + b.plan.topdress_week) + step("Weeding", "wk " + b.plan.weeding_week) + step("Harvest", "wk " + b.plan.harvest_week)
-              : weekField("w_land_prep", "Land prep", state.weeks.land_prep_week) + weekField("w_planting", "Planting", state.weeks.planting_week) + weekField("w_topdress", "Top-dress", state.weeks.topdress_week) + weekField("w_weeding", "Weeding", state.weeks.weeding_week) + weekField("w_harvest", "Harvest", state.weeks.harvest_week)
-            ) +
-          "</div>" +
-        "</div>" +
-        (published
-          ? '<div class="inline-note"><span>✓</span><span>Published ' + new Date(b.plan.published_at).toLocaleString() + " -- assigned farmers can see this on their own Production Formula screen.</span></div>"
-          : '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-              '<button class="btn" id="saveBtn">Save draft</button>' +
-              '<button class="btn primary" id="publishBtn">Publish formula to assigned farmers →</button>' +
-            "</div>" +
-            '<div class="inline-alert" id="builderAlert"><span>⚠</span><span id="builderAlertText"></span></div>'
-        ) +
-        '<div style="margin-top:16px"><button class="btn" id="backBtn">← Back to Formula Queue</button></div>'
-      );
-
-      if (!published) {
-        ["w_land_prep", "w_planting", "w_topdress", "w_weeding", "w_harvest"].forEach(function (id, i) {
-          var key = ["land_prep_week", "planting_week", "topdress_week", "weeding_week", "harvest_week"][i];
-          document.getElementById(id).addEventListener("input", function (e) { state.weeks[key] = parseInt(e.target.value, 10) || 1; });
-        });
-        document.getElementById("saveBtn").addEventListener("click", function () { onSaveOrPublish(false); });
-        document.getElementById("publishBtn").addEventListener("click", function () { onSaveOrPublish(true); });
-      }
-      document.getElementById("backBtn").addEventListener("click", async function () {
-        state.requirements = await apiGet("/agronomist/requirements");
-        state.step = "queue";
-        render();
-      });
+      document.getElementById("quantity").addEventListener("input", function (e) { state.quantity = e.target.value; });
+      document.getElementById("pickupDate").addEventListener("input", function (e) { state.pickupDate = e.target.value; });
+      document.getElementById("requestBtn").addEventListener("click", onRequestPickup);
     }
 
     if (state.step === "result") {
-      var r = state.builder;
-      document.getElementById("screen-title").textContent = "Formula Published";
-      document.getElementById("screen-crumb").textContent = "Formula Published";
-      document.getElementById("screen-desc").textContent = "Confirmed in the database -- the assigned farmers' Production Formula view now reflects this calendar and input schedule.";
-      document.getElementById("canvas").innerHTML = chrome("Agronomy",
+      document.getElementById("screen-title").textContent = "Pickup Requested";
+      document.getElementById("screen-crumb").textContent = "Pickup Requested";
+      document.getElementById("screen-desc").textContent = "Confirmed in the database -- a real DispatchJob now exists for Logistics to assign and deliver.";
+      document.getElementById("canvas").innerHTML = chrome("Dashboard",
         '<div style="max-width:420px;margin:20px auto;text-align:center">' +
           '<div class="success-mark ok"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
-          '<div style="font-size:18px;font-weight:800;margin-bottom:6px">Formula published</div>' +
-          '<div class="card" style="text-align:left;margin:0 auto 20px;max-width:360px">' +
-            kv("Buyer", r.buyer_name) + kv("Farmers", r.farmer_names.join(", ")) + kv("Seed", r.seed_kg_per_farmer + " kg/farmer") +
+          '<div style="font-size:18px;font-weight:800;margin-bottom:6px">Pickup requested</div>' +
+          '<div class="card" style="text-align:left;margin:0 auto">' +
+            kv("Quantity", state.result.quantity_ready_tonnes + " t") +
+            kv("Preferred date", state.result.preferred_pickup_date) +
+            kv("Dispatch status", dispatchBadge(state.result.dispatch_status)) +
           "</div>" +
-          '<button class="btn primary block" id="toQueueBtn">Back to Formula Queue →</button>' +
         "</div>"
       );
-      document.getElementById("toQueueBtn").addEventListener("click", async function () {
-        state.requirements = await apiGet("/agronomist/requirements");
-        state.step = "queue";
-        render();
-      });
     }
   }
 
@@ -446,8 +352,7 @@
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.requirements = await apiGet("/agronomist/requirements");
-      state.step = "queue";
+      state.step = "request";
       render();
     } catch (e) {
       document.getElementById("otpAlertText").textContent = e.message;
@@ -457,33 +362,25 @@
     }
   }
 
-  async function onSaveOrPublish(thenPublish) {
-    var btnId = thenPublish ? "publishBtn" : "saveBtn";
-    var btn = document.getElementById(btnId);
-    var original = btn.textContent;
+  async function onRequestPickup() {
+    var qty = parseFloat(state.quantity);
+    if (!qty || qty <= 0 || !state.pickupDate) {
+      document.getElementById("requestAlertText").textContent = "Enter a valid quantity and pickup date.";
+      document.getElementById("requestAlert").classList.add("show");
+      return;
+    }
+    var btn = document.getElementById("requestBtn");
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> ' + (thenPublish ? "Publishing…" : "Saving…");
+    btn.innerHTML = '<span class="spinner"></span> Requesting…';
     try {
-      state.builder = await apiSend("PUT", "/agronomist/requirements/" + state.req.id + "/formula", state.weeks);
-      if (thenPublish) {
-        state.builder = await apiSend("POST", "/agronomist/requirements/" + state.req.id + "/formula/publish", null);
-        state.step = "result";
-        render();
-      } else {
-        state.weeks = {
-          land_prep_week: state.builder.plan.land_prep_week,
-          planting_week: state.builder.plan.planting_week,
-          topdress_week: state.builder.plan.topdress_week,
-          weeding_week: state.builder.plan.weeding_week,
-          harvest_week: state.builder.plan.harvest_week,
-        };
-        render();
-      }
+      state.result = await apiPost("/farmer/harvest-pickup", { quantity_ready_tonnes: qty, preferred_pickup_date: state.pickupDate });
+      state.step = "result";
+      render();
     } catch (e) {
-      document.getElementById("builderAlertText").textContent = e.message;
-      document.getElementById("builderAlert").classList.add("show");
+      document.getElementById("requestAlertText").textContent = e.message;
+      document.getElementById("requestAlert").classList.add("show");
       btn.disabled = false;
-      btn.textContent = original;
+      btn.textContent = "Request pickup →";
     }
   }
 
@@ -505,7 +402,7 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", requirements: [], req: null, builder: null, weeks: null, step: "login" };
+    state = { token: null, email: "farmer@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", quantity: "4.0", pickupDate: "2026-09-15", result: null, step: "login" };
     setDevice("desktop");
     render();
   });

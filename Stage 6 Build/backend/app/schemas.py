@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from .models import (
     Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
-    UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus,
+    UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus, GradeResult,
 )
 
 
@@ -55,10 +55,15 @@ class RegisterVerifyResponse(BaseModel):
 
 class DispatchJobResponse(BaseModel):
     id: str
+    job_type: str  # "mechanisation" | "harvest_pickup" -- presentation-only, not a DB column
     farmer_name: str
-    service: str
-    area_acres: float
-    confirmed_date: Optional[str]
+    description: str
+    # Mechanisation-sourced (outbound) fields:
+    area_acres: Optional[float] = None
+    confirmed_date: Optional[str] = None
+    # Harvest-pickup-sourced (inbound) fields:
+    quantity_tonnes: Optional[float] = None
+    preferred_pickup_date: Optional[str] = None
     direction: DispatchDirection
     status: DispatchJobStatus
     tricycle_label: Optional[str]
@@ -70,6 +75,45 @@ class DispatchJobResponse(BaseModel):
 
 class DispatchAssignRequest(BaseModel):
     tricycle_label: str
+
+
+class HarvestPickupRequestCreate(BaseModel):
+    quantity_ready_tonnes: float
+    preferred_pickup_date: str  # ISO date, e.g. "2026-09-20"
+
+
+class HarvestPickupRequestResponse(BaseModel):
+    id: str
+    quantity_ready_tonnes: float
+    preferred_pickup_date: str
+    dispatch_status: DispatchJobStatus
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FulfilmentIntakeCreate(BaseModel):
+    weigh_in_kg: float
+    grade: GradeResult
+
+
+class FulfilmentIntakeResponse(BaseModel):
+    id: str
+    harvest_pickup_request_id: str
+    weigh_in_kg: float
+    grade: GradeResult
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FulfilmentQueueEntry(BaseModel):
+    harvest_pickup_request_id: str
+    farmer_name: str
+    quantity_ready_tonnes: float
+    delivered_at: Optional[datetime]
 
 
 class RegistrationApprovalResponse(BaseModel):
