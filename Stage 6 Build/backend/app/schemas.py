@@ -153,6 +153,7 @@ class AgronomistRequirementResponse(BaseModel):
     delivery_timeline: str
     status: RequirementStatus
     assigned_farmer_count: int
+    formula_published: bool
 
     class Config:
         from_attributes = True
@@ -169,3 +170,33 @@ class FarmerCandidateResponse(BaseModel):
 
 class AssignFarmersRequest(BaseModel):
     farmer_ids: List[str]
+
+
+class FormulaPlanUpdate(BaseModel):
+    land_prep_week: int
+    planting_week: int
+    topdress_week: int
+    weeding_week: int
+    harvest_week: int
+
+
+class FormulaPlanResponse(FormulaPlanUpdate):
+    published: bool
+    published_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class FormulaBuilderResponse(BaseModel):
+    buyer_requirement_id: str
+    buyer_name: str
+    grade: str
+    quantity_tonnes: float
+    delivery_timeline: str
+    farmer_names: List[str]
+    per_farmer_tonnes: float
+    seed_kg_per_farmer: float
+    npk_bags_per_farmer: int
+    topdress_bags_per_farmer: int
+    plan: FormulaPlanResponse

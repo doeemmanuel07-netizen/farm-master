@@ -31,7 +31,7 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus four flows implemented and tested end to end against a
+retrofitted) plus five flows implemented and tested end to end against a
 real database and a real frontend:
 
 - Buyer commitment-fee payment
@@ -41,10 +41,16 @@ real database and a real frontend:
 - Matching Queue (Internal Operations) — an Agronomist assigns a paid
   buyer requirement to one or more active farmers, creating real
   Opportunity rows a farmer can then accept through the existing Farmer flow
+- Production Formula Builder (Internal Operations) — an Agronomist turns an
+  assigned requirement into a planting calendar and a RateConfig-derived
+  input schedule, then publishes it. Reads its per-farmer tonnage and
+  farmer list directly from the Opportunity rows the Matching Queue already
+  created rather than re-deriving them, and reuses the exact input-schedule
+  math from the Farmer flow (see `app/formula.py`) rather than duplicating it.
 
 Not yet built: Farmer/Vendor account management, and the rest of Internal
-Operations (Production Formula Builder, Logistics Dispatch, Fulfilment
-Intake, Finance & Reconciliation, Reporting, MoFA Data Exchange).
+Operations (Logistics Dispatch, Fulfilment Intake, Finance &
+Reconciliation, Reporting, MoFA Data Exchange).
 
 ## Tech stack
 
@@ -81,6 +87,7 @@ Then open:
 - <http://127.0.0.1:8000/farmer-flow>
 - <http://127.0.0.1:8000/vendor-flow>
 - <http://127.0.0.1:8000/matching-flow> — Agronomist Matching Queue (Internal Operations)
+- <http://127.0.0.1:8000/formula-builder-flow> — Production Formula Builder (Internal Operations)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 This expects a local PostgreSQL instance (see

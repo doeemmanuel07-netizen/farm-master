@@ -15,18 +15,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, RateConfig, Opportunity, OpportunityStatus, ProductionFormula
+from ..models import User, Role, Opportunity, OpportunityStatus, ProductionFormula
 from ..auth import require_roles
+from ..formula import compute_formula_inputs
 from ..schemas import OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
-
-
-def _get_rate(db: Session, key: str) -> float:
-    row = db.query(RateConfig).filter(RateConfig.key == key).first()
-    if not row:
-        raise HTTPException(status_code=500, detail=f"Rate config '{key}' is not seeded.")
-    return row.value
 
 
 @router.get("/opportunities", response_model=List[OpportunityResponse])
@@ -74,17 +68,13 @@ def accept_opportunity(
     from datetime import datetime
     opp.accepted_at = datetime.utcnow()
 
-    scaling_seed = _get_rate(db, "formula_seed_kg_per_tonne")
-    scaling_npk = _get_rate(db, "formula_npk_tonnes_per_bag")
-    scaling_topdress = _get_rate(db, "formula_topdress_tonnes_per_bag")
-
-    import math
+    inputs = compute_formula_inputs(db, opp.quantity_tonnes)
     formula = ProductionFormula(
         opportunity_id=opp.id,
         farmer_id=user.id,
-        seed_kg=round(opp.quantity_tonnes * scaling_seed, 1),
-        npk_bags=math.ceil(opp.quantity_tonnes / scaling_npk),
-        topdress_bags=max(1, math.ceil(opp.quantity_tonnes / scaling_topdress)),
+        seed_kg=inputs.seed_kg,
+        npk_bags=inputs.npk_bags,
+        topdress_bags=inputs.topdress_bags,
     )
     db.add(formula)
     db.commit()

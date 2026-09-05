@@ -159,6 +159,13 @@ class Opportunity(Base):
     price_per_tonne = Column(Float, nullable=False)
     deadline = Column(String, nullable=False)
     status = Column(SAEnum(OpportunityStatus), nullable=False, default=OpportunityStatus.OPEN)
+    # Set by agronomist.py's assign_farmers -- the farmer the Matching Queue
+    # actually assigned this row to, independent of accepted_by (which stays
+    # null until that farmer acts on it). Added for the Production Formula
+    # Builder, which needs to name the assigned farmers before any of them
+    # have accepted. Nullable because pre-Matching-Queue opportunities (the
+    # seeded open pool) were never assigned to a specific farmer.
+    assigned_farmer_id = Column(String, ForeignKey("users.id"), nullable=True)
     accepted_by = Column(String, ForeignKey("users.id"), nullable=True)
     accepted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -180,6 +187,41 @@ class ProductionFormula(Base):
     npk_bags = Column(Integer, nullable=False)
     topdress_bags = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RequirementFormulaPlan(Base):
+    """
+    Agronomist-built production formula for an assigned buyer requirement --
+    backend for the Production Formula Builder screen (IA Section 3.5, Fig. 6;
+    Stage 3/4 "Production Formula Builder"). One plan per requirement
+    (buyer_requirement_id is unique): every farmer assigned to that
+    requirement by the Matching Queue receives an identical tonnage share by
+    construction (assign_farmers splits evenly), so one planting calendar and
+    one input schedule genuinely covers all of them -- this is not a
+    per-farmer table collapsed for convenience, it reflects that the
+    Matching Queue's split makes every assigned farmer's share equal.
+
+    The input schedule itself is NOT stored here: it's derived on read from
+    the same RateConfig-backed formula used in farmer.py's accept_opportunity
+    (see formula.py), so a later rate change is reflected consistently rather
+    than frozen at build time for an unpublished plan. Only the planting
+    calendar (which has no other source of truth) and the publish decision
+    are real editable state.
+    """
+    __tablename__ = "requirement_formula_plans"
+
+    id = Column(String, primary_key=True, default=uid)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=False, unique=True)
+    land_prep_week = Column(Integer, nullable=False, default=1)
+    planting_week = Column(Integer, nullable=False, default=2)
+    topdress_week = Column(Integer, nullable=False, default=4)
+    weeding_week = Column(Integer, nullable=False, default=6)
+    harvest_week = Column(Integer, nullable=False, default=11)
+    published = Column(Boolean, nullable=False, default=False)
+    published_at = Column(DateTime, nullable=True)
+    published_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class MechanisationRequestStatus(str, enum.Enum):

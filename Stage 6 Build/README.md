@@ -1,14 +1,15 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus four flows, end to end and tested: Buyer
+segregation of duties) plus five flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
-date-conflict override), and the Matching Queue -- the first Internal
-Operations screen, where an Agronomist assigns a paid buyer requirement to
-one or more farmers. See `Farm_Master_SDD_Stage6.docx` (repo root) for
-architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
-contract.
+date-conflict override), the Matching Queue -- where an Agronomist assigns
+a paid buyer requirement to one or more farmers -- and the Production
+Formula Builder, where an Agronomist turns an assigned requirement into a
+planting calendar and input schedule and publishes it to those farmers.
+See `Farm_Master_SDD_Stage6.docx` (repo root) for architecture and
+`Farm_Master_API_Documentation_Stage6.docx` for the API contract.
 
 ## Stack
 
@@ -73,6 +74,10 @@ The first run creates the tables in `farm_master` and seeds:
   constants) — all marked `PROVISIONAL`.
 - Two buyer requirements already past payment (status `MATCHING`) so the
   Matching Queue has something to assign on first run.
+- One buyer requirement already assigned to two farmers (status
+  `PRODUCTION`, real `Opportunity` rows with `assigned_farmer_id` set) so
+  the Production Formula Builder has something real to build a formula for
+  on first run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -83,6 +88,7 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Farmer flow: <http://127.0.0.1:8000/farmer-flow>
 - Live Vendor flow: <http://127.0.0.1:8000/vendor-flow>
 - Live Agronomist Matching Queue: <http://127.0.0.1:8000/matching-flow>
+- Live Production Formula Builder: <http://127.0.0.1:8000/formula-builder-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -108,6 +114,19 @@ curl -s -X POST http://127.0.0.1:8000/auth/login -H "Content-Type: application/j
 # entry appear automatically after a successful payment
 ```
 
+Production Formula Builder, specifically: signed in as the seeded
+Agronomist, `GET /agronomist/requirements/{id}/formula` on the seeded
+assigned requirement returns the real farmer names and per-farmer tonnage
+from the Matching Queue's own `Opportunity` rows plus a RateConfig-computed
+input schedule; `PUT .../formula` saves calendar edits; `POST
+.../formula/publish` publishes, logs a `formula_published` audit entry, and
+locks the plan (a second publish or a post-publish edit both return `409`);
+a requirement with no assigned farmers yet returns `409` rather than an
+empty formula; a farmer or finance token gets `403` on all three routes
+(RBAC + segregation of duties). Also clicked through the full flow in
+`/formula-builder-flow` end to end, both the editable (unpublished) and
+locked (published) states, at desktop and phone widths.
+
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
 
@@ -118,7 +137,23 @@ is a real network call to the backend, not a simulation.
 - Card payment deliberately returns `501` rather than pretending to work.
 - The Matching Queue's tonnage split across assigned farmers is an even
   split, a placeholder for real per-farm allocation logic (PRD Section 10).
+  The Production Formula Builder inherits this: since every farmer assigned
+  to one requirement gets an identical tonnage share by construction, it
+  shows and publishes one shared input schedule per requirement rather than
+  a genuinely per-farmer one -- correct given today's even split, but it
+  will need a per-farmer schedule once real per-farm allocation lands.
+- An `Opportunity` row created by the Matching Queue is not restricted to
+  the farmer it was assigned to -- `assigned_farmer_id` records who it was
+  intended for (and is what the Formula Builder reads), but
+  `GET /farmer/opportunities` still returns every open opportunity to every
+  farmer, so in principle a different active farmer could accept it first.
+  Pre-existing gap, not introduced by the Formula Builder; flagged here
+  rather than silently worked around.
+- The planting calendar's five stages/week-offsets are fixed columns (Land
+  prep, Planting, Top-dress, Weeding, Harvest), matching the pilot's single
+  crop (maize) and the Stage 3/4 wireframes exactly -- not a general
+  per-crop stage model, which is out of scope for a single-crop pilot.
 - Farmer/Vendor account management, and the rest of Internal Operations
-  (Formula Builder, Logistics Dispatch, Fulfilment Intake, Finance &
-  Reconciliation, Reporting, MoFA Data Exchange), are not yet built — see
-  the SDD, Section 8, for the full list.
+  (Logistics Dispatch, Fulfilment Intake, Finance & Reconciliation,
+  Reporting, MoFA Data Exchange), are not yet built — see the SDD, Section
+  8, for the full list.

@@ -14,6 +14,17 @@ from .models import (
 )
 from .auth import hash_password
 
+# Formula Builder demo data -- a requirement already past Matching Queue
+# assignment (status PRODUCTION, real Opportunity rows with
+# assigned_farmer_id set), so the screen has something real to build a
+# formula for on first run, same treatment as SEED_REQUIREMENTS below for
+# the Matching Queue.
+SEED_ASSIGNED_REQUIREMENT = (
+    # buyer_email, grade, quantity_tonnes, price_per_tonne, delivery_location, delivery_timeline
+    "buyer@farmmaster.test", "Grade 1", 5.0, 2200, "Tema", "25 Sep 2026",
+)
+SEED_ASSIGNED_FARMERS = ["kojo.mensah@farmmaster.test", "ama.serwaa@farmmaster.test"]
+
 SEED_USERS = [
     ("emmanuel@farmmaster.test", "Emmanuel", Role.SUPER_ADMIN, None),
     ("finance@farmmaster.test", "Kojo Antwi", Role.FINANCE, None),
@@ -111,6 +122,36 @@ def seed():
             print(f"Seeded {len(SEED_REQUIREMENTS)} buyer requirements (Matching Queue demo data).")
         else:
             print("Buyer requirements already exist, skipping requirement seed.")
+
+        if db.query(BuyerRequirement).filter(BuyerRequirement.status == RequirementStatus.PRODUCTION).count() == 0:
+            buyer_email, grade, qty, price, location, timeline = SEED_ASSIGNED_REQUIREMENT
+            buyer = db.query(User).filter(User.email == buyer_email).first()
+            fee_rate = db.query(RateConfig).filter(RateConfig.key == "buyer_commitment_fee_per_tonne").first()
+            rate = fee_rate.value if fee_rate else 90.0
+            if buyer:
+                req = BuyerRequirement(
+                    buyer_id=buyer.id, crop="Maize", grade=grade, quantity_tonnes=qty,
+                    price_per_tonne=price, delivery_location=location, delivery_timeline=timeline,
+                    commitment_fee_amount=round(max(rate, qty * rate), 2),
+                    status=RequirementStatus.PRODUCTION,
+                )
+                db.add(req)
+                db.commit()
+                db.refresh(req)
+
+                farmers = db.query(User).filter(User.email.in_(SEED_ASSIGNED_FARMERS)).all()
+                share = round(qty / len(farmers), 2) if farmers else qty
+                buyer_name = buyer.organisation_name or buyer.full_name
+                for farmer in farmers:
+                    db.add(Opportunity(
+                        buyer_requirement_id=req.id, buyer_name=buyer_name,
+                        tag="Buyer requirement match", grade=grade, quantity_tonnes=share,
+                        price_per_tonne=price, deadline=timeline, assigned_farmer_id=farmer.id,
+                    ))
+                db.commit()
+                print("Seeded 1 assigned buyer requirement (Formula Builder demo data).")
+        else:
+            print("An assigned (PRODUCTION) requirement already exists, skipping Formula Builder seed.")
 
         if db.query(Opportunity).count() == 0:
             for buyer_name, tag, grade, qty, price, deadline in SEED_OPPORTUNITIES:
