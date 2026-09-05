@@ -25,18 +25,22 @@ SEED_ASSIGNED_REQUIREMENT = (
 )
 SEED_ASSIGNED_FARMERS = ["kojo.mensah@farmmaster.test", "ama.serwaa@farmmaster.test"]
 
+# Phone numbers added 5 Sep 2026 alongside real-time OTP verification (PRD
+# Section 12) -- login OTP is simulated but still generated per real user,
+# so every seeded account needs a phone to "send" to, same as it needs an
+# email. Dev-only placeholder numbers, Ghanaian mobile format.
 SEED_USERS = [
-    ("emmanuel@farmmaster.test", "Emmanuel", Role.SUPER_ADMIN, None),
-    ("finance@farmmaster.test", "Kojo Antwi", Role.FINANCE, None),
-    ("agronomist@farmmaster.test", "Kwabena Osei", Role.AGRONOMIST, None),
-    ("logistics@farmmaster.test", "Abena Owusu", Role.LOGISTICS, None),
-    ("buyer@farmmaster.test", "Tema Grain Processors Ltd.", Role.BUYER, "Tema Grain Processors Ltd."),
-    ("gsfp@farmmaster.test", "Ghana School Feeding Programme", Role.BUYER, "Ghana School Feeding Programme"),
-    ("coastal@farmmaster.test", "Coastal Feed Mills", Role.BUYER, "Coastal Feed Mills"),
-    ("farmer@farmmaster.test", "Kofi Mensah", Role.FARMER, None),
-    ("kojo.mensah@farmmaster.test", "Kojo Mensah", Role.FARMER, None),
-    ("ama.serwaa@farmmaster.test", "Ama Serwaa", Role.FARMER, None),
-    ("vendor@farmmaster.test", "Kwame's Agro Supplies", Role.VENDOR, "Kwame's Agro Supplies"),
+    ("emmanuel@farmmaster.test", "Emmanuel", Role.SUPER_ADMIN, None, "+233241000001"),
+    ("finance@farmmaster.test", "Kojo Antwi", Role.FINANCE, None, "+233241000002"),
+    ("agronomist@farmmaster.test", "Kwabena Osei", Role.AGRONOMIST, None, "+233241000003"),
+    ("logistics@farmmaster.test", "Abena Owusu", Role.LOGISTICS, None, "+233241000004"),
+    ("buyer@farmmaster.test", "Tema Grain Processors Ltd.", Role.BUYER, "Tema Grain Processors Ltd.", "+233241000005"),
+    ("gsfp@farmmaster.test", "Ghana School Feeding Programme", Role.BUYER, "Ghana School Feeding Programme", "+233241000006"),
+    ("coastal@farmmaster.test", "Coastal Feed Mills", Role.BUYER, "Coastal Feed Mills", "+233241000007"),
+    ("farmer@farmmaster.test", "Kofi Mensah", Role.FARMER, None, "+233241000008"),
+    ("kojo.mensah@farmmaster.test", "Kojo Mensah", Role.FARMER, None, "+233241000009"),
+    ("ama.serwaa@farmmaster.test", "Ama Serwaa", Role.FARMER, None, "+233241000010"),
+    ("vendor@farmmaster.test", "Kwame's Agro Supplies", Role.VENDOR, "Kwame's Agro Supplies", "+233241000011"),
 ]
 
 SEED_OPPORTUNITIES = [
@@ -83,10 +87,11 @@ def seed():
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
-            for email, name, role, org in SEED_USERS:
+            for email, name, role, org, phone in SEED_USERS:
                 db.add(User(
                     email=email,
                     full_name=name,
+                    phone=phone,
                     role=role,
                     status=UserStatus.ACTIVE,
                     password_hash=hash_password("password123"),
@@ -123,6 +128,22 @@ def seed():
         else:
             print("Buyer requirements already exist, skipping requirement seed.")
 
+        if db.query(Opportunity).count() == 0:
+            for buyer_name, tag, grade, qty, price, deadline in SEED_OPPORTUNITIES:
+                db.add(Opportunity(
+                    buyer_name=buyer_name, tag=tag, grade=grade,
+                    quantity_tonnes=qty, price_per_tonne=price, deadline=deadline,
+                ))
+            db.commit()
+            print(f"Seeded {len(SEED_OPPORTUNITIES)} opportunities.")
+        else:
+            print("Opportunities already exist, skipping opportunity seed.")
+
+        # Gated on BuyerRequirement, not Opportunity -- this block adds its
+        # own Opportunity rows (for the assigned farmers), which must not be
+        # mistaken by the pool-opportunity block above for "already seeded".
+        # Keeping this block after that one keeps their count() == 0 checks
+        # from cross-contaminating each other.
         if db.query(BuyerRequirement).filter(BuyerRequirement.status == RequirementStatus.PRODUCTION).count() == 0:
             buyer_email, grade, qty, price, location, timeline = SEED_ASSIGNED_REQUIREMENT
             buyer = db.query(User).filter(User.email == buyer_email).first()
@@ -152,17 +173,6 @@ def seed():
                 print("Seeded 1 assigned buyer requirement (Formula Builder demo data).")
         else:
             print("An assigned (PRODUCTION) requirement already exists, skipping Formula Builder seed.")
-
-        if db.query(Opportunity).count() == 0:
-            for buyer_name, tag, grade, qty, price, deadline in SEED_OPPORTUNITIES:
-                db.add(Opportunity(
-                    buyer_name=buyer_name, tag=tag, grade=grade,
-                    quantity_tonnes=qty, price_per_tonne=price, deadline=deadline,
-                ))
-            db.commit()
-            print(f"Seeded {len(SEED_OPPORTUNITIES)} opportunities.")
-        else:
-            print("Opportunities already exist, skipping opportunity seed.")
 
         if db.query(MechanisationRequest).count() == 0:
             vendor = db.query(User).filter(User.role == Role.VENDOR).first()

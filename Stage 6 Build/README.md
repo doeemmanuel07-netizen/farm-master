@@ -8,8 +8,19 @@ date-conflict override), the Matching Queue -- where an Agronomist assigns
 a paid buyer requirement to one or more farmers -- and the Production
 Formula Builder, where an Agronomist turns an assigned requirement into a
 planting calendar and input schedule and publishes it to those farmers.
-See `Farm_Master_SDD_Stage6.docx` (repo root) for architecture and
-`Farm_Master_API_Documentation_Stage6.docx` for the API contract.
+
+Added 5 September 2026, cutting across all of the above: real-time OTP
+verification via both phone and email, at both registration and login, for
+all seven roles (PRD Section 12) -- a new confirmed requirement. Real
+self-registration (`POST /auth/register`) exists for the first time as
+part of this, scoped to Farmer/Buyer/Vendor; Internal Operations accounts
+stay Super-Admin-provisioned and only see the OTP step at login. Delivery
+is SIMULATED (see "Known limitations") -- both codes come back in the API
+response instead of an actual SMS/email being sent.
+
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-14) for
+architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
+contract.
 
 ## Stack
 
@@ -56,8 +67,9 @@ python -m uvicorn app.main:app --reload --port 8000
 The first run creates the tables in `farm_master` and seeds:
 
 - One user per role, plus extra Buyer/Farmer accounts so the Matching Queue
-  has real candidates to assign (all passwords: `password123` — **dev-only,
-  never reuse as a real credential**):
+  has real candidates to assign (all passwords: `password123`, all phone
+  numbers `+2332410000NN` placeholders — **dev-only, never reuse either as
+  a real credential**):
   - `emmanuel@farmmaster.test` — Super Admin
   - `finance@farmmaster.test` — Finance
   - `agronomist@farmmaster.test` — Agronomist
@@ -84,6 +96,7 @@ Re-running the seed is safe; it skips seeding if data already exists.
 ## Running it
 
 - API root: <http://127.0.0.1:8000>
+- Live Registration + OTP flow: <http://127.0.0.1:8000/register-flow>
 - Live Buyer flow: <http://127.0.0.1:8000/buyer-flow>
 - Live Farmer flow: <http://127.0.0.1:8000/farmer-flow>
 - Live Vendor flow: <http://127.0.0.1:8000/vendor-flow>
@@ -91,6 +104,10 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Production Formula Builder: <http://127.0.0.1:8000/formula-builder-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
+
+Every one of the `-flow` pages above signs in through two steps now:
+password, then a Verify OTP screen with both codes pre-filled (SIMULATED
+delivery -- see "Known limitations").
 
 ## Environment variables
 
@@ -104,15 +121,35 @@ Re-running the seed is safe; it skips seeding if data already exists.
 Run the server, then:
 
 ```bash
-# Login as the seeded buyer
+# Login as the seeded buyer -- returns an OTP challenge, not a token
 curl -s -X POST http://127.0.0.1:8000/auth/login -H "Content-Type: application/json" \
   -d '{"email":"buyer@farmmaster.test","password":"password123"}'
+
+# Verify with the dev_only_phone_code/dev_only_email_code from that response
+# to get the real access_token:
+curl -s -X POST http://127.0.0.1:8000/auth/login/verify-otp -H "Content-Type: application/json" \
+  -d '{"challenge_id":"<from above>","phone_code":"<from above>","email_code":"<from above>"}'
 
 # RBAC: a farmer token gets 403 on a buyer-only route
 # Segregation of duties: a finance token gets 403 on any /admin/* route
 # Super Admin: can view /admin/audit-log and see the commitment-fee-capture
 # entry appear automatically after a successful payment
 ```
+
+Real-time OTP + registration, specifically: `POST /auth/register` (Farmer/
+Buyer/Vendor only -- 422 for internal roles) returns an OTP challenge;
+`POST /auth/register/verify-otp` activates a Farmer immediately or moves a
+Buyer/Vendor to `pending_review` and creates a real `RegistrationApproval`
+row (`GET /admin/registrations` lists it); logging in before verifying, or
+before Super Admin approval, both return `403` with a specific reason;
+`POST /auth/login` always returns an OTP challenge rather than a token now,
+and `POST /auth/login/verify-otp` enforces wrong-code (`401`), reused-
+challenge (`409`), and expired-challenge (`410`) correctly. Also clicked
+through the full two-step login on all five existing `-flow` pages
+(including the Vendor flow's embedded Super-Admin override-approval
+control, which also had to be updated to the new login contract) plus the
+new `/register-flow` page for both a Farmer (straight to active) and a
+Buyer (into the approval queue) registration.
 
 Production Formula Builder, specifically: signed in as the seeded
 Agronomist, `GET /agronomist/requirements/{id}/formula` on the seeded
@@ -142,18 +179,32 @@ is a real network call to the backend, not a simulation.
   shows and publishes one shared input schedule per requirement rather than
   a genuinely per-farmer one -- correct given today's even split, but it
   will need a per-farmer schedule once real per-farm allocation lands.
-- An `Opportunity` row created by the Matching Queue is not restricted to
-  the farmer it was assigned to -- `assigned_farmer_id` records who it was
-  intended for (and is what the Formula Builder reads), but
-  `GET /farmer/opportunities` still returns every open opportunity to every
-  farmer, so in principle a different active farmer could accept it first.
-  Pre-existing gap, not introduced by the Formula Builder; flagged here
-  rather than silently worked around.
+- **KNOWN GAP -- tracked, not yet scheduled (confirmed with Emmanuel 5 Sep
+  2026, deliberately deferred to its own task):** an `Opportunity` row
+  created by the Matching Queue is not restricted to the farmer it was
+  assigned to. `assigned_farmer_id` records who it was intended for (and is
+  what the Production Formula Builder reads), but `GET /farmer/opportunities`
+  still returns every open opportunity to every active farmer, so in
+  principle a different farmer could accept an opportunity meant for
+  someone else. Pre-existing since the Matching Queue pass, not introduced
+  by the Formula Builder. Fix means scoping `list_opportunities` (and
+  probably `accept_opportunity`'s 409 check) to `assigned_farmer_id` --
+  deliberately not done here to keep it from tangling with unrelated work.
 - The planting calendar's five stages/week-offsets are fixed columns (Land
   prep, Planting, Top-dress, Weeding, Harvest), matching the pilot's single
   crop (maize) and the Stage 3/4 wireframes exactly -- not a general
   per-crop stage model, which is out of scope for a single-crop pilot.
-- Farmer/Vendor account management, and the rest of Internal Operations
-  (Logistics Dispatch, Fulfilment Intake, Finance & Reconciliation,
-  Reporting, MoFA Data Exchange), are not yet built — see the SDD, Section
-  8, for the full list.
+- Real-time OTP verification (phone + email, registration + login, all
+  seven roles -- PRD Section 12) is real end to end -- generated, stored,
+  verified, single-use, expiring -- but delivery is SIMULATED, same
+  treatment as mobile money: no SMS/email provider is chosen yet (PRD
+  Section 1.1/12), so both codes are returned directly in the API response
+  instead of actually being sent.
+- Internal Operations account creation (Agronomist/Logistics/Finance/Super
+  Admin) still has no UI -- these roles are Super-Admin-provisioned per PRD
+  Section 3.2, and today that only happens via `seed.py`; `PUT
+  /admin/users/{id}/role` can change an existing account's role but there's
+  no "create an internal account" endpoint yet.
+- The rest of Internal Operations (Logistics Dispatch, Fulfilment Intake,
+  Finance & Reconciliation, Reporting, MoFA Data Exchange) is not yet
+  built — see the SDD, Section 8, for the full list.

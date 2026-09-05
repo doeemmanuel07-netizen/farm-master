@@ -50,6 +50,11 @@ FINANCE_ROLES = {Role.FINANCE}
 
 
 class UserStatus(str, enum.Enum):
+    # New self-registered account, phone/email not yet OTP-verified -- added
+    # 5 Sep 2026 with real-time OTP verification (PRD Section 12). Precedes
+    # PENDING even for Buyer/Vendor: OTP verification gates entry into the
+    # existing Super-Admin Registration Approval Queue, it doesn't replace it.
+    PENDING_OTP = "pending_otp_verification"
     PENDING = "pending_review"
     ACTIVE = "active"
     SUSPENDED = "suspended"
@@ -266,16 +271,62 @@ class MechanisationRequest(Base):
 
 
 class RegistrationApproval(Base):
-    """Backend counterpart of the Registration Approval Queue screen (IA Section 10)."""
+    """
+    Backend counterpart of the Registration Approval Queue screen (IA Section
+    10). user_id added 5 Sep 2026 alongside real-time OTP verification (PRD
+    Section 12) -- until then nothing in the codebase actually created these
+    rows or linked one back to a real account, so approving/rejecting here
+    couldn't change anything a Buyer/Vendor could log in with. Now
+    auth.py's register/verify-otp creates the row (post-OTP, pre-approval),
+    and admin.py's approve/reject actually activates or suspends the
+    linked user.
+    """
     __tablename__ = "registration_approvals"
 
     id = Column(String, primary_key=True, default=uid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     applicant_name = Column(String, nullable=False)
     applicant_type = Column(String, nullable=False)  # e.g. "Private Buyer", "Third-Party Vendor"
     portal = Column(String, nullable=False)  # buyer | vendor
     status = Column(String, nullable=False, default="pending_review")
     reviewed_by = Column(String, ForeignKey("users.id"), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class OtpPurpose(str, enum.Enum):
+    REGISTRATION = "registration"
+    LOGIN = "login"
+
+
+class OtpChallenge(Base):
+    """
+    Real-time OTP verification via both phone (SMS) and email, at both
+    registration and login, for all seven roles -- added 5 Sep 2026 as a new
+    confirmed requirement (PRD Section 12), not part of the original Stage
+    1-5 scope. Both codes must be supplied together in one verify call
+    (there is deliberately no separate phone_verified/email_verified partial
+    state -- Emmanuel confirmed both channels are required at once, not a
+    step-by-step wizard).
+
+    Delivery is SIMULATED, the same treatment as mobile money payment
+    (routers/buyer.py) and for the same reason: no SMS or email gateway has
+    been chosen yet (PRD Section 1.1 lists the payment gateway as an open
+    decision; the OTP gateway is equally open). The generated codes are
+    echoed back in the API response instead of actually being sent -- see
+    schemas.OtpChallengeResponse's dev_only_* fields, which are named to
+    make that unmistakable in the API docs and never meant to ship
+    unmodified to production.
+    """
+    __tablename__ = "otp_challenges"
+
+    id = Column(String, primary_key=True, default=uid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    purpose = Column(SAEnum(OtpPurpose), nullable=False)
+    phone_code = Column(String, nullable=False)
+    email_code = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

@@ -239,6 +239,9 @@
     email: "buyer@farmmaster.test",
     password: "password123",
     loginError: "",
+    challengeId: null,
+    otpPhone: "",
+    otpEmail: "",
     grade: "Maize Grade 1",
     qty: "5.0",
     price: "2150",
@@ -252,6 +255,7 @@
 
   var STEPS = [
     { id: "login", label: "Sign in" },
+    { id: "otp", label: "Verify OTP" },
     { id: "submit", label: "Submit Requirement" },
     { id: "payment", label: "Commitment Fee Payment" },
     { id: "success", label: "Payment Confirmation" },
@@ -339,6 +343,26 @@
       document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
       document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
       document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+
+    if (state.step === "otp") {
+      document.getElementById("screen-title").textContent = "Verify OTP";
+      document.getElementById("screen-crumb").textContent = "Verify OTP";
+      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, no SMS/email gateway is wired up yet, so both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto">' +
+          '<div class="card">' +
+            '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your phone and email instead of seeing these pre-filled.</div>' +
+            field("otpPhone", "Phone OTP code", state.otpPhone) +
+            '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + "</div>" +
+            '<button class="btn primary block" id="otpBtn" style="margin-top:16px">Verify &amp; continue</button>' +
+            '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
+          "</div>" +
+        "</div>"
+      );
+      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
+      document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
+      document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
 
     if (state.step === "submit") {
@@ -464,14 +488,39 @@
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Login failed");
-      state.token = data.access_token;
-      state.step = "submit";
+      state.challengeId = data.challenge_id;
+      state.otpPhone = data.dev_only_phone_code;
+      state.otpEmail = data.dev_only_email_code;
+      state.step = "otp";
       render();
     } catch (e) {
       document.getElementById("loginAlertText").textContent = e.message;
       document.getElementById("loginAlert").classList.add("show");
       btn.disabled = false;
       btn.textContent = "Sign in";
+    }
+  }
+
+  async function onVerifyOtp() {
+    var btn = document.getElementById("otpBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Verifying…';
+    try {
+      var res = await fetch(API + "/auth/login/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }),
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "OTP verification failed");
+      state.token = data.access_token;
+      state.step = "submit";
+      render();
+    } catch (e) {
+      document.getElementById("otpAlertText").textContent = e.message;
+      document.getElementById("otpAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Verify & continue";
     }
   }
 
@@ -566,6 +615,7 @@
   document.getElementById("restartBtn").addEventListener("click", function () {
     state = {
       token: null, email: "buyer@farmmaster.test", password: "password123", loginError: "",
+      challengeId: null, otpPhone: "", otpEmail: "",
       grade: "Maize Grade 1", qty: "5.0", price: "2150", location: "Tema fulfilment centre", timeline: "6 weeks",
       requirement: null, method: null, payment: null, step: "login",
     };

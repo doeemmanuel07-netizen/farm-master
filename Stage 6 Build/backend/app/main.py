@@ -60,6 +60,10 @@ if FRONTEND_DIR.exists():
     def formula_builder_flow_page():
         return FileResponse(str(FRONTEND_DIR / "production_formula_builder_flow_live.html"))
 
+    @app.get("/register-flow")
+    def register_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "registration_otp_flow_live.html"))
+
 
 @app.on_event("startup")
 def on_startup():

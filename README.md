@@ -48,9 +48,27 @@ real database and a real frontend:
   created rather than re-deriving them, and reuses the exact input-schedule
   math from the Farmer flow (see `app/formula.py`) rather than duplicating it.
 
-Not yet built: Farmer/Vendor account management, and the rest of Internal
-Operations (Logistics Dispatch, Fulfilment Intake, Finance &
-Reconciliation, Reporting, MoFA Data Exchange).
+Also added 5 September 2026, cutting across every flow above: **real-time
+OTP verification** via both phone and email, at both registration and
+login, for all seven roles ([PRD](Farm_Master_PRD_Stage1.docx) Section
+12) — a new confirmed requirement, not part of the original Stage 1–5
+scope. Self-registration (`POST /auth/register`) is new too — it didn't
+exist for any role before this pass. Delivery is **SIMULATED**, same
+treatment as mobile money: no SMS/email provider is chosen yet, so both
+OTP codes are returned directly in the API response instead of actually
+being sent.
+
+Not yet built: the rest of Internal Operations (Logistics Dispatch,
+Fulfilment Intake, Finance & Reconciliation, Reporting, MoFA Data
+Exchange), the User & Role Admin screen's account-creation UI for internal
+staff, and any real mobile money or OTP gateway integration.
+
+**Known gap, tracked for a separate task (not this one):** the Matching
+Queue records which farmer an Opportunity was assigned to
+(`assigned_farmer_id`), but the Farmer flow's opportunity list doesn't yet
+filter on it — every active farmer can currently see and accept an
+opportunity assigned to someone else. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+"Known limitations" for detail.
 
 ## Tech stack
 
@@ -83,12 +101,16 @@ python -m uvicorn app.main:app --reload --port 8000
 
 Then open:
 
+- <http://127.0.0.1:8000/register-flow> — Registration + real-time OTP verification (Farmer/Buyer/Vendor)
 - <http://127.0.0.1:8000/buyer-flow>
 - <http://127.0.0.1:8000/farmer-flow>
 - <http://127.0.0.1:8000/vendor-flow>
 - <http://127.0.0.1:8000/matching-flow> — Agronomist Matching Queue (Internal Operations)
 - <http://127.0.0.1:8000/formula-builder-flow> — Production Formula Builder (Internal Operations)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
+
+Every flow above now signs in through two steps — password, then an OTP
+screen with both codes pre-filled (delivery is simulated, see above).
 
 This expects a local PostgreSQL instance (see
 [Stage 6 Build/README.md](Stage%206%20Build/README.md) for the connection

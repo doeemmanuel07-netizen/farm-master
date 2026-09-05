@@ -222,6 +222,9 @@
     token: null,
     email: "vendor@farmmaster.test",
     password: "password123",
+    challengeId: null,
+    otpPhone: "",
+    otpEmail: "",
     requests: [],
     req: null,
     decision: null, // "confirmed" | "declined" | "pending_override"
@@ -230,6 +233,7 @@
 
   var STEPS = [
     { id: "login", label: "Sign in" },
+    { id: "otp", label: "Verify OTP" },
     { id: "incoming", label: "Incoming Requests" },
     { id: "respond", label: "Review & Respond" },
     { id: "result", label: "Response Sent" },
@@ -292,6 +296,24 @@
       document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
       document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
       document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+
+    if (state.step === "otp") {
+      document.getElementById("screen-title").textContent = "Verify OTP";
+      document.getElementById("screen-crumb").textContent = "Verify OTP";
+      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, no SMS/email gateway is wired up yet, so both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
+          '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your phone and email instead of seeing these pre-filled.</div>' +
+          field("otpPhone", "Phone OTP code", state.otpPhone) +
+          '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + "</div>" +
+          '<button class="btn primary block" id="otpBtn" style="margin-top:16px">Verify &amp; continue</button>' +
+          '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
+        "</div></div>"
+      );
+      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
+      document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
+      document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
 
     if (state.step === "incoming") {
@@ -406,15 +428,36 @@
       var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Login failed");
-      state.token = data.access_token;
-      state.requests = await apiGet("/vendor/requests");
-      state.step = "incoming";
+      state.challengeId = data.challenge_id;
+      state.otpPhone = data.dev_only_phone_code;
+      state.otpEmail = data.dev_only_email_code;
+      state.step = "otp";
       render();
     } catch (e) {
       document.getElementById("loginAlertText").textContent = e.message;
       document.getElementById("loginAlert").classList.add("show");
       btn.disabled = false;
       btn.textContent = "Sign in";
+    }
+  }
+
+  async function onVerifyOtp() {
+    var btn = document.getElementById("otpBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Verifying…';
+    try {
+      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }) });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "OTP verification failed");
+      state.token = data.access_token;
+      state.requests = await apiGet("/vendor/requests");
+      state.step = "incoming";
+      render();
+    } catch (e) {
+      document.getElementById("otpAlertText").textContent = e.message;
+      document.getElementById("otpAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Verify & continue";
     }
   }
 
@@ -473,8 +516,16 @@
       var loginRes = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "emmanuel@farmmaster.test", password: "password123" }) });
       var loginData = await loginRes.json();
       if (!loginRes.ok) throw new Error(loginData.detail || "Super Admin login failed");
+      btn.innerHTML = '<span class="spinner"></span> Verifying Super Admin OTP…';
+      // Login OTP is SIMULATED (PRD Section 12) -- this testing control chains
+      // both steps automatically using the echoed codes, same as a real
+      // Super Admin would after reading their phone/email, just without a
+      // second on-screen form for what's a background demo shortcut.
+      var otpRes = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: loginData.challenge_id, phone_code: loginData.dev_only_phone_code, email_code: loginData.dev_only_email_code }) });
+      var otpData = await otpRes.json();
+      if (!otpRes.ok) throw new Error(otpData.detail || "Super Admin OTP verification failed");
       btn.innerHTML = '<span class="spinner"></span> Approving override…';
-      var updated = await apiPost("/admin/vendor-requests/" + state.req.id + "/approve-override", null, loginData.access_token);
+      var updated = await apiPost("/admin/vendor-requests/" + state.req.id + "/approve-override", null, otpData.access_token);
       // Re-fetch as the vendor (whose token we kept) so the screen reflects what the vendor would see.
       state.req = await apiGet("/vendor/requests/" + state.req.id);
       render();
@@ -504,7 +555,7 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "vendor@farmmaster.test", password: "password123", requests: [], req: null, decision: null, step: "login" };
+    state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", requests: [], req: null, decision: null, step: "login" };
     setDevice("desktop");
     render();
   });

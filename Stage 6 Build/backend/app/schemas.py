@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
-from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus
+from .models import Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus, UserStatus, OtpPurpose
 
 
 class LoginRequest(BaseModel):
@@ -17,6 +17,49 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     role: Role
     full_name: str
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    phone: str
+    full_name: str
+    password: str
+    role: Role
+    organisation_name: Optional[str] = None
+
+
+class OtpChallengeResponse(BaseModel):
+    challenge_id: str
+    purpose: OtpPurpose
+    expires_at: datetime
+    message: str
+    # SIMULATED delivery -- see models.OtpChallenge. Named dev_only_* so
+    # nothing accidentally mistakes this for a real-provider response shape.
+    dev_only_phone_code: str
+    dev_only_email_code: str
+
+
+class VerifyOtpRequest(BaseModel):
+    challenge_id: str
+    phone_code: str
+    email_code: str
+
+
+class RegisterVerifyResponse(BaseModel):
+    status: UserStatus
+    message: str
+
+
+class RegistrationApprovalResponse(BaseModel):
+    id: str
+    applicant_name: str
+    applicant_type: str
+    portal: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class RequirementCreate(BaseModel):

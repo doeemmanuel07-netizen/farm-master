@@ -12,12 +12,29 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, AuditLog, RegistrationApproval, RateConfig, MechanisationRequest, MechanisationRequestStatus
+from ..models import User, Role, UserStatus, AuditLog, RegistrationApproval, RateConfig, MechanisationRequest, MechanisationRequestStatus
 from ..auth import require_roles
 from ..audit import log_audit
-from ..schemas import RoleChangeRequest, AuditLogEntry, RateConfigResponse, RateConfigUpdate, MechanisationRequestResponse
+from ..schemas import (
+    RoleChangeRequest, AuditLogEntry, RateConfigResponse, RateConfigUpdate,
+    MechanisationRequestResponse, RegistrationApprovalResponse,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin (Super Admin only)"])
+
+
+@router.get("/registrations", response_model=List[RegistrationApprovalResponse])
+def list_registrations(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    """
+    Added 5 Sep 2026 alongside real-time OTP verification (PRD Section 12):
+    approve/reject already existed but nothing let a Super Admin discover
+    what's pending -- auth.py's register/verify-otp is the first thing that
+    actually creates these rows.
+    """
+    return db.query(RegistrationApproval).order_by(RegistrationApproval.created_at.desc()).all()
 
 
 @router.put("/users/{user_id}/role")
@@ -49,6 +66,10 @@ def approve_registration(
     reg.status = "approved"
     reg.reviewed_by = admin.id
     reg.reviewed_at = datetime.utcnow()
+    if reg.user_id:
+        user = db.query(User).filter(User.id == reg.user_id).first()
+        if user:
+            user.status = UserStatus.ACTIVE
     db.commit()
     log_audit(db, admin, "registration_approved", f"{reg.applicant_name} ({reg.applicant_type}, {reg.portal} portal).")
     return {"id": reg.id, "status": reg.status}
@@ -66,6 +87,13 @@ def reject_registration(
     reg.status = "rejected"
     reg.reviewed_by = admin.id
     reg.reviewed_at = datetime.utcnow()
+    if reg.user_id:
+        user = db.query(User).filter(User.id == reg.user_id).first()
+        if user:
+            # No dedicated "rejected" UserStatus -- SUSPENDED is the closest
+            # existing terminal-negative state, and is equally correct here:
+            # either way, this account must not be able to log in.
+            user.status = UserStatus.SUSPENDED
     db.commit()
     log_audit(db, admin, "registration_rejected", f"{reg.applicant_name} ({reg.applicant_type}, {reg.portal} portal).")
     return {"id": reg.id, "status": reg.status}
