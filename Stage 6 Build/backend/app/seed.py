@@ -11,9 +11,10 @@ from datetime import datetime
 
 from .database import Base, engine, SessionLocal
 from .models import (
-    User, Role, UserStatus, RateConfig, Opportunity, MechanisationRequest,
+    User, Role, UserStatus, RateConfig, Opportunity, OpportunityStatus, MechanisationRequest,
     MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
-    HarvestPickupRequest, DispatchJobStatus,
+    HarvestPickupRequest, DispatchJobStatus, FulfilmentIntake, GradeResult,
+    CommitmentFeePayment, PaymentStatus,
 )
 from .auth import hash_password
 from .dispatch import create_dispatch_job, create_inbound_dispatch_job
@@ -93,6 +94,11 @@ SEED_RATES = [
      "1 NPK bag per this many tonnes, rounded up. AGRONOMICALLY UNVERIFIED."),
     ("formula_topdress_tonnes_per_bag", 4.0, "tonnes/bag",
      "1 top-dress bag per this many tonnes, rounded up. AGRONOMICALLY UNVERIFIED."),
+    ("trading_margin_pct", 0.15, "fraction",
+     "Farm Master's aggregation & trade margin, as a fraction of buyer invoice value on delivered, "
+     "graded (non-reject) tonnage. BUSINESS-UNCONFIRMED, pending Emmanuel's sign-off -- no rate or "
+     "formula for this exists anywhere in the PRD (Section 10) or Business Concept doc; see "
+     "Farm_Master_SDD_Stage6.docx Section 18."),
 ]
 
 
@@ -174,6 +180,18 @@ def seed():
                 db.commit()
                 db.refresh(req)
 
+                # A real CommitmentFeePayment, not just the commitment_fee_amount
+                # field -- this requirement skips buyer.py's own pay flow (it's
+                # created pre-assigned, for Formula Builder demo purposes), but
+                # Order Reconciliation (PRD Must-Have #5) reads "commitment fee
+                # received" from real payment rows, so without this it would
+                # show GHS 0 for the one order with real settlement data too.
+                db.add(CommitmentFeePayment(
+                    requirement_id=req.id, amount=req.commitment_fee_amount, method="momo",
+                    status=PaymentStatus.SUCCESS, transaction_ref=f"SIM-{req.id[:8]}",
+                ))
+                db.commit()
+
                 farmers = db.query(User).filter(User.email.in_(SEED_ASSIGNED_FARMERS)).all()
                 share = round(qty / len(farmers), 2) if farmers else qty
                 buyer_name = buyer.organisation_name or buyer.full_name
@@ -190,12 +208,19 @@ def seed():
 
         if db.query(MechanisationRequest).count() == 0:
             vendor = db.query(User).filter(User.role == Role.VENDOR).first()
+            # Kojo Mensah's Ploughing request (first in SEED_MECH_REQUESTS)
+            # is linked to the PRODUCTION requirement below -- he's one of
+            # SEED_ASSIGNED_FARMERS for it, so a real vendor payout can be
+            # computed for that order (PRD Must-Have #5, Order
+            # Reconciliation demo data).
+            production_req = db.query(BuyerRequirement).filter(BuyerRequirement.status == RequirementStatus.PRODUCTION).first()
             if vendor:
                 created = []
-                for farmer_name, service, area, requested_by in SEED_MECH_REQUESTS:
+                for i, (farmer_name, service, area, requested_by) in enumerate(SEED_MECH_REQUESTS):
                     req = MechanisationRequest(
                         vendor_id=vendor.id, farmer_name=farmer_name, service=service,
                         area_acres=area, requested_by_date=requested_by,
+                        buyer_requirement_id=production_req.id if i == 0 and production_req else None,
                     )
                     db.add(req)
                     created.append(req)
@@ -238,6 +263,56 @@ def seed():
             print(f"Seeded {len(SEED_HARVEST_PICKUPS)} harvest pickup requests (Fulfilment Intake / Logistics inbound demo data).")
         else:
             print("Harvest pickup requests already exist, skipping seed.")
+
+        # Order Reconciliation demo data (PRD Must-Have #5) -- a pickup
+        # linked to the PRODUCTION requirement, already delivered AND
+        # graded, so Finance & Reconciliation has real, non-zero farmer
+        # settlement/vendor payout figures on first run. Gated on this
+        # specific linkage (not HarvestPickupRequest.count(), which the
+        # block above already owns) so re-running seed() doesn't duplicate it.
+        if db.query(HarvestPickupRequest).filter(HarvestPickupRequest.buyer_requirement_id.isnot(None)).count() == 0:
+            production_req = db.query(BuyerRequirement).filter(BuyerRequirement.status == RequirementStatus.PRODUCTION).first()
+            kojo = db.query(User).filter(User.email == "kojo.mensah@farmmaster.test").first()
+            finance = db.query(User).filter(User.role == Role.FINANCE).first()
+            if production_req and kojo and finance:
+                # Kojo's opportunity for this requirement was only ASSIGNED
+                # by the Matching Queue seed above (assigned_farmer_id), not
+                # ACCEPTED -- but farmer.py's real harvest-pickup validation
+                # requires an accepted_by match (a farmer can only claim a
+                # delivery against an order they actually accepted). Marking
+                # it accepted here keeps this seed data consistent with what
+                # a real farmer would have to do first, rather than linking
+                # the pickup in a state the live API would itself reject.
+                kojo_opp = db.query(Opportunity).filter(
+                    Opportunity.buyer_requirement_id == production_req.id,
+                    Opportunity.assigned_farmer_id == kojo.id,
+                ).first()
+                if kojo_opp and kojo_opp.accepted_by is None:
+                    kojo_opp.status = OpportunityStatus.ACCEPTED
+                    kojo_opp.accepted_by = kojo.id
+                    kojo_opp.accepted_at = datetime.utcnow()
+                    db.commit()
+
+                pickup = HarvestPickupRequest(
+                    farmer_id=kojo.id, quantity_ready_tonnes=2.0, preferred_pickup_date="2026-09-16",
+                    buyer_requirement_id=production_req.id,
+                )
+                db.add(pickup)
+                db.commit()
+                db.refresh(pickup)
+                job = create_inbound_dispatch_job(db, pickup)
+                job.tricycle_label = "#3"
+                job.status = DispatchJobStatus.DELIVERED
+                job.delivered_at = datetime.utcnow()
+                db.commit()
+                db.add(FulfilmentIntake(
+                    harvest_pickup_request_id=pickup.id, weigh_in_kg=1950,
+                    grade=GradeResult.GRADE_1, graded_by=finance.id,
+                ))
+                db.commit()
+                print("Seeded 1 order-linked, delivered & graded harvest pickup (Order Reconciliation demo data).")
+        else:
+            print("An order-linked harvest pickup already exists, skipping Order Reconciliation seed.")
     finally:
         db.close()
 

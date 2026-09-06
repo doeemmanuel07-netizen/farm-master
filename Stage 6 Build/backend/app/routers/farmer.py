@@ -21,7 +21,7 @@ from ..formula import compute_formula_inputs
 from ..dispatch import create_inbound_dispatch_job
 from ..schemas import (
     OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
-    HarvestPickupRequestCreate, HarvestPickupRequestResponse,
+    HarvestPickupRequestCreate, HarvestPickupRequestResponse, FarmerOrderOption,
 )
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
@@ -100,9 +100,39 @@ def _pickup_view(req: HarvestPickupRequest, db: Session) -> HarvestPickupRequest
         id=req.id,
         quantity_ready_tonnes=req.quantity_ready_tonnes,
         preferred_pickup_date=req.preferred_pickup_date,
+        buyer_requirement_id=req.buyer_requirement_id,
         dispatch_status=job.status,
         created_at=req.created_at,
     )
+
+
+@router.get("/harvest-pickup/my-orders", response_model=List[FarmerOrderOption])
+def my_order_options(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    """
+    The caller's own accepted, order-backed opportunities -- eligible
+    targets for HarvestPickupRequestCreate.buyer_requirement_id (PRD Must-
+    Have #5). Opportunities from the seeded open pool (no
+    buyer_requirement_id) are excluded: there's no real order to reconcile
+    against.
+    """
+    opps = (
+        db.query(Opportunity)
+        .filter(Opportunity.accepted_by == user.id, Opportunity.buyer_requirement_id.isnot(None))
+        .all()
+    )
+    return [
+        FarmerOrderOption(
+            buyer_requirement_id=opp.buyer_requirement_id,
+            buyer_name=opp.buyer_name,
+            grade=opp.grade,
+            quantity_tonnes=opp.quantity_tonnes,
+            price_per_tonne=opp.price_per_tonne,
+        )
+        for opp in opps
+    ]
 
 
 @router.post("/harvest-pickup", response_model=HarvestPickupRequestResponse)
@@ -117,11 +147,28 @@ def request_harvest_pickup(
     harvest being ready, so this creates the real DispatchJob immediately
     (Stage 3 wireframe: "Once confirmed, this pickup appears on the
     Logistics dispatch board").
+
+    buyer_requirement_id, if given, must be one of the caller's own
+    accepted opportunities for that order (PRD Must-Have #5) -- a farmer
+    can't claim a delivery against an order they never accepted.
     """
+    if payload.buyer_requirement_id:
+        owns_it = (
+            db.query(Opportunity)
+            .filter(
+                Opportunity.accepted_by == user.id,
+                Opportunity.buyer_requirement_id == payload.buyer_requirement_id,
+            )
+            .first()
+        )
+        if not owns_it:
+            raise HTTPException(status_code=422, detail="That order isn't one of your accepted opportunities.")
+
     req = HarvestPickupRequest(
         farmer_id=user.id,
         quantity_ready_tonnes=payload.quantity_ready_tonnes,
         preferred_pickup_date=payload.preferred_pickup_date,
+        buyer_requirement_id=payload.buyer_requirement_id,
     )
     db.add(req)
     db.commit()

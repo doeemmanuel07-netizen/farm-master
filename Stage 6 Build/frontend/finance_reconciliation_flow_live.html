@@ -1,6 +1,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Harvest Pickup Request — Live Backend</title>
+<title>Finance &amp; Reconciliation — Live Backend</title>
 <style>
   :root {
     --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
@@ -95,6 +95,7 @@
   .btn.block { width: 100%; }
   .btn:hover { background: var(--bg); }
   .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn.small { min-height: 44px; padding: 7px 12px; font-size: 12.5px; }
 
   .field-group { display: flex; flex-direction: column; gap: 5px; }
   .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
@@ -106,10 +107,18 @@
   .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
   .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
 
+  .table-scroll { overflow-x: auto; }
+  table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; padding: 9px 10px; border-bottom: 2px solid var(--border); }
+  table.data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
+  table.data-table tr.clickable { cursor: pointer; }
+  table.data-table tr.clickable:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+
   .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
   .kv:last-child { border-bottom: none; }
   .kv .k { color: var(--muted); }
   .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  .kv.total .k, .kv.total .v { color: var(--ink); font-size: 13.5px; }
 
   .grid { display: grid; gap: 14px; }
   .g2 { grid-template-columns: 1fr 1fr; }
@@ -117,9 +126,6 @@
 
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .success-mark { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-  .success-mark.ok { background: color-mix(in srgb, var(--success) 16%, transparent); }
-  .success-mark svg { width: 28px; height: 28px; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: var(--success); }
 
   .inline-alert {
     display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
@@ -148,11 +154,11 @@
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
     </div>
-    <div class="rail-sub">Harvest Pickup Request — Live Backend</div>
+    <div class="rail-sub">Finance &amp; Reconciliation — Live Backend</div>
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>PRD Section 6 Must-Have #4.</b> No confirmation step -- nobody needs to "accept" your own harvest being ready. Submitting creates a real inbound dispatch job immediately, visible to Logistics right away.
+      <b>PRD Section 6 Must-Have #5.</b> Figures are computed live from real linked data -- commitment fee paid, produce actually delivered &amp; graded, and confirmed vendor requests -- not stored estimates. Trading margin % is a provisional rate pending business sign-off.
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -176,7 +182,7 @@
     <div class="topbar">
       <div>
         <h1 id="screen-title">—</h1>
-        <div class="crumb">Farmer Portal / <span id="screen-crumb">—</span></div>
+        <div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div>
         <div class="desc" id="screen-desc"></div>
       </div>
       <div class="screen-tag" id="screen-tag">STEP 1 / 4</div>
@@ -188,29 +194,26 @@
 
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Opportunities", "Formula", "Wallet"];
+  var PORTAL_NAV = ["Dashboard", "Fulfilment", "Finance", "Reporting"];
   var API = "";
 
   var state = {
     token: null,
-    email: "farmer@farmmaster.test",
+    email: "finance@farmmaster.test",
     password: "password123",
     challengeId: null,
     otpPhone: "",
     otpEmail: "",
-    quantity: "4.0",
-    pickupDate: "2026-09-15",
-    orderOptions: [],
-    selectedOrder: "",
-    result: null,
+    orders: [],
+    detail: null,
     step: "login",
   };
 
   var STEPS = [
     { id: "login", label: "Sign in" },
     { id: "otp", label: "Verify OTP" },
-    { id: "request", label: "Request Pickup" },
-    { id: "result", label: "Pickup Requested" },
+    { id: "orders", label: "Orders" },
+    { id: "detail", label: "Reconciliation" },
   ];
 
   function authHeaders(extra) {
@@ -234,18 +237,22 @@
   function chrome(current, bodyHtml) {
     var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
     return (
-      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Farmer</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
+      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Internal Ops</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
       '<div class="body-pad">' + bodyHtml + "</div>"
     );
   }
   function field(id, cap, val, type) {
     return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
   }
-  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
-  function dispatchBadge(status) {
-    if (status === "assigned") return '<span class="badge pending">Awaiting tricycle</span>';
-    if (status === "en_route") return '<span class="badge muted">En route</span>';
-    return '<span class="badge success">Delivered</span>';
+  function kv(k, v, cls) { return '<div class="kv' + (cls ? " " + cls : "") + '"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function ghs(n) { return "GHS " + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function statusBadge(status) {
+    if (status === "matching") return '<span class="badge pending">Matching</span>';
+    if (status === "production") return '<span class="badge muted">Production</span>';
+    return '<span class="badge success">' + status + '</span>';
+  }
+  function releaseBadge(released) {
+    return released ? '<span class="badge success">Released</span>' : '<span class="badge pending">Not released</span>';
   }
 
   function render() {
@@ -289,59 +296,63 @@
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
 
-    if (state.step === "request") {
-      document.getElementById("screen-title").textContent = "Request Harvest Pickup";
-      document.getElementById("screen-crumb").textContent = "Request Pickup";
-      document.getElementById("screen-desc").textContent = "Posted to POST /farmer/harvest-pickup. No approval step -- this immediately creates a real inbound Logistics Dispatch job.";
-      document.getElementById("canvas").innerHTML = chrome("Dashboard",
-        '<div class="grid g2">' +
-          '<div class="card">' +
-            '<div class="card-label">Request pickup</div>' +
-            field("quantity", "Estimated quantity ready (tonnes)", state.quantity) +
-            '<div style="margin-top:12px">' + field("pickupDate", "Preferred pickup date", state.pickupDate, "date") + "</div>" +
-            '<div class="field-group" style="margin-top:12px"><span class="cap">Which order is this for? (optional)</span>' +
-              '<select id="orderSelect">' +
-                '<option value="">General -- not tied to a specific order</option>' +
-                state.orderOptions.map(function (o) {
-                  return '<option value="' + o.buyer_requirement_id + '"' + (state.selectedOrder === o.buyer_requirement_id ? " selected" : "") + '>' + o.buyer_name + " (" + o.grade + ", " + o.quantity_tonnes.toFixed(1) + "t)</option>";
-                }).join("") +
-              "</select>" +
-            "</div>" +
-            '<div class="caption">Linking an order lets Finance settle this delivery for real once graded (PRD Must-Have #5).</div>' +
-            '<div class="field-group" style="margin-top:12px"><span class="cap">Farm location</span><input value="Pinned at registration (not yet captured -- PRD Section 3.1 KYC gap)" disabled></div>' +
-            '<button class="btn primary block" id="requestBtn" style="margin-top:14px">Request pickup →</button>' +
-            '<div class="inline-alert" id="requestAlert"><span>⚠</span><span id="requestAlertText"></span></div>' +
-          "</div>" +
-          '<div class="card">' +
-            '<div class="card-label">Status</div>' +
-            kv("Nearest fulfilment centre", "Tema (pilot)") +
-            kv("Current status", '<span class="badge muted">awaiting request</span>') +
-            '<div class="caption">Once requested, this pickup appears on the Logistics Dispatch board (/dispatch-flow, Inbound tab).</div>' +
-          "</div>" +
-        "</div>"
+    if (state.step === "orders") {
+      document.getElementById("screen-title").textContent = "Finance & Reconciliation";
+      document.getElementById("screen-crumb").textContent = "Orders";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /finance/reconciliation -- every buyer order past commitment-fee payment (status Matching or later).";
+      document.getElementById("canvas").innerHTML = chrome("Finance",
+        '<div class="table-scroll"><table class="data-table"><thead><tr>' +
+          "<th>Buyer / order</th><th>Delivered &amp; graded</th><th>Status</th><th>Settlement</th><th>Payout</th>" +
+        "</tr></thead><tbody>" +
+          state.orders.map(function (o) {
+            return '<tr class="clickable" data-id="' + o.buyer_requirement_id + '"><td>' + o.buyer_name + " (" + o.grade + ", " + o.quantity_tonnes.toFixed(1) + "t committed)</td><td>" + o.accepted_delivered_tonnes.toFixed(2) + "t</td><td>" + statusBadge(o.status) + "</td><td>" + releaseBadge(o.farmer_settlement_released) + "</td><td>" + releaseBadge(o.vendor_payout_released) + "</td></tr>";
+          }).join("") +
+        "</tbody></table></div>" +
+        (state.orders.length === 0 ? '<div class="caption" style="margin-top:12px">No orders have paid their commitment fee yet.</div>' : '<div class="caption" style="margin-top:12px">Click an order to view its full reconciliation.</div>')
       );
-      document.getElementById("quantity").addEventListener("input", function (e) { state.quantity = e.target.value; });
-      document.getElementById("pickupDate").addEventListener("input", function (e) { state.pickupDate = e.target.value; });
-      document.getElementById("orderSelect").addEventListener("change", function (e) { state.selectedOrder = e.target.value; });
-      document.getElementById("requestBtn").addEventListener("click", onRequestPickup);
+      document.querySelectorAll("[data-id]").forEach(function (row) {
+        row.addEventListener("click", function () { onOpenOrder(row.dataset.id); });
+      });
     }
 
-    if (state.step === "result") {
-      document.getElementById("screen-title").textContent = "Pickup Requested";
-      document.getElementById("screen-crumb").textContent = "Pickup Requested";
-      document.getElementById("screen-desc").textContent = "Confirmed in the database -- a real DispatchJob now exists for Logistics to assign and deliver.";
-      document.getElementById("canvas").innerHTML = chrome("Dashboard",
-        '<div style="max-width:420px;margin:20px auto;text-align:center">' +
-          '<div class="success-mark ok"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>' +
-          '<div style="font-size:18px;font-weight:800;margin-bottom:6px">Pickup requested</div>' +
-          '<div class="card" style="text-align:left;margin:0 auto">' +
-            kv("Quantity", state.result.quantity_ready_tonnes + " t") +
-            kv("Preferred date", state.result.preferred_pickup_date) +
-            kv("Linked order", state.result.buyer_requirement_id ? "Yes -- eligible for settlement" : "No -- general delivery") +
-            kv("Dispatch status", dispatchBadge(state.result.dispatch_status)) +
+    if (state.step === "detail") {
+      var d = state.detail;
+      document.getElementById("screen-title").textContent = "Order — " + d.buyer_name;
+      document.getElementById("screen-crumb").textContent = "Reconciliation";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /finance/reconciliation/{id}. Farmer settlement and vendor payout due are computed from real delivered/graded tonnage and confirmed vendor requests linked to this order, not the order's originally committed quantity.";
+      document.getElementById("canvas").innerHTML = chrome("Finance",
+        '<button class="btn small" id="backBtn" style="margin-bottom:14px">&larr; All orders</button>' +
+        '<div class="card" style="margin-bottom:14px">' +
+          '<span class="card-label">Order — ' + d.buyer_name + " (" + d.crop + ", " + d.grade + ")</span>" +
+          kv("Commitment fee received", ghs(d.commitment_fee_received)) +
+          kv("Delivered &amp; graded (non-reject)", d.accepted_delivered_tonnes.toFixed(2) + " t") +
+          kv("Buyer invoice value", ghs(d.buyer_invoice_value)) +
+          kv("Farmer settlement due", ghs(d.farmer_settlement_due)) +
+          kv("Vendor payout due", ghs(d.vendor_payout_due)) +
+          kv("<b>Aggregation &amp; trade margin (" + (d.trading_margin_pct * 100).toFixed(0) + "%, provisional)</b>", "<b>" + ghs(d.trading_margin_amount) + "</b>", "total") +
+        "</div>" +
+        '<div class="grid g2">' +
+          '<div class="card"><span class="card-label">Farmer settlement</span>' +
+            (d.farmer_settlement_released
+              ? kv("Released", new Date(d.farmer_settlement_released_at).toLocaleString())
+              : '<button class="btn primary block" id="releaseSettlementBtn"' + (d.accepted_delivered_tonnes <= 0 ? " disabled" : "") + '>Release farmer settlement</button>' +
+                (d.accepted_delivered_tonnes <= 0 ? '<div class="caption">No graded, non-reject delivery is linked to this order yet.</div>' : "")) +
+            '<div class="inline-alert" id="settlementAlert"><span>⚠</span><span id="settlementAlertText"></span></div>' +
+          "</div>" +
+          '<div class="card"><span class="card-label">Vendor payout</span>' +
+            (d.vendor_payout_released
+              ? kv("Released", new Date(d.vendor_payout_released_at).toLocaleString())
+              : '<button class="btn primary block" id="releasePayoutBtn"' + (d.vendor_payout_due <= 0 ? " disabled" : "") + '>Release vendor payout</button>' +
+                (d.vendor_payout_due <= 0 ? '<div class="caption">No confirmed vendor request is linked to this order yet.</div>' : "")) +
+            '<div class="inline-alert" id="payoutAlert"><span>⚠</span><span id="payoutAlertText"></span></div>' +
           "</div>" +
         "</div>"
       );
+      document.getElementById("backBtn").addEventListener("click", function () { state.step = "orders"; render(); });
+      var settleBtn = document.getElementById("releaseSettlementBtn");
+      if (settleBtn) settleBtn.addEventListener("click", onReleaseSettlement);
+      var payoutBtn = document.getElementById("releasePayoutBtn");
+      if (payoutBtn) payoutBtn.addEventListener("click", onReleasePayout);
     }
   }
 
@@ -375,8 +386,8 @@
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.orderOptions = await apiGet("/farmer/harvest-pickup/my-orders");
-      state.step = "request";
+      state.orders = await apiGet("/finance/reconciliation");
+      state.step = "orders";
       render();
     } catch (e) {
       document.getElementById("otpAlertText").textContent = e.message;
@@ -386,25 +397,41 @@
     }
   }
 
-  async function onRequestPickup() {
-    var qty = parseFloat(state.quantity);
-    if (!qty || qty <= 0 || !state.pickupDate) {
-      document.getElementById("requestAlertText").textContent = "Enter a valid quantity and pickup date.";
-      document.getElementById("requestAlert").classList.add("show");
-      return;
-    }
-    var btn = document.getElementById("requestBtn");
+  async function onOpenOrder(id) {
+    state.detail = await apiGet("/finance/reconciliation/" + id);
+    state.step = "detail";
+    render();
+  }
+
+  async function onReleaseSettlement() {
+    var btn = document.getElementById("releaseSettlementBtn");
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Requesting…';
+    btn.innerHTML = '<span class="spinner"></span> Releasing…';
     try {
-      state.result = await apiPost("/farmer/harvest-pickup", { quantity_ready_tonnes: qty, preferred_pickup_date: state.pickupDate, buyer_requirement_id: state.selectedOrder || null });
-      state.step = "result";
+      state.detail = await apiPost("/finance/reconciliation/" + state.detail.buyer_requirement_id + "/release-farmer-settlement");
+      state.orders = await apiGet("/finance/reconciliation");
       render();
     } catch (e) {
-      document.getElementById("requestAlertText").textContent = e.message;
-      document.getElementById("requestAlert").classList.add("show");
+      document.getElementById("settlementAlertText").textContent = e.message;
+      document.getElementById("settlementAlert").classList.add("show");
       btn.disabled = false;
-      btn.textContent = "Request pickup →";
+      btn.textContent = "Release farmer settlement";
+    }
+  }
+
+  async function onReleasePayout() {
+    var btn = document.getElementById("releasePayoutBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Releasing…';
+    try {
+      state.detail = await apiPost("/finance/reconciliation/" + state.detail.buyer_requirement_id + "/release-vendor-payout");
+      state.orders = await apiGet("/finance/reconciliation");
+      render();
+    } catch (e) {
+      document.getElementById("payoutAlertText").textContent = e.message;
+      document.getElementById("payoutAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Release vendor payout";
     }
   }
 
@@ -426,7 +453,7 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "farmer@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", quantity: "4.0", pickupDate: "2026-09-15", orderOptions: [], selectedOrder: "", result: null, step: "login" };
+    state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", orders: [], detail: null, step: "login" };
     setDevice("desktop");
     render();
   });

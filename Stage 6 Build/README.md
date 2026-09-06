@@ -1,7 +1,7 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus eight flows, end to end and tested: Buyer
+segregation of duties) plus nine flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
@@ -10,15 +10,22 @@ Builder, where an Agronomist turns an assigned requirement into a planting
 calendar and input schedule and publishes it to those farmers -- Logistics
 Dispatch, where a confirmed vendor mechanisation request or a farmer's
 harvest pickup request automatically becomes a real dispatch job that
-Logistics assigns a tricycle to and marks delivered -- and Harvest Pickup
+Logistics assigns a tricycle to and marks delivered -- Harvest Pickup
 Request + Fulfilment Centre Intake & Grading, where a farmer's pickup
-request flows through dispatch to Finance, who weighs it in and grades it.
+request (optionally linked to one of their own accepted buyer orders)
+flows through dispatch to Finance, who weighs it in and grades it -- and
+Finance & Reconciliation, where Finance sees the commitment fee received,
+farmer settlement due, vendor payout due, and Farm Master's trading margin
+for each order, computed live from that real linked data, and can release
+settlement/payout.
 
 Logistics Dispatch completes PRD Section 6 Must-Have #3 ("Vendor input
 ordering routed to logistics dispatch") for the one real job source that
-exists today, and Harvest Pickup + Fulfilment Intake completes Must-Have #4
--- see "Known limitations" for the gap between Must-Have #3 and its
-literal scope.
+exists today, Harvest Pickup + Fulfilment Intake completes Must-Have #4,
+and Finance & Reconciliation completes Must-Have #5, the last of the
+pilot's five must-haves -- see "Known limitations" for the gap between
+Must-Have #3 and its literal scope, and for the trading-margin rate's
+business-unconfirmed status.
 
 Added 5 September 2026, cutting across all of the above: real-time OTP
 verification via both phone and email, at both registration and login, for
@@ -32,7 +39,7 @@ response instead of an actual SMS/email being sent.
 A full responsive QA pass (5 September 2026) checked every flow at
 desktop/tablet/phone and found a systemic bug -- see "Known limitations."
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-17) for
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-18) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -95,22 +102,30 @@ The first run creates the tables in `farm_master` and seeds:
   - `kojo.mensah@farmmaster.test` — Farmer (Kojo Mensah)
   - `ama.serwaa@farmmaster.test` — Farmer (Ama Serwaa)
   - `vendor@farmmaster.test` — Vendor (Kwame's Agro Supplies)
-- The five provisional rate config rows from PRD Section 10 (buyer
-  commitment fee, vendor service fee, and the three formula-scaling
-  constants) — all marked `PROVISIONAL`.
+- The six provisional rate config rows from PRD Section 10 and this pass
+  (buyer commitment fee, vendor service fee, the three formula-scaling
+  constants, and `trading_margin_pct`) — all marked `PROVISIONAL` (the last
+  one additionally `BUSINESS-UNCONFIRMED` — see "Known limitations").
 - Two buyer requirements already past payment (status `MATCHING`) so the
   Matching Queue has something to assign on first run.
 - One buyer requirement already assigned to two farmers (status
-  `PRODUCTION`, real `Opportunity` rows with `assigned_farmer_id` set) so
-  the Production Formula Builder has something real to build a formula for
-  on first run.
+  `PRODUCTION`, real `Opportunity` rows with `assigned_farmer_id` set, a
+  real `CommitmentFeePayment`) so the Production Formula Builder has
+  something real to build a formula for, and Finance & Reconciliation has a
+  real commitment fee received figure, on first run.
 - One mechanisation request already confirmed (within its own requested
-  window) with a real `DispatchJob` row so the Logistics Dispatch queue has
-  something to assign and deliver on first run.
-- Two harvest pickup requests, each with a real inbound `DispatchJob`: one
-  already `DELIVERED` (so the Fulfilment Intake queue has something to
-  grade on first run) and one still `ASSIGNED` (so the Logistics Dispatch
-  Inbound tab isn't always empty either).
+  window) with a real `DispatchJob` row, linked to the `PRODUCTION`
+  requirement above, so the Logistics Dispatch queue has something to
+  assign and deliver, and Finance & Reconciliation has a real vendor payout
+  due figure, on first run.
+- Three harvest pickup requests, each with a real inbound `DispatchJob`:
+  one already `DELIVERED` (so the Fulfilment Intake queue has something to
+  grade), one still `ASSIGNED` (so the Logistics Dispatch Inbound tab isn't
+  always empty either), and one already `DELIVERED` **and** graded, with
+  its farmer's opportunity for the `PRODUCTION` requirement marked
+  accepted and the pickup itself linked to that requirement, so Finance &
+  Reconciliation has a real, non-zero farmer settlement figure on first
+  run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -127,6 +142,7 @@ Re-running the seed is safe; it skips seeding if data already exists.
   the phone viewport by default -- confirmed phone-first, PRD Section 5.1)
 - Live Farmer Harvest Pickup Request: <http://127.0.0.1:8000/harvest-pickup-flow>
 - Live Fulfilment Centre Intake & Grading: <http://127.0.0.1:8000/fulfilment-intake-flow>
+- Live Finance & Reconciliation: <http://127.0.0.1:8000/reconciliation-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -212,21 +228,50 @@ browser end to end -- a farmer requesting pickup in `/harvest-pickup-flow`,
 and Finance weighing in and grading it in `/fulfilment-intake-flow`, with
 the queue correctly emptying out afterward.
 
-**Responsive QA pass (5 September 2026):** every one of the eight flows
-above was checked at desktop (1280px), tablet (768px), and phone (375px)
--- programmatically (`document.documentElement.scrollWidth` vs
-`clientWidth` for overflow; `getBoundingClientRect()` on every interactive
-element for touch-target size), not just by eye, since a screenshot taken
-while the browser pane isn't frontmost was found to render a stale frame
-in this environment. Found and fixed a systemic critical bug -- no file
+Finance & Reconciliation, specifically: `GET /finance/reconciliation`
+lists every buyer order at `MATCHING` status or later; `GET
+/finance/reconciliation/{id}` computes commitment fee received, delivered
+&amp; graded (non-reject) tonnage, buyer invoice value, trading margin, and
+farmer settlement/vendor payout due, all live from real linked
+`CommitmentFeePayment`, `FulfilmentIntake`, and `MechanisationRequest`
+rows rather than the order's originally committed quantity; releasing
+farmer settlement or vendor payout with nothing real to release (zero
+delivered tonnage, or zero confirmed vendor requests) returns `409`, as
+does releasing either one twice; both releases write a real audit entry
+(`farmer_settlement_released`, `vendor_payout_released`); vendor and
+farmer tokens get `403` on every route. Also verified `POST
+/farmer/harvest-pickup`'s new `buyer_requirement_id` link end to end: `GET
+/farmer/harvest-pickup/my-orders` correctly returns only the caller's own
+*accepted* opportunities for a real order (not merely assigned ones), and
+claiming an order the caller never accepted returns `422`. Also clicked
+through the full flow in `/reconciliation-flow` -- sign in, OTP, the
+orders list, and a full order detail with both releases -- and confirmed
+the Harvest Pickup flow's new order dropdown in `/harvest-pickup-flow`.
+
+**Responsive QA pass (5 September 2026, extended 6 September 2026):**
+every one of the nine flows was checked at desktop (1280px), tablet
+(768px), and phone (375px) -- programmatically
+(`document.documentElement.scrollWidth` vs `clientWidth` for overflow;
+`getBoundingClientRect()` on every interactive element for touch-target
+size), not just by eye, since a screenshot taken while the browser pane
+isn't frontmost was found to render a stale frame in this environment.
+The 5 September pass found and fixed a systemic critical bug -- no file
 had a `<meta name="viewport">` tag, so every phone/tablet CSS rule built
 across all of Stage 6 never actually applied on a real device (confirmed:
 `clientWidth` reported `980` regardless of emulated device width until the
-tag was added). Also fixed several sub-44px controls and one real
-functional bug in Logistics Dispatch's job-card renderer (it still read
+tag was added) -- plus several sub-44px controls and one real functional
+bug in Logistics Dispatch's job-card renderer (it still read
 `job.service`/`job.area_acres` unconditionally, which are `undefined` for
-a harvest-pickup job) -- see "Known limitations" for the full list. All
-eight flows now pass at all three breakpoints.
+a harvest-pickup job). The 6 September pass, re-testing Harvest Pickup
+after adding its order dropdown, found the Request Pickup step's two-column
+layout used a raw inline `grid-template-columns` with no responsive
+collapse rule of its own (unlike every other two-column layout in this
+codebase, which uses the shared `.grid.g2` class) -- at phone width each
+column rendered under 175px wide, readable on screen but real content
+squeezed into roughly half the space the shared pattern gives it
+elsewhere. Fixed by switching it to the shared `.grid.g2` class. All nine
+flows now pass at all three breakpoints -- see "Known limitations" for the
+full fix list.
 
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
@@ -284,10 +329,35 @@ is a real network call to the backend, not a simulation.
   treated elsewhere in this codebase. Fulfilment Intake's grading action
   *is* audited (`fulfilment_intake_graded`), since it's Finance-owned and
   feeds settlement.
-- A graded Fulfilment Intake doesn't feed anywhere yet -- the Stage 3
-  wireframe shows it feeding Buyer Compliance Docs and Farmer Wallet/
-  Settlement, both of which are PRD Must-Have #5 (Order Reconciliation),
-  not built. This pass stops at recording the graded intake.
+- A graded Fulfilment Intake now feeds real farmer settlement (Finance &
+  Reconciliation, below) when its pickup is linked to a buyer order --
+  feeding Buyer Compliance Docs, also shown in the Stage 3 wireframe, is
+  still not built (Reporting/MoFA Data Exchange scope).
+- **Order Reconciliation's trading margin rate is BUSINESS-UNCONFIRMED.**
+  Unlike the buyer commitment fee (GHS 90/tonne) and vendor service fee
+  (GHS 60/tonne), no rate or formula for what a farmer is actually paid, or
+  what percentage Farm Master keeps as margin, exists anywhere in the PRD
+  (Section 10) or Business Concept doc -- only the qualitative statement
+  "margin applied between farmer settlement price and buyer invoice price."
+  Confirmed with Emmanuel (6 Sep 2026): modelled as a flat `trading_margin_pct`
+  RateConfig row (provisionally 15%) applied to buyer invoice value on
+  delivered, graded (non-reject) tonnage -- farmer settlement is the
+  remainder. Changeable via `PUT /admin/rates/trading_margin_pct` with no
+  code change, same treatment as every other provisional rate, but pending
+  real business sign-off before this number means anything financially.
+- **Vendor payout in Order Reconciliation is seed-data-only for now.**
+  `MechanisationRequest.buyer_requirement_id` (added this pass, so a vendor
+  payout can be tied to the order it was for) has no real farmer-facing
+  creation endpoint to set it through -- real input ordering (PRD
+  Must-Have #3's literal scope, below) still doesn't exist, so today this
+  link can only be set by `seed.py`, not by any live flow.
+- Real settlement math uses the order's actually delivered, graded
+  (non-reject) tonnage (via `HarvestPickupRequest.buyer_requirement_id`),
+  not its originally committed `quantity_tonnes` -- a farmer's pickup is
+  only eligible to link to an order they actually accepted (`GET
+  /farmer/harvest-pickup/my-orders`, `POST /farmer/harvest-pickup`
+  validates this with a `422`), not merely one the Matching Queue assigned
+  them.
 - **Fixed 5 September 2026, responsive QA pass:** every frontend file was
   missing `<meta name="viewport">`, so no phone/tablet CSS anywhere in
   Stage 6 had ever actually applied on a real device. Also fixed:
@@ -295,12 +365,17 @@ is a real network call to the backend, not a simulation.
   planting-calendar week inputs (Formula Builder), sub-44px small action
   buttons (Logistics Dispatch, Fulfilment Intake), and a Logistics
   Dispatch rendering bug where an inbound job showed "undefined" and
-  "null acres". All eight flows now verified at 375/768/1280px with no
-  horizontal page overflow and no sub-44px interactive element. Two
-  apparent violations (Matching Queue's farmer-selection checkboxes,
-  Harvest Pickup's commitment checklist) were confirmed as false
-  positives -- both are wrapped in a `<label>` whose actual clickable area
-  is comfortably above 44px.
-- The rest of Internal Operations (Finance & Reconciliation, Reporting,
-  MoFA Data Exchange) is not yet built — see the SDD, Section 8, for the
-  full list.
+  "null acres". Two apparent violations (Matching Queue's farmer-selection
+  checkboxes, Harvest Pickup's commitment checklist) were confirmed as
+  false positives -- both are wrapped in a `<label>` whose actual clickable
+  area is comfortably above 44px.
+- **Fixed 6 September 2026, extended QA pass:** Harvest Pickup's Request
+  Pickup step used a raw inline two-column grid with no responsive collapse
+  of its own (every other two-column layout in this codebase uses the
+  shared `.grid.g2` class, which collapses to one column under 768px via a
+  container query) -- fixed by switching it to that shared class. All nine
+  flows now verified at 375/768/1280px with no horizontal page overflow, no
+  sub-44px interactive element, and no layout that stays cramped
+  multi-column below its container's own breakpoint.
+- The rest of Internal Operations (Reporting, MoFA Data Exchange) is not
+  yet built — see the SDD, Section 8, for the full list.

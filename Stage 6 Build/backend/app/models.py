@@ -250,11 +250,21 @@ class MechanisationRequest(Base):
     override_approved=true and finalise the confirmation. This is stricter
     than the Stage 5 prototype, which simulated the approval within the same
     single-user session for demo purposes.
+
+    buyer_requirement_id (added for PRD Section 6 Must-Have #5, Order
+    Reconciliation) optionally ties a request to the buyer order the
+    farmer's vendor-arranged service was for, so a real vendor payout can be
+    computed for that order. Nullable, and seed-data-only for now: there is
+    still no real farmer-facing creation endpoint for a MechanisationRequest
+    (real input ordering is PRD Must-Have #3's literal, still-unbuilt scope
+    -- see README "Not yet built"), so this link can only be set by seed.py
+    today, not by any live flow.
     """
     __tablename__ = "mechanisation_requests"
 
     id = Column(String, primary_key=True, default=uid)
     vendor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=True)
     farmer_name = Column(String, nullable=False)
     service = Column(String, nullable=False)
     area_acres = Column(Float, nullable=False)
@@ -328,11 +338,22 @@ class HarvestPickupRequest(Base):
     request creates its DispatchJob immediately (app/dispatch.py's
     create_inbound_dispatch_job), since nobody needs to "accept" a
     farmer's own harvest being ready.
+
+    buyer_requirement_id (added for PRD Section 6 Must-Have #5, Order
+    Reconciliation) optionally ties this pickup to one of the farmer's own
+    ACCEPTED opportunities for a real buyer order, so settlement can be
+    computed from real graded/delivered tonnage instead of an estimate --
+    see routers/farmer.py's validation that the caller actually accepted
+    that order, and routers/reconciliation.py's use of this link. Stays
+    nullable: a farmer can still log general "extra produce ready" pickups
+    not tied to any specific order, per this model's original design intent
+    above.
     """
     __tablename__ = "harvest_pickup_requests"
 
     id = Column(String, primary_key=True, default=uid)
     farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=True)
     quantity_ready_tonnes = Column(Float, nullable=False)
     preferred_pickup_date = Column(String, nullable=False)  # ISO date, e.g. "2026-09-20"
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -357,9 +378,12 @@ class FulfilmentIntake(Base):
     One row per HarvestPickupRequest (unique) -- a request can only be
     graded once. Photo capture (shown in the wireframe) is not implemented,
     consistent with no other flow in this codebase doing real file upload.
-    Feeding this into Buyer Compliance Docs or Farmer Wallet/Settlement
-    (also shown in the wireframe) is PRD Must-Have #5 (Order Reconciliation)
-    and Reporting -- out of scope here, not silently assumed.
+    A non-REJECT grade on a pickup linked to a buyer order (see
+    HarvestPickupRequest.buyer_requirement_id) now feeds real farmer
+    settlement in Order Reconciliation (PRD Must-Have #5, models.
+    OrderReconciliation) -- REJECT tonnage is excluded from that
+    computation. Feeding a graded intake into Buyer Compliance Docs is
+    Reporting/MoFA Data Exchange scope -- still out of scope here.
     """
     __tablename__ = "fulfilment_intakes"
 
@@ -368,6 +392,37 @@ class FulfilmentIntake(Base):
     weigh_in_kg = Column(Float, nullable=False)
     grade = Column(SAEnum(GradeResult), nullable=False)
     graded_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class OrderReconciliation(Base):
+    """
+    Finance & Reconciliation (Stage 3 wireframe) -- PRD Section 6 Must-Have
+    #5, the last of the five pilot must-haves. Only the two release actions
+    are real persisted state here: the GHS figures themselves (commitment
+    fee received, farmer settlement due, vendor payout due, trading margin)
+    are computed on read in routers/reconciliation.py from real linked data
+    (BuyerRequirement, CommitmentFeePayment, graded FulfilmentIntake rows
+    reached via HarvestPickupRequest.buyer_requirement_id, and confirmed
+    MechanisationRequest rows reached via its own buyer_requirement_id) plus
+    the trading_margin_pct RateConfig row -- same "not frozen at build time"
+    treatment as RequirementFormulaPlan's input schedule, so a rate change
+    is reflected immediately rather than requiring a backfill.
+
+    One row per BuyerRequirement (unique), created lazily on first read
+    (see reconciliation.py's _get_or_create) rather than at requirement
+    creation, since most requirements never reach this screen.
+    """
+    __tablename__ = "order_reconciliations"
+
+    id = Column(String, primary_key=True, default=uid)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=False, unique=True)
+    farmer_settlement_released = Column(Boolean, nullable=False, default=False)
+    farmer_settlement_released_by = Column(String, ForeignKey("users.id"), nullable=True)
+    farmer_settlement_released_at = Column(DateTime, nullable=True)
+    vendor_payout_released = Column(Boolean, nullable=False, default=False)
+    vendor_payout_released_by = Column(String, ForeignKey("users.id"), nullable=True)
+    vendor_payout_released_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

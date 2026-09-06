@@ -80,17 +80,32 @@ class DispatchAssignRequest(BaseModel):
 class HarvestPickupRequestCreate(BaseModel):
     quantity_ready_tonnes: float
     preferred_pickup_date: str  # ISO date, e.g. "2026-09-20"
+    # Optional link to one of the farmer's own ACCEPTED opportunities for a
+    # real buyer order (PRD Must-Have #5) -- see routers/farmer.py's
+    # validation. Omit for a general "extra produce ready" pickup.
+    buyer_requirement_id: Optional[str] = None
 
 
 class HarvestPickupRequestResponse(BaseModel):
     id: str
     quantity_ready_tonnes: float
     preferred_pickup_date: str
+    buyer_requirement_id: Optional[str]
     dispatch_status: DispatchJobStatus
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class FarmerOrderOption(BaseModel):
+    """One of the caller's own accepted, order-backed opportunities -- the
+    dropdown source for HarvestPickupRequestCreate.buyer_requirement_id."""
+    buyer_requirement_id: str
+    buyer_name: str
+    grade: str
+    quantity_tonnes: float
+    price_per_tonne: float
 
 
 class FulfilmentIntakeCreate(BaseModel):
@@ -309,3 +324,33 @@ class FormulaBuilderResponse(BaseModel):
     npk_bags_per_farmer: int
     topdress_bags_per_farmer: int
     plan: FormulaPlanResponse
+
+
+class OrderReconciliationSummary(BaseModel):
+    buyer_requirement_id: str
+    buyer_name: str
+    grade: str
+    quantity_tonnes: float
+    status: RequirementStatus
+    accepted_delivered_tonnes: float
+    farmer_settlement_released: bool
+    vendor_payout_released: bool
+
+
+class OrderReconciliationResponse(BaseModel):
+    buyer_requirement_id: str
+    buyer_name: str
+    crop: str
+    grade: str
+    price_per_tonne: float
+    commitment_fee_received: float
+    accepted_delivered_tonnes: float
+    buyer_invoice_value: float
+    trading_margin_pct: float
+    trading_margin_amount: float
+    farmer_settlement_due: float
+    vendor_payout_due: float
+    farmer_settlement_released: bool
+    farmer_settlement_released_at: Optional[datetime]
+    vendor_payout_released: bool
+    vendor_payout_released_at: Optional[datetime]
