@@ -256,9 +256,9 @@ class MechanisationRequest(Base):
     farmer's vendor-arranged service was for, so a real vendor payout can be
     computed for that order. Nullable, and seed-data-only for now: there is
     still no real farmer-facing creation endpoint for a MechanisationRequest
-    (real input ordering is PRD Must-Have #3's literal, still-unbuilt scope
-    -- see README "Not yet built"), so this link can only be set by seed.py
-    today, not by any live flow.
+    itself -- unlike InputOrder (below), which now has one -- so this link
+    can only be set by seed.py today, not by any live flow. See README
+    "Not yet built".
     """
     __tablename__ = "mechanisation_requests"
 
@@ -280,6 +280,117 @@ class MechanisationRequest(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ProductCategory(str, enum.Enum):
+    SEED = "seed"
+    FERTILISER = "fertiliser"
+    CROP_PROTECTION = "crop_protection"
+    TOOLS = "tools"
+
+
+class FormulaInputType(str, enum.Enum):
+    """
+    Tags a Product as the catalogue item that fulfils one line of a
+    ProductionFormula, so the Farmer Order Inputs screen can pre-fill
+    quantities from the farmer's own formula (Stage 3 wireframe: "Inputs --
+    pre-filled from formula") without fragile name/category string
+    matching -- an explicit mapping, same style as RateConfig's explicit
+    keys rather than inferring meaning from free text.
+    """
+    SEED = "seed"
+    NPK = "npk"
+    TOPDRESS = "topdress"
+    OTHER = "other"
+
+
+class Product(Base):
+    """
+    Vendor Portal's Product Catalogue (Stage 3 wireframe, PRD Section 6
+    Must-Have #3's literal scope) -- seeds, fertiliser, crop-protection, and
+    tools, listed by a Vendor and drawn from by the Farmer Portal's Order
+    Inputs screen. One vendor's items only per row (vendor_id); the wireframe
+    caption confirms this same catalogue "feeds the Farmer Portal 'Order
+    Inputs' screen ... and the Buyer/Control Centre input-cost views" -- the
+    Buyer/Control Centre view is Reporting scope, not built here.
+
+    stock_qty is a real, live-adjusted quantity: placing an InputOrder
+    decrements it immediately (a reservation, not just a display number),
+    and declining an order restores it -- see routers/vendor.py and
+    routers/farmer.py. No edit/delete endpoint exists yet, matching the
+    wireframe's own scope (list + "+ Add item" only).
+    """
+    __tablename__ = "products"
+
+    id = Column(String, primary_key=True, default=uid)
+    vendor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    category = Column(SAEnum(ProductCategory), nullable=False)
+    formula_input_type = Column(SAEnum(FormulaInputType), nullable=False, default=FormulaInputType.OTHER)
+    unit = Column(String, nullable=False)  # e.g. "kg", "bag", "litre", "set"
+    unit_price = Column(Float, nullable=False)
+    stock_qty = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class InputOrderStatus(str, enum.Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    DECLINED = "declined"
+
+
+class InputOrder(Base):
+    """
+    Farmer Portal's Order Inputs screen (Stage 3 wireframe) -- the real,
+    literal scope of PRD Section 6 Must-Have #3 ("Vendor input ordering
+    routed to logistics dispatch"), as distinct from the mechanisation-
+    request dispatch that already existed (Logistics Dispatch, Section 15).
+
+    Scoped to a single vendor per order (vendor_id), mirroring
+    MechanisationRequest's own single-vendor scoping -- every line's
+    product must belong to that vendor (routers/farmer.py validates this).
+    production_formula_id is nullable and only used to pre-fill the
+    frontend's suggested quantities (PRD Section 3 wireframe: "pre-filled
+    from the production formula, not a separate errand") -- it is not
+    itself validated against the caller owning that formula beyond the
+    normal farmer_id scoping, since ordering general inputs unlinked to any
+    formula is also a valid case (matches HarvestPickupRequest's own
+    optional-link precedent, Section 16).
+
+    Same two-step lifecycle as MechanisationRequest: PENDING on creation
+    (stock already decremented -- a real reservation), then the vendor
+    either CONFIRMS (creates the real DispatchJob, dispatch.py) or DECLINES
+    (restores the reserved stock). Unlike Fulfilment Intake grading or
+    Order Reconciliation's releases, confirm/decline here are operational
+    fulfilment actions, not Finance-owned financial actions (PRD Section
+    5's audit scope) -- not audited, same treatment as MechanisationRequest
+    confirm/decline and dispatch/deliver.
+    """
+    __tablename__ = "input_orders"
+
+    id = Column(String, primary_key=True, default=uid)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    vendor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    production_formula_id = Column(String, ForeignKey("production_formulas.id"), nullable=True)
+    status = Column(SAEnum(InputOrderStatus), nullable=False, default=InputOrderStatus.PENDING)
+    total_cost = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class InputOrderLine(Base):
+    """
+    One catalogue item within an InputOrder. unit_price is a snapshot at
+    order time (same rationale as CommitmentFeePayment.amount and
+    FulfilmentIntake.weigh_in_kg) -- a later catalogue price change must
+    never retroactively alter an order already placed.
+    """
+    __tablename__ = "input_order_lines"
+
+    id = Column(String, primary_key=True, default=uid)
+    input_order_id = Column(String, ForeignKey("input_orders.id"), nullable=False)
+    product_id = Column(String, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Float, nullable=False)
+    unit_price = Column(Float, nullable=False)
+
+
 class DispatchDirection(str, enum.Enum):
     OUTBOUND = "outbound"  # inputs/equipment/service to the farm
     INBOUND = "inbound"  # produce to the fulfilment centre
@@ -294,27 +405,27 @@ class DispatchJobStatus(str, enum.Enum):
 class DispatchJob(Base):
     """
     Logistics Dispatch (IA Section 3.5, Fig. 6; PRD Section 6 Must-Have #3
-    "Vendor input ordering routed to logistics dispatch"). Real "input
-    ordering" (a Farmer buying seed/fertiliser from a Vendor's Product
-    Catalogue) has no backend of its own yet -- Farmer Portal's Order Inputs
-    and Vendor Portal's Product Catalogue are both still unbuilt (see
-    README "Not yet built"). The one real, confirmed outbound job source is
-    a CONFIRMED MechanisationRequest (vendor.py's confirm, or admin.py's
-    override approval).
+    "Vendor input ordering routed to logistics dispatch"). The one real
+    outbound job source used to be only a CONFIRMED MechanisationRequest
+    (vendor.py's confirm, or admin.py's override approval) -- a CONFIRMED
+    InputOrder (vendor.py's confirm_input_order) is now the second, closing
+    Must-Have #3's own literal scope: a Farmer buying seed/fertiliser from a
+    Vendor's Product Catalogue, routed to dispatch (see models.InputOrder).
 
-    Exactly one of mechanisation_request_id / harvest_pickup_request_id is
-    set (application-enforced -- see app/dispatch.py's two creation
-    functions -- not a DB constraint, consistent with this codebase's
-    existing style of app-level invariants). Added 5 Sep 2026 alongside
-    HarvestPickupRequest (PRD Section 6 Must-Have #4) so the Stage 3/4
+    Exactly one of mechanisation_request_id / harvest_pickup_request_id /
+    input_order_id is set (application-enforced -- see app/dispatch.py's
+    three creation functions -- not a DB constraint, consistent with this
+    codebase's existing style of app-level invariants). Added 5 Sep 2026
+    alongside HarvestPickupRequest (Must-Have #4) so the Stage 3/4
     wireframes' single dispatch queue, spanning both tabs, is genuinely one
-    table rather than two near-identical ones.
+    table rather than two (now three) near-identical ones.
     """
     __tablename__ = "dispatch_jobs"
 
     id = Column(String, primary_key=True, default=uid)
     mechanisation_request_id = Column(String, ForeignKey("mechanisation_requests.id"), nullable=True)
     harvest_pickup_request_id = Column(String, ForeignKey("harvest_pickup_requests.id"), nullable=True)
+    input_order_id = Column(String, ForeignKey("input_orders.id"), nullable=True)
     direction = Column(SAEnum(DispatchDirection), nullable=False, default=DispatchDirection.OUTBOUND)
     status = Column(SAEnum(DispatchJobStatus), nullable=False, default=DispatchJobStatus.ASSIGNED)
     tricycle_label = Column(String, nullable=True)  # e.g. "#1" -- PRD Section 1.1's 3-5 tricycle pilot placeholder

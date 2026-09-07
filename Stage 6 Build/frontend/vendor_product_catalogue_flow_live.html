@@ -1,6 +1,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Logistics Dispatch — Live Backend</title>
+<title>Vendor Product Catalogue — Live Backend</title>
 <style>
   :root {
     --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
@@ -92,6 +92,7 @@
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; font-size: 13.5px; font-weight: 700; padding: 11px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 46px; font-family: inherit; }
   .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
   .btn.primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+  .btn.danger { color: var(--danger); }
   .btn.block { width: 100%; }
   .btn:hover { background: var(--bg); }
   .btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -99,30 +100,35 @@
 
   .field-group { display: flex; flex-direction: column; gap: 5px; }
   .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
-  .field-group input { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; height: 44px; }
-  .field-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+  .field-group input, .field-group select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; height: 44px; }
+  .field-group input:focus, .field-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
 
   .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; }
   .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
   .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
   .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  .badge.danger { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 
-  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-  .tab { padding: 9px 4px; font-size: 12.5px; font-weight: 700; color: var(--faint); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  .tab.on { color: var(--primary); border-bottom-color: var(--primary); }
+  .table-scroll { overflow-x: auto; }
+  table.data-table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; padding: 9px 10px; border-bottom: 2px solid var(--border); }
+  table.data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); color: var(--ink); }
+  table.data-table td.num { text-align: right; font-family: "IBM Plex Mono", monospace; }
+  table.data-table tr.clickable { cursor: pointer; }
+  table.data-table tr.clickable:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
 
-  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-  .job-card .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-  .job-card .job-title { font-weight: 700; font-size: 13.5px; }
-  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 4px 0; gap: 10px; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
   .kv .k { color: var(--muted); }
   .kv .v { font-weight: 700; color: var(--ink); text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  .kv.total .k, .kv.total .v { color: var(--ink); font-size: 13.5px; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  @container (max-width: 767px) { .grid.g2 { grid-template-columns: 1fr; } }
 
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .success-mark { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-  .success-mark.ok { background: color-mix(in srgb, var(--success) 16%, transparent); }
-  .success-mark svg { width: 28px; height: 28px; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: var(--success); }
 
   .inline-alert {
     display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
@@ -151,11 +157,11 @@
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
     </div>
-    <div class="rail-sub">Logistics Dispatch — Live Backend</div>
+    <div class="rail-sub">Vendor Product Catalogue — Live Backend</div>
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>Confirmed phone-first (PRD Section 5.1).</b> Logistics field roles were confirmed phone-first by Emmanuel, 3 Sep 2026 -- this flow opens on the phone viewport by default, unlike the office-role flows. Outbound jobs come from a CONFIRMED vendor mechanisation request or a CONFIRMED input order (PRD Section 6 Must-Have #3); inbound jobs come from a harvest pickup (Must-Have #4).
+      <b>PRD Section 6 Must-Have #3 (literal scope).</b> Confirming an input order creates a real Logistics Dispatch job -- same board as mechanisation requests and harvest pickups.
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -179,39 +185,42 @@
     <div class="topbar">
       <div>
         <h1 id="screen-title">—</h1>
-        <div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div>
+        <div class="crumb">Vendor Portal / <span id="screen-crumb">—</span></div>
         <div class="desc" id="screen-desc"></div>
       </div>
-      <div class="screen-tag" id="screen-tag">STEP 1 / 3</div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 5</div>
     </div>
     <div class="viewport-label" id="viewport-label"></div>
-    <div class="canvas device-phone" id="canvas"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
   </main>
 </div>
 
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics"];
+  var PORTAL_NAV = ["Dashboard", "Catalogue", "Orders", "Billing"];
   var API = "";
 
   var state = {
     token: null,
-    email: "logistics@farmmaster.test",
+    email: "vendor@farmmaster.test",
     password: "password123",
     challengeId: null,
     otpPhone: "",
     otpEmail: "",
-    jobs: [],
-    tab: "outbound",
-    acting: null, // { jobId, mode: "dispatch" }
-    tricycle: "",
+    catalogue: [],
+    orders: [],
+    order: null,
+    showAddForm: false,
+    newItem: { name: "", category: "seed", formula_input_type: "other", unit: "kg", unit_price: "", stock_qty: "" },
     step: "login",
   };
 
   var STEPS = [
     { id: "login", label: "Sign in" },
     { id: "otp", label: "Verify OTP" },
-    { id: "queue", label: "Dispatch Queue" },
+    { id: "catalogue", label: "Catalogue" },
+    { id: "orders", label: "Input Orders" },
+    { id: "detail", label: "Order Detail" },
   ];
 
   function authHeaders(extra) {
@@ -235,15 +244,23 @@
   function chrome(current, bodyHtml) {
     var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
     return (
-      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Internal Ops</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
+      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Vendor</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
       '<div class="body-pad">' + bodyHtml + "</div>"
     );
   }
   function field(id, cap, val, type) {
     return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
   }
+  function kv(k, v, cls) { return '<div class="kv' + (cls ? " " + cls : "") + '"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+  function ghs(n) { return "GHS " + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function statusBadge(status) {
-    if (status === "assigned") return '<span class="badge pending">Needs dispatch</span>';
+    if (status === "pending") return '<span class="badge pending">Pending</span>';
+    if (status === "confirmed") return '<span class="badge success">Confirmed</span>';
+    return '<span class="badge danger">Declined</span>';
+  }
+  function dispatchBadge(status) {
+    if (!status) return '<span class="badge muted">Not dispatched yet</span>';
+    if (status === "assigned") return '<span class="badge pending">Awaiting tricycle</span>';
     if (status === "en_route") return '<span class="badge muted">En route</span>';
     return '<span class="badge success">Delivered</span>';
   }
@@ -289,70 +306,121 @@
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
 
-    if (state.step === "queue") {
-      var filtered = state.jobs.filter(function (j) { return j.direction === state.tab; });
-      document.getElementById("screen-title").textContent = "Logistics Dispatch";
-      document.getElementById("screen-crumb").textContent = "Dispatch Queue";
-      document.getElementById("screen-desc").textContent = "Fetched live from GET /logistics/jobs. Fleet: 3–5 tricycles (pilot placeholder, PRD Section 1.1).";
-      document.getElementById("canvas").innerHTML = chrome("Logistics",
-        '<div class="tabs">' +
-          '<div class="tab ' + (state.tab === "outbound" ? "on" : "") + '" data-tab="outbound">Outbound — inputs to farms</div>' +
-          '<div class="tab ' + (state.tab === "inbound" ? "on" : "") + '" data-tab="inbound">Inbound — produce to fulfilment centre</div>' +
+    if (state.step === "catalogue") {
+      document.getElementById("screen-title").textContent = "Product Catalogue";
+      document.getElementById("screen-crumb").textContent = "Catalogue";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/catalogue -- feeds the Farmer Portal's Order Inputs screen.";
+      document.getElementById("canvas").innerHTML = chrome("Catalogue",
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
+          '<div style="font-weight:700;font-size:13px">' + state.catalogue.length + ' items listed</div>' +
+          '<button class="btn primary small" id="toggleAddBtn">' + (state.showAddForm ? "Cancel" : "+ Add item") + '</button>' +
         "</div>" +
-        (filtered.length === 0
-          ? '<div class="caption">' + (state.tab === "inbound" ? "No inbound jobs waiting right now." : "No outbound jobs waiting right now.") + "</div>"
-          : filtered.map(renderJobCard).join("")
-        )
+        (state.showAddForm ? addItemForm() : "") +
+        '<div class="table-scroll"><table class="data-table"><thead><tr>' +
+          "<th>Item</th><th>Category</th><th>Unit price</th><th>Stock</th>" +
+        "</tr></thead><tbody>" +
+          state.catalogue.map(function (p) {
+            return '<tr><td>' + p.name + '</td><td>' + p.category.replace("_", " ") + '</td><td class="num">' + ghs(p.unit_price) + " / " + p.unit + '</td><td class="num">' + p.stock_qty + " " + p.unit + "</td></tr>";
+          }).join("") +
+        "</tbody></table></div>"
       );
-      document.querySelectorAll("[data-tab]").forEach(function (t) {
-        t.addEventListener("click", function () { state.tab = t.dataset.tab; state.acting = null; render(); });
+      var toggleBtn = document.getElementById("toggleAddBtn");
+      toggleBtn.addEventListener("click", function () { state.showAddForm = !state.showAddForm; render(); });
+      if (state.showAddForm) wireAddItemForm();
+    }
+
+    if (state.step === "orders") {
+      document.getElementById("screen-title").textContent = "Input Orders";
+      document.getElementById("screen-crumb").textContent = "Input Orders";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/input-orders -- every order a Farmer has placed against your catalogue.";
+      document.getElementById("canvas").innerHTML = chrome("Orders",
+        '<div class="table-scroll"><table class="data-table"><thead><tr>' +
+          "<th>Farmer</th><th>Total</th><th>Status</th><th>Dispatch</th>" +
+        "</tr></thead><tbody>" +
+          state.orders.map(function (o) {
+            return '<tr class="clickable" data-id="' + o.id + '"><td>' + o.farmer_name + '</td><td class="num">' + ghs(o.total_cost) + "</td><td>" + statusBadge(o.status) + "</td><td>" + dispatchBadge(o.dispatch_status) + "</td></tr>";
+          }).join("") +
+        "</tbody></table></div>" +
+        (state.orders.length === 0 ? '<div class="caption" style="margin-top:12px">No input orders yet.</div>' : '<div class="caption" style="margin-top:12px">Click an order to confirm or decline it.</div>')
+      );
+      document.querySelectorAll("[data-id]").forEach(function (row) {
+        row.addEventListener("click", function () {
+          state.order = state.orders.find(function (o) { return o.id === row.dataset.id; });
+          state.step = "detail";
+          render();
+        });
       });
-      document.querySelectorAll("[data-dispatch]").forEach(function (b) {
-        b.addEventListener("click", function () { state.acting = { jobId: b.dataset.dispatch, mode: "dispatch" }; state.tricycle = ""; render(); });
-      });
-      document.querySelectorAll("[data-deliver]").forEach(function (b) {
-        b.addEventListener("click", function () { onDeliver(b.dataset.deliver); });
-      });
-      if (state.acting && state.acting.mode === "dispatch") {
-        var tricycleInput = document.getElementById("tricycleInput");
-        if (tricycleInput) tricycleInput.addEventListener("input", function (e) { state.tricycle = e.target.value; });
-        var confirmBtn = document.getElementById("confirmDispatchBtn");
-        if (confirmBtn) confirmBtn.addEventListener("click", function () { onDispatch(state.acting.jobId); });
-      }
+    }
+
+    if (state.step === "detail") {
+      var o = state.order;
+      document.getElementById("screen-title").textContent = "Order — " + o.farmer_name;
+      document.getElementById("screen-crumb").textContent = "Order Detail";
+      document.getElementById("screen-desc").textContent = "Confirming posts to POST /vendor/input-orders/{id}/confirm and creates a real Logistics Dispatch job. Declining restores the reserved stock.";
+      document.getElementById("canvas").innerHTML = chrome("Orders",
+        '<button class="btn small" id="backBtn" style="margin-bottom:14px">&larr; All orders</button>' +
+        '<div class="grid g2">' +
+          '<div class="card"><span class="card-label">Line items</span>' +
+            o.lines.map(function (l) { return kv(l.product_name, l.quantity + " " + l.unit + " @ " + ghs(l.unit_price)); }).join("") +
+            kv("<b>Total</b>", "<b>" + ghs(o.total_cost) + "</b>", "total") +
+          "</div>" +
+          '<div class="card"><span class="card-label">Status</span>' +
+            kv("Order status", statusBadge(o.status)) +
+            kv("Dispatch", dispatchBadge(o.dispatch_status)) +
+            (o.status === "pending"
+              ? '<button class="btn primary block" id="confirmOrderBtn" style="margin-top:12px">Confirm order</button>' +
+                '<button class="btn danger block" id="declineOrderBtn" style="margin-top:8px">Decline order</button>'
+              : '<div class="caption">This order is ' + o.status + " -- no further action available.</div>") +
+            '<div class="inline-alert" id="detailAlert"><span>⚠</span><span id="detailAlertText"></span></div>' +
+          "</div>" +
+        "</div>"
+      );
+      document.getElementById("backBtn").addEventListener("click", function () { state.step = "orders"; render(); });
+      var confirmBtn = document.getElementById("confirmOrderBtn");
+      if (confirmBtn) confirmBtn.addEventListener("click", function () { onOrderAction("confirm"); });
+      var declineBtn = document.getElementById("declineOrderBtn");
+      if (declineBtn) declineBtn.addEventListener("click", function () { onOrderAction("decline"); });
     }
   }
 
-  function renderJobCard(job) {
-    var acting = state.acting && state.acting.jobId === job.id;
-    var actionHtml = "";
-    if (job.status === "assigned") {
-      actionHtml = acting
-        ? (field("tricycleInput", "Assign tricycle", state.tricycle) +
-           '<button class="btn primary small" id="confirmDispatchBtn" style="margin-top:8px">Confirm dispatch →</button>' +
-           '<div class="inline-alert" id="dispatchAlert"><span>⚠</span><span id="dispatchAlertText"></span></div>')
-        : '<button class="btn small" data-dispatch="' + job.id + '">Assign &amp; dispatch</button>';
-    } else if (job.status === "en_route") {
-      actionHtml = '<button class="btn small" data-deliver="' + job.id + '">Mark delivered</button>';
-    }
-    var qtyRow;
-    if (job.job_type === "harvest_pickup") {
-      qtyRow = kv("Quantity", job.quantity_tonnes + " t") + kv("Preferred date", job.preferred_pickup_date || "—");
-    } else if (job.job_type === "input_order") {
-      qtyRow = kv("Items", job.item_count + " item" + (job.item_count === 1 ? "" : "s")) + kv("Order total", "GHS " + job.total_cost);
-    } else {
-      qtyRow = kv("Area", job.area_acres + " acres") + kv("Confirmed for", job.confirmed_date || "—");
-    }
+  function addItemForm() {
     return (
-      '<div class="job-card">' +
-        '<div class="top"><span class="job-title">' + job.description + " — " + job.farmer_name + "</span>" + statusBadge(job.status) + "</div>" +
-        qtyRow +
-        kv("Tricycle", job.tricycle_label || "Unassigned") +
-        (job.delivered_at ? kv("Delivered", new Date(job.delivered_at).toLocaleString()) : "") +
-        '<div style="margin-top:8px">' + actionHtml + "</div>" +
+      '<div class="card" style="margin-bottom:14px">' +
+        '<div class="grid g2">' +
+          field("newName", "Item name", state.newItem.name) +
+          '<div class="field-group"><span class="cap">Category</span><select id="newCategory">' +
+            ["seed", "fertiliser", "crop_protection", "tools"].map(function (c) {
+              return '<option value="' + c + '"' + (state.newItem.category === c ? " selected" : "") + '>' + c.replace("_", " ") + "</option>";
+            }).join("") +
+          "</select></div>" +
+        "</div>" +
+        '<div class="grid g2" style="margin-top:12px">' +
+          field("newUnit", "Unit (e.g. kg, bag, litre, set)", state.newItem.unit) +
+          field("newPrice", "Unit price (GHS)", state.newItem.unit_price, "number") +
+        "</div>" +
+        '<div class="grid g2" style="margin-top:12px">' +
+          field("newStock", "Stock quantity", state.newItem.stock_qty, "number") +
+          '<div class="field-group"><span class="cap">Formula input type (optional)</span><select id="newFormulaType">' +
+            [["other", "Other"], ["seed", "Seed"], ["npk", "NPK fertiliser"], ["topdress", "Top-dress fertiliser"]].map(function (pair) {
+              return '<option value="' + pair[0] + '"' + (state.newItem.formula_input_type === pair[0] ? " selected" : "") + '>' + pair[1] + "</option>";
+            }).join("") +
+          "</select></div>" +
+        "</div>" +
+        '<button class="btn primary block" id="submitNewItemBtn" style="margin-top:14px">Add to catalogue</button>' +
+        '<div class="inline-alert" id="newItemAlert"><span>⚠</span><span id="newItemAlertText"></span></div>' +
       "</div>"
     );
   }
-  function kv(k, v) { return '<div class="kv"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>"; }
+
+  function wireAddItemForm() {
+    document.getElementById("newName").addEventListener("input", function (e) { state.newItem.name = e.target.value; });
+    document.getElementById("newCategory").addEventListener("change", function (e) { state.newItem.category = e.target.value; });
+    document.getElementById("newUnit").addEventListener("input", function (e) { state.newItem.unit = e.target.value; });
+    document.getElementById("newPrice").addEventListener("input", function (e) { state.newItem.unit_price = e.target.value; });
+    document.getElementById("newStock").addEventListener("input", function (e) { state.newItem.stock_qty = e.target.value; });
+    document.getElementById("newFormulaType").addEventListener("change", function (e) { state.newItem.formula_input_type = e.target.value; });
+    document.getElementById("submitNewItemBtn").addEventListener("click", onAddItem);
+  }
 
   async function onLogin() {
     var btn = document.getElementById("loginBtn");
@@ -384,8 +452,9 @@
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.jobs = await apiGet("/logistics/jobs");
-      state.step = "queue";
+      state.catalogue = await apiGet("/vendor/catalogue");
+      state.orders = await apiGet("/vendor/input-orders");
+      state.step = "catalogue";
       render();
     } catch (e) {
       document.getElementById("otpAlertText").textContent = e.message;
@@ -395,37 +464,60 @@
     }
   }
 
-  async function onDispatch(jobId) {
-    if (!state.tricycle.trim()) {
-      document.getElementById("dispatchAlertText").textContent = "Enter a tricycle label (e.g. #1) before dispatching.";
-      document.getElementById("dispatchAlert").classList.add("show");
+  async function onAddItem() {
+    var price = parseFloat(state.newItem.unit_price);
+    var stock = parseFloat(state.newItem.stock_qty);
+    if (!state.newItem.name || !state.newItem.unit || !price || price <= 0 || isNaN(stock) || stock < 0) {
+      document.getElementById("newItemAlertText").textContent = "Enter a name, unit, positive unit price, and non-negative stock quantity.";
+      document.getElementById("newItemAlert").classList.add("show");
       return;
     }
-    var btn = document.getElementById("confirmDispatchBtn");
+    var btn = document.getElementById("submitNewItemBtn");
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Dispatching…';
+    btn.innerHTML = '<span class="spinner"></span> Adding…';
     try {
-      await apiPost("/logistics/jobs/" + jobId + "/dispatch", { tricycle_label: state.tricycle });
-      state.jobs = await apiGet("/logistics/jobs");
-      state.acting = null;
+      await apiPost("/vendor/catalogue", {
+        name: state.newItem.name, category: state.newItem.category,
+        formula_input_type: state.newItem.formula_input_type, unit: state.newItem.unit,
+        unit_price: price, stock_qty: stock,
+      });
+      state.catalogue = await apiGet("/vendor/catalogue");
+      state.showAddForm = false;
+      state.newItem = { name: "", category: "seed", formula_input_type: "other", unit: "kg", unit_price: "", stock_qty: "" };
       render();
     } catch (e) {
-      document.getElementById("dispatchAlertText").textContent = e.message;
-      document.getElementById("dispatchAlert").classList.add("show");
+      document.getElementById("newItemAlertText").textContent = e.message;
+      document.getElementById("newItemAlert").classList.add("show");
       btn.disabled = false;
-      btn.textContent = "Confirm dispatch →";
+      btn.textContent = "Add to catalogue";
     }
   }
 
-  async function onDeliver(jobId) {
+  async function onOrderAction(action) {
+    var btnId = action === "confirm" ? "confirmOrderBtn" : "declineOrderBtn";
+    var btn = document.getElementById(btnId);
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Working…';
     try {
-      await apiPost("/logistics/jobs/" + jobId + "/deliver", null);
-      state.jobs = await apiGet("/logistics/jobs");
+      state.order = await apiPost("/vendor/input-orders/" + state.order.id + "/" + action, null);
+      state.orders = await apiGet("/vendor/input-orders");
       render();
     } catch (e) {
-      alert(e.message);
+      document.getElementById("detailAlertText").textContent = e.message;
+      document.getElementById("detailAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = action === "confirm" ? "Confirm order" : "Decline order";
     }
   }
+
+  // "catalogue" and "orders" are parallel destinations once signed in, not
+  // a strict sequence -- unlike every other flow file, there's no single
+  // linear path through this vendor screen (a vendor revisits Catalogue and
+  // Orders independently). Both stay rail-clickable any time a token
+  // exists, not only once "done". "detail" is deliberately excluded --
+  // reached only by selecting a specific order row, same precedent as
+  // Fulfilment Intake's own "grade" step.
+  var NAV_STEP_IDS = ["catalogue", "orders"];
 
   function renderFlowRail(activeIdx) {
     var el = document.getElementById("flowSteps");
@@ -434,9 +526,12 @@
       var mark = i < activeIdx ? "✓" : (i + 1);
       return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
     }).join("");
-    el.querySelectorAll(".flow-step.done").forEach(function (row) {
+    el.querySelectorAll(".flow-step").forEach(function (row) {
+      var target = STEPS[+row.dataset.idx].id;
+      var clickable = row.classList.contains("done") || (state.token && NAV_STEP_IDS.indexOf(target) !== -1);
+      if (!clickable) return;
+      row.classList.add("done");
       row.addEventListener("click", function () {
-        var target = STEPS[+row.dataset.idx].id;
         if (target === "login") state.token = null;
         state.step = target;
         render();
@@ -445,15 +540,15 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "logistics@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", jobs: [], tab: "outbound", acting: null, tricycle: "", step: "login" };
-    setDevice("phone");
+    state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", catalogue: [], orders: [], order: null, showAddForm: false, newItem: { name: "", category: "seed", formula_input_type: "other", unit: "kg", unit_price: "", stock_qty: "" }, step: "login" };
+    setDevice("desktop");
     render();
   });
 
   var DEVICE_LABEL = {
     desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
     tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
-    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android) — confirmed phone-first for this role"
+    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
   };
   function setDevice(d) {
     document.getElementById("canvas").className = "canvas device-" + d;
@@ -461,7 +556,7 @@
     document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
   }
   document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
-  setDevice("phone");
+  setDevice("desktop");
   render();
 })();
 </script>

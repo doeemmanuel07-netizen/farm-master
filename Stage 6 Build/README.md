@@ -1,31 +1,35 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus nine flows, end to end and tested: Buyer
+segregation of duties) plus twelve flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
 a paid buyer requirement to one or more farmers -- the Production Formula
 Builder, where an Agronomist turns an assigned requirement into a planting
 calendar and input schedule and publishes it to those farmers -- Logistics
-Dispatch, where a confirmed vendor mechanisation request or a farmer's
-harvest pickup request automatically becomes a real dispatch job that
-Logistics assigns a tricycle to and marks delivered -- Harvest Pickup
-Request + Fulfilment Centre Intake & Grading, where a farmer's pickup
-request (optionally linked to one of their own accepted buyer orders)
-flows through dispatch to Finance, who weighs it in and grades it -- and
-Finance & Reconciliation, where Finance sees the commitment fee received,
-farmer settlement due, vendor payout due, and Farm Master's trading margin
-for each order, computed live from that real linked data, and can release
-settlement/payout.
+Dispatch, where a confirmed vendor mechanisation request, a confirmed
+input order, or a farmer's harvest pickup request automatically becomes a
+real dispatch job that Logistics assigns a tricycle to and marks
+delivered -- Harvest Pickup Request + Fulfilment Centre Intake & Grading,
+where a farmer's pickup request (optionally linked to one of their own
+accepted buyer orders) flows through dispatch to Finance, who weighs it in
+and grades it -- Finance & Reconciliation, where Finance sees the
+commitment fee received, farmer settlement due, vendor payout due, and
+Farm Master's trading margin for each order, computed live from that real
+linked data, and can release settlement/payout -- and Order Inputs +
+Vendor Product Catalogue, where a Farmer buys seed/fertiliser/crop-
+protection/tools from a Vendor's catalogue (quantities pre-filled from
+their production formula), and the Vendor confirms or declines the order.
 
-Logistics Dispatch completes PRD Section 6 Must-Have #3 ("Vendor input
-ordering routed to logistics dispatch") for the one real job source that
-exists today, Harvest Pickup + Fulfilment Intake completes Must-Have #4,
-and Finance & Reconciliation completes Must-Have #5, the last of the
-pilot's five must-haves -- see "Known limitations" for the gap between
-Must-Have #3 and its literal scope, and for the trading-margin rate's
-business-unconfirmed status.
+Logistics Dispatch and Order Inputs together complete PRD Section 6
+Must-Have #3 ("Vendor input ordering routed to logistics dispatch") --
+Order Inputs is the literal scope (a Farmer buying from a Vendor's Product
+Catalogue), Logistics Dispatch's mechanisation-request path is the other
+real job source. Harvest Pickup + Fulfilment Intake completes Must-Have
+#4, and Finance & Reconciliation completes Must-Have #5, the last of the
+pilot's five must-haves -- all five are now built. See "Known limitations"
+for the trading-margin rate's business-unconfirmed status.
 
 Added 5 September 2026, cutting across all of the above: real-time OTP
 verification via both phone and email, at both registration and login, for
@@ -39,7 +43,7 @@ response instead of an actual SMS/email being sent.
 A full responsive QA pass (5 September 2026) checked every flow at
 desktop/tablet/phone and found a systemic bug -- see "Known limitations."
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-18) for
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-20) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -126,6 +130,14 @@ The first run creates the tables in `farm_master` and seeds:
   accepted and the pickup itself linked to that requirement, so Finance &
   Reconciliation has a real, non-zero farmer settlement figure on first
   run.
+- Five Product Catalogue items for the seeded vendor -- matching the Stage
+  3 wireframe's own five example items exactly (seed, NPK fertiliser,
+  top-dress fertiliser, crop-protection, tools) -- so Order Inputs and the
+  Vendor Product Catalogue both have real data on first run.
+- One input order already confirmed (real seed + NPK, real stock
+  decremented, real `DispatchJob`) so the Vendor's order queue, the
+  Farmer's order history, and the Logistics Dispatch outbound tab's third
+  job type all have real data on first run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -143,6 +155,8 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Farmer Harvest Pickup Request: <http://127.0.0.1:8000/harvest-pickup-flow>
 - Live Fulfilment Centre Intake & Grading: <http://127.0.0.1:8000/fulfilment-intake-flow>
 - Live Finance & Reconciliation: <http://127.0.0.1:8000/reconciliation-flow>
+- Live Farmer Order Inputs: <http://127.0.0.1:8000/order-inputs-flow>
+- Live Vendor Product Catalogue: <http://127.0.0.1:8000/vendor-catalogue-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -248,13 +262,31 @@ through the full flow in `/reconciliation-flow` -- sign in, OTP, the
 orders list, and a full order detail with both releases -- and confirmed
 the Harvest Pickup flow's new order dropdown in `/harvest-pickup-flow`.
 
-**Responsive QA pass (5 September 2026, extended 6 September 2026):**
-every one of the nine flows was checked at desktop (1280px), tablet
+Order Inputs + Vendor Product Catalogue, specifically: `POST
+/farmer/input-orders` validates every line belongs to the same
+`vendor_id` (`422` otherwise), rejects a quantity beyond real
+`Product.stock_qty` (`409`), and decrements stock immediately as a real
+reservation; `POST /vendor/input-orders/{id}/confirm` creates a real
+outbound `DispatchJob` (verified via `GET /logistics/jobs` showing the
+new `input_order` job type end to end through dispatch and delivery);
+`POST .../decline` restores the reserved stock exactly (verified
+before/after); both routes `409` on a non-`PENDING` order; vendor and
+farmer tokens each get `403` on the other role's routes. Also clicked
+through both new flows in the browser end to end -- a Farmer (with a real
+`ProductionFormula`) seeing quantities correctly pre-filled by
+`formula_input_type` and placing an order in `/order-inputs-flow`, and a
+Vendor adding a catalogue item and confirming an order in
+`/vendor-catalogue-flow`.
+
+**Responsive QA pass (5 September 2026, extended 6-7 September 2026):**
+every one of the twelve flows was checked at desktop (1280px), tablet
 (768px), and phone (375px) -- programmatically
 (`document.documentElement.scrollWidth` vs `clientWidth` for overflow;
 `getBoundingClientRect()` on every interactive element for touch-target
 size), not just by eye, since a screenshot taken while the browser pane
-isn't frontmost was found to render a stale frame in this environment.
+isn't frontmost (or while the pane has been hidden for a while) was found
+to render stale or zero-sized layout data in this environment -- fronting
+the tab and taking one screenshot before measuring reliably "wakes" it.
 The 5 September pass found and fixed a systemic critical bug -- no file
 had a `<meta name="viewport">` tag, so every phone/tablet CSS rule built
 across all of Stage 6 never actually applied on a real device (confirmed:
@@ -269,9 +301,21 @@ collapse rule of its own (unlike every other two-column layout in this
 codebase, which uses the shared `.grid.g2` class) -- at phone width each
 column rendered under 175px wide, readable on screen but real content
 squeezed into roughly half the space the shared pattern gives it
-elsewhere. Fixed by switching it to the shared `.grid.g2` class. All nine
-flows now pass at all three breakpoints -- see "Known limitations" for the
-full fix list.
+elsewhere. Fixed by switching it to the shared `.grid.g2` class -- both new
+files this pass used `.grid.g2` from the start. The 7 September pass, while
+building the two new flows, found and fixed: a JS quote-mismatch typo in
+Logistics Dispatch's job-card renderer would have shown for the new
+`input_order` type had it not been caught before testing; two stale UI
+strings in Logistics Dispatch (an empty-state caption and a rail note both
+still said harvest pickup / input ordering had "no backend yet", though
+both had been built in earlier passes); and a real navigation dead-end in
+the new Vendor Product Catalogue flow -- Catalogue and Input Orders are
+parallel post-login destinations, not a linear sequence, but the shared
+rail-navigation pattern only allows clicking already-visited ("done")
+steps, so there was no way to ever reach Input Orders. Fixed by letting
+those two steps stay rail-clickable any time a session token exists.
+All twelve flows now pass at all three breakpoints -- see "Known
+limitations" for the full fix list.
 
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
@@ -314,15 +358,28 @@ is a real network call to the backend, not a simulation.
   Section 3.2, and today that only happens via `seed.py`; `PUT
   /admin/users/{id}/role` can change an existing account's role but there's
   no "create an internal account" endpoint yet.
-- **Logistics Dispatch covers a narrower job source than PRD Must-Have #3's
-  literal text.** "Vendor input ordering routed to logistics dispatch"
-  describes a Farmer buying seed/fertiliser from a Vendor's Product
-  Catalogue -- neither Farmer Portal's Order Inputs nor Vendor Portal's
-  Product Catalogue has a backend yet. The only real, confirmed job source
-  today is a `CONFIRMED` `MechanisationRequest`, so that's what actually
-  creates a `DispatchJob` (`app/dispatch.py`). Documented here as a
-  deliberate scope decision, not a silent reinterpretation of the
-  must-have -- see SDD Section 15.
+- **PRD Section 6 Must-Have #3 is now fully built.** "Vendor input ordering
+  routed to logistics dispatch" describes a Farmer buying seed/fertiliser
+  from a Vendor's Product Catalogue -- Order Inputs + Vendor Product
+  Catalogue (added 7 Sep 2026) is that literal scope; Logistics Dispatch's
+  `MechanisationRequest` path (Section 15) is the other real outbound job
+  source. `DispatchJob` now carries exactly one of three source FKs (see
+  SDD Section 15/20).
+- **Order Inputs is scoped to a single vendor per order**, mirroring
+  `MechanisationRequest`'s own single-vendor scoping -- every line item
+  must belong to the same `vendor_id`. With only one seeded vendor this
+  isn't a real limitation for the pilot, but a multi-vendor cart (splitting
+  one order across vendors) is not supported.
+- **Input order costs aren't captured as a payment anywhere yet.** The
+  Stage 3 wireframe shows input costs as a deduction on the Farmer Wallet &
+  Settlement Statement (not built) rather than an upfront charge like the
+  buyer commitment fee -- so `InputOrder.total_cost` is real and computed,
+  but nothing collects or deducts it yet. Confirm/decline are themselves
+  not audited (PRD Section 5's scope is role/permission changes and
+  financial actions), same treatment as `MechanisationRequest`
+  confirm/decline and dispatch/deliver.
+- The Vendor Product Catalogue has no edit or delete endpoint, matching the
+  Stage 3 wireframe's own scope (list + "+ Add item" only).
 - No audit-log entry is written for dispatch/deliver actions -- they're
   operational, not a role/permission change or a financial action (PRD
   Section 5's audit scope), consistent with how routine state changes are
@@ -345,12 +402,17 @@ is a real network call to the backend, not a simulation.
   remainder. Changeable via `PUT /admin/rates/trading_margin_pct` with no
   code change, same treatment as every other provisional rate, but pending
   real business sign-off before this number means anything financially.
-- **Vendor payout in Order Reconciliation is seed-data-only for now.**
-  `MechanisationRequest.buyer_requirement_id` (added this pass, so a vendor
-  payout can be tied to the order it was for) has no real farmer-facing
-  creation endpoint to set it through -- real input ordering (PRD
-  Must-Have #3's literal scope, below) still doesn't exist, so today this
-  link can only be set by `seed.py`, not by any live flow.
+- **Vendor payout in Order Reconciliation is seed-data-only for now, and
+  input orders don't feed it at all.** `MechanisationRequest.buyer_requirement_id`
+  (added for Must-Have #5, so a vendor payout can be tied to the order it
+  was for) still has no real farmer-facing creation endpoint for a
+  `MechanisationRequest` itself, so today this link can only be set by
+  `seed.py`. Separately, and not fixed here: Order Reconciliation's vendor
+  payout (`app/reconciliation.py`) only reads confirmed `MechanisationRequest`
+  rows -- a real, confirmed `InputOrder` (Must-Have #3, below) is not
+  counted towards vendor payout at all, even though it's real vendor
+  revenue now. Wiring input order costs into reconciliation is future work,
+  not silently assumed.
 - Real settlement math uses the order's actually delivered, graded
   (non-reject) tonnage (via `HarvestPickupRequest.buyer_requirement_id`),
   not its originally committed `quantity_tonnes` -- a farmer's pickup is
@@ -373,9 +435,20 @@ is a real network call to the backend, not a simulation.
   Pickup step used a raw inline two-column grid with no responsive collapse
   of its own (every other two-column layout in this codebase uses the
   shared `.grid.g2` class, which collapses to one column under 768px via a
-  container query) -- fixed by switching it to that shared class. All nine
-  flows now verified at 375/768/1280px with no horizontal page overflow, no
-  sub-44px interactive element, and no layout that stays cramped
-  multi-column below its container's own breakpoint.
+  container query) -- fixed by switching it to that shared class.
+- **Fixed 7 September 2026, Order Inputs build:** a JS quote-mismatch typo
+  in Logistics Dispatch's job-card renderer (caught before testing, would
+  have broken rendering for the new `input_order` job type); two stale UI
+  strings in Logistics Dispatch claiming harvest pickup/input ordering had
+  "no backend yet" (both had shipped in earlier passes); and a real
+  navigation dead-end in the new Vendor Product Catalogue flow, where
+  Catalogue and Input Orders -- parallel post-login destinations, not a
+  linear sequence -- had no way to reach the second from the first, since
+  the shared rail-navigation pattern only allows clicking already-visited
+  steps. Fixed by letting those two steps stay rail-clickable any time a
+  session token exists. All twelve flows now verified at 375/768/1280px
+  with no horizontal page overflow, no sub-44px interactive element, and no
+  layout that stays cramped multi-column below its container's own
+  breakpoint.
 - The rest of Internal Operations (Reporting, MoFA Data Exchange) is not
   yet built — see the SDD, Section 8, for the full list.

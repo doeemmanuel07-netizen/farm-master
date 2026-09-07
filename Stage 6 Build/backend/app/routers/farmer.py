@@ -1,6 +1,9 @@
 """
 Farmer opportunity-acceptance + production-formula flow -- the real backend
-behind farmer_opportunity_formula_flow_live.html.
+behind farmer_opportunity_formula_flow_live.html -- plus Harvest Pickup
+Request and (added 7 Sep 2026) Order Inputs, the real backend behind
+farmer_order_inputs_flow_live.html (PRD Section 6 Must-Have #3's literal
+scope: a Farmer buying seed/fertiliser from a Vendor's Product Catalogue).
 
 Closes a gap flagged during the Stage 5 retrospective: the USSD/SMS design
 noted "whichever channel accepts first wins" for opportunity acceptance but
@@ -15,13 +18,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, Opportunity, OpportunityStatus, ProductionFormula, HarvestPickupRequest, DispatchJob
+from ..models import (
+    User, Role, Opportunity, OpportunityStatus, ProductionFormula, HarvestPickupRequest, DispatchJob,
+    Product, InputOrder, InputOrderLine,
+)
 from ..auth import require_roles
 from ..formula import compute_formula_inputs
 from ..dispatch import create_inbound_dispatch_job
+from ..catalogue import product_view, order_view
 from ..schemas import (
     OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
     HarvestPickupRequestCreate, HarvestPickupRequestResponse, FarmerOrderOption,
+    ProductResponse, InputOrderCreate, InputOrderResponse,
 )
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
@@ -184,3 +192,94 @@ def my_harvest_pickups(
 ):
     reqs = db.query(HarvestPickupRequest).filter(HarvestPickupRequest.farmer_id == user.id).order_by(HarvestPickupRequest.created_at.desc()).all()
     return [_pickup_view(r, db) for r in reqs]
+
+
+# ---------------------------------------------------------------------------
+# Order Inputs -- PRD Section 6 Must-Have #3's literal scope ("Vendor input
+# ordering routed to logistics dispatch": a Farmer buying seed/fertiliser
+# from a Vendor's Product Catalogue). See models.Product / models.InputOrder.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/catalogue", response_model=List[ProductResponse])
+def browse_catalogue(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    products = db.query(Product).all()
+    views = []
+    for p in products:
+        vendor = db.query(User).filter(User.id == p.vendor_id).first()
+        views.append(product_view(p, vendor.organisation_name or vendor.full_name))
+    return views
+
+
+@router.post("/input-orders", response_model=InputOrderResponse)
+def place_input_order(
+    payload: InputOrderCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    if not payload.lines:
+        raise HTTPException(status_code=422, detail="An input order needs at least one line item.")
+
+    if payload.production_formula_id:
+        formula = (
+            db.query(ProductionFormula)
+            .filter(ProductionFormula.id == payload.production_formula_id, ProductionFormula.farmer_id == user.id)
+            .first()
+        )
+        if not formula:
+            raise HTTPException(status_code=422, detail="That production formula isn't one of your own.")
+
+    products_by_id = {}
+    total_cost = 0.0
+    for line in payload.lines:
+        if line.quantity <= 0:
+            raise HTTPException(status_code=422, detail="Every line's quantity must be greater than zero.")
+        product = db.query(Product).filter(Product.id == line.product_id).first()
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {line.product_id} not found.")
+        if product.vendor_id != payload.vendor_id:
+            raise HTTPException(status_code=422, detail="All line items must belong to the same vendor as vendor_id.")
+        if line.quantity > product.stock_qty:
+            raise HTTPException(status_code=409, detail=f"'{product.name}' only has {product.stock_qty} {product.unit} in stock.")
+        products_by_id[line.product_id] = product
+        total_cost += line.quantity * product.unit_price
+
+    order = InputOrder(
+        farmer_id=user.id,
+        vendor_id=payload.vendor_id,
+        production_formula_id=payload.production_formula_id,
+        total_cost=round(total_cost, 2),
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+    for line in payload.lines:
+        product = products_by_id[line.product_id]
+        db.add(InputOrderLine(
+            input_order_id=order.id, product_id=product.id,
+            quantity=line.quantity, unit_price=product.unit_price,
+        ))
+        # Reserve the stock immediately -- restored if the vendor later
+        # declines (routers/vendor.py's decline_input_order).
+        product.stock_qty -= line.quantity
+    db.commit()
+
+    return order_view(order, db)
+
+
+@router.get("/input-orders/mine", response_model=List[InputOrderResponse])
+def my_input_orders(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    orders = (
+        db.query(InputOrder)
+        .filter(InputOrder.farmer_id == user.id)
+        .order_by(InputOrder.created_at.desc())
+        .all()
+    )
+    return [order_view(o, db) for o in orders]

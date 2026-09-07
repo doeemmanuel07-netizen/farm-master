@@ -86,6 +86,14 @@ if FRONTEND_DIR.exists():
     def reconciliation_flow_page():
         return FileResponse(str(FRONTEND_DIR / "finance_reconciliation_flow_live.html"))
 
+    @app.get("/order-inputs-flow")
+    def order_inputs_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "farmer_order_inputs_flow_live.html"))
+
+    @app.get("/vendor-catalogue-flow")
+    def vendor_catalogue_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "vendor_product_catalogue_flow_live.html"))
+
 
 @app.on_event("startup")
 def on_startup():

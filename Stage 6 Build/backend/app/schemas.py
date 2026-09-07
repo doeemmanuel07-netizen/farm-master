@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from .models import (
     Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
     UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus, GradeResult,
+    ProductCategory, FormulaInputType, InputOrderStatus,
 )
 
 
@@ -55,7 +56,7 @@ class RegisterVerifyResponse(BaseModel):
 
 class DispatchJobResponse(BaseModel):
     id: str
-    job_type: str  # "mechanisation" | "harvest_pickup" -- presentation-only, not a DB column
+    job_type: str  # "mechanisation" | "harvest_pickup" | "input_order" -- presentation-only, not a DB column
     farmer_name: str
     description: str
     # Mechanisation-sourced (outbound) fields:
@@ -64,6 +65,9 @@ class DispatchJobResponse(BaseModel):
     # Harvest-pickup-sourced (inbound) fields:
     quantity_tonnes: Optional[float] = None
     preferred_pickup_date: Optional[str] = None
+    # Input-order-sourced (outbound) fields:
+    item_count: Optional[int] = None
+    total_cost: Optional[float] = None
     direction: DispatchDirection
     status: DispatchJobStatus
     tricycle_label: Optional[str]
@@ -354,3 +358,59 @@ class OrderReconciliationResponse(BaseModel):
     farmer_settlement_released_at: Optional[datetime]
     vendor_payout_released: bool
     vendor_payout_released_at: Optional[datetime]
+
+
+class ProductCreate(BaseModel):
+    name: str
+    category: ProductCategory
+    formula_input_type: FormulaInputType = FormulaInputType.OTHER
+    unit: str
+    unit_price: float
+    stock_qty: float
+
+
+class ProductResponse(BaseModel):
+    id: str
+    vendor_id: str
+    vendor_name: str
+    name: str
+    category: ProductCategory
+    formula_input_type: FormulaInputType
+    unit: str
+    unit_price: float
+    stock_qty: float
+
+    class Config:
+        from_attributes = True
+
+
+class InputOrderLineCreate(BaseModel):
+    product_id: str
+    quantity: float
+
+
+class InputOrderCreate(BaseModel):
+    vendor_id: str
+    production_formula_id: Optional[str] = None
+    lines: List[InputOrderLineCreate]
+
+
+class InputOrderLineResponse(BaseModel):
+    product_id: str
+    product_name: str
+    quantity: float
+    unit: str
+    unit_price: float
+    line_total: float
+
+
+class InputOrderResponse(BaseModel):
+    id: str
+    farmer_name: str
+    vendor_id: str
+    vendor_name: str
+    status: InputOrderStatus
+    total_cost: float
+    lines: List[InputOrderLineResponse]
+    dispatch_status: Optional[DispatchJobStatus] = None
+    created_at: datetime

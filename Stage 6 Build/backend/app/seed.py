@@ -14,10 +14,11 @@ from .models import (
     User, Role, UserStatus, RateConfig, Opportunity, OpportunityStatus, MechanisationRequest,
     MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
     HarvestPickupRequest, DispatchJobStatus, FulfilmentIntake, GradeResult,
-    CommitmentFeePayment, PaymentStatus,
+    CommitmentFeePayment, PaymentStatus, Product, ProductCategory, FormulaInputType,
+    InputOrder, InputOrderLine, InputOrderStatus,
 )
 from .auth import hash_password
-from .dispatch import create_dispatch_job, create_inbound_dispatch_job
+from .dispatch import create_dispatch_job, create_inbound_dispatch_job, create_input_order_dispatch_job
 
 # Formula Builder demo data -- a requirement already past Matching Queue
 # assignment (status PRODUCTION, real Opportunity rows with
@@ -80,6 +81,21 @@ SEED_HARVEST_PICKUPS = [
     # farmer_email, quantity_ready_tonnes, preferred_pickup_date, deliver_immediately
     ("farmer@farmmaster.test", 3.8, "2026-09-12", True),
     ("kojo.mensah@farmmaster.test", 2.5, "2026-09-14", False),
+]
+
+# Vendor Product Catalogue demo data -- matches the Stage 3 wireframe's own
+# five example items exactly (name, category, unit price, stock). Three
+# carry a formula_input_type so the Farmer Order Inputs screen can pre-fill
+# quantities from a real ProductionFormula (seed_kg -> SEED, npk_bags ->
+# NPK, topdress_bags -> TOPDRESS); the other two are OTHER (not part of the
+# production formula, ordered freely).
+SEED_PRODUCTS = [
+    # name, category, formula_input_type, unit, unit_price, stock_qty
+    ("Maize seed — improved variety", ProductCategory.SEED, FormulaInputType.SEED, "kg", 18.0, 240.0),
+    ("NPK Fertiliser 15-15-15", ProductCategory.FERTILISER, FormulaInputType.NPK, "bag", 320.0, 85.0),
+    ("Sulphate of Ammonia", ProductCategory.FERTILISER, FormulaInputType.TOPDRESS, "bag", 210.0, 60.0),
+    ("Pre-emergence herbicide", ProductCategory.CROP_PROTECTION, FormulaInputType.OTHER, "litre", 95.0, 30.0),
+    ("Hand tools bundle", ProductCategory.TOOLS, FormulaInputType.OTHER, "set", 140.0, 22.0),
 ]
 
 SEED_RATES = [
@@ -313,6 +329,51 @@ def seed():
                 print("Seeded 1 order-linked, delivered & graded harvest pickup (Order Reconciliation demo data).")
         else:
             print("An order-linked harvest pickup already exists, skipping Order Reconciliation seed.")
+
+        if db.query(Product).count() == 0:
+            vendor = db.query(User).filter(User.role == Role.VENDOR).first()
+            if vendor:
+                for name, category, input_type, unit, price, stock in SEED_PRODUCTS:
+                    db.add(Product(
+                        vendor_id=vendor.id, name=name, category=category,
+                        formula_input_type=input_type, unit=unit, unit_price=price, stock_qty=stock,
+                    ))
+                db.commit()
+                print(f"Seeded {len(SEED_PRODUCTS)} product catalogue items (Order Inputs / Vendor Catalogue demo data).")
+        else:
+            print("Product catalogue already exists, skipping catalogue seed.")
+
+        # Order Inputs demo data (PRD Must-Have #3's literal scope) -- Ama
+        # Serwaa orders seed + NPK from the seeded catalogue, the vendor
+        # confirms it, and a real outbound DispatchJob is created, so the
+        # Vendor's input-order queue, the Farmer's order history, and the
+        # Logistics Dispatch outbound tab (third job_type) all have real
+        # data on first run, same treatment as every other feature above.
+        if db.query(InputOrder).count() == 0:
+            ama = db.query(User).filter(User.email == "ama.serwaa@farmmaster.test").first()
+            vendor = db.query(User).filter(User.role == Role.VENDOR).first()
+            seed_product = db.query(Product).filter(Product.formula_input_type == FormulaInputType.SEED).first()
+            npk_product = db.query(Product).filter(Product.formula_input_type == FormulaInputType.NPK).first()
+            if ama and vendor and seed_product and npk_product:
+                seed_qty, npk_qty = 8.0, 2.0
+                order = InputOrder(
+                    farmer_id=ama.id, vendor_id=vendor.id,
+                    total_cost=round(seed_qty * seed_product.unit_price + npk_qty * npk_product.unit_price, 2),
+                )
+                db.add(order)
+                db.commit()
+                db.refresh(order)
+                db.add(InputOrderLine(input_order_id=order.id, product_id=seed_product.id, quantity=seed_qty, unit_price=seed_product.unit_price))
+                db.add(InputOrderLine(input_order_id=order.id, product_id=npk_product.id, quantity=npk_qty, unit_price=npk_product.unit_price))
+                seed_product.stock_qty -= seed_qty
+                npk_product.stock_qty -= npk_qty
+                order.status = InputOrderStatus.CONFIRMED
+                db.commit()
+                db.refresh(order)
+                create_input_order_dispatch_job(db, order)
+                print("Seeded 1 confirmed input order with a real dispatch job (Order Inputs demo data).")
+        else:
+            print("Input orders already exist, skipping Order Inputs seed.")
     finally:
         db.close()
 

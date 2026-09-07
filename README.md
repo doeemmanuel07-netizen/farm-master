@@ -31,8 +31,9 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus nine flows implemented and tested end to end against a
-real database and a real frontend:
+retrofitted) plus twelve flows implemented and tested end to end against a
+real database and a real frontend. All five of PRD Section 6's Must-Haves
+are now built:
 
 - Buyer commitment-fee payment
 - Farmer opportunity-acceptance + production-formula receipt
@@ -47,15 +48,20 @@ real database and a real frontend:
   farmer list directly from the Opportunity rows the Matching Queue already
   created rather than re-deriving them, and reuses the exact input-schedule
   math from the Farmer flow (see `app/formula.py`) rather than duplicating it.
-- Logistics Dispatch (Internal Operations) — completes PRD Section 6
-  Must-Have #3 ("Vendor input ordering routed to logistics dispatch") for
-  the one real job source that exists: a `POST /vendor/requests/{id}/confirm`
-  or Super-Admin override-approval automatically creates a real dispatch
-  job, which Logistics can then assign a tricycle to and mark delivered.
+- Logistics Dispatch (Internal Operations) — a `POST
+  /vendor/requests/{id}/confirm`, a Super-Admin override-approval, or a
+  confirmed input order (below) automatically creates a real dispatch job,
+  which Logistics can then assign a tricycle to and mark delivered.
   Confirmed phone-first per PRD Section 5.1, so this flow opens on the
-  phone viewport by default, unlike every other flow. Real input ordering
-  (a Farmer buying seed/fertiliser from a Vendor's Product Catalogue) has
-  no backend yet — see "Not yet built" below.
+  phone viewport by default, unlike every other flow.
+- Order Inputs + Vendor Product Catalogue (Farmer + Vendor) — completes PRD
+  Section 6 Must-Have #3's literal scope: a Farmer buys seed, fertiliser,
+  crop-protection, or tools from a Vendor's catalogue, with seed/NPK/top-
+  dress quantities pre-filled from their own production formula. Placing an
+  order reserves the stock immediately; the Vendor then confirms it (which
+  is what actually creates the real Logistics Dispatch job above) or
+  declines it (which restores the reservation). Scoped to a single vendor
+  per order, mirroring the Vendor mechanisation request's own scoping.
 - Harvest Pickup Request + Fulfilment Centre Intake & Grading (Farmer +
   Internal Operations) — completes PRD Section 6 Must-Have #4. A Farmer
   requesting pickup immediately creates a real inbound Logistics Dispatch
@@ -88,23 +94,26 @@ treatment as mobile money: no SMS/email provider is chosen yet, so both
 OTP codes are returned directly in the API response instead of actually
 being sent.
 
-Not yet built: real input ordering (Farmer Order Inputs, Vendor Product
-Catalogue — PRD Must-Have #3's literal scope, as distinct from the
-mechanisation-request dispatch that is built) — Order Reconciliation's own
-vendor payout is consequently seed-data-only, since there's no real
-creation endpoint to set a `MechanisationRequest`'s order link through —
-the rest of Internal Operations (Reporting, MoFA Data Exchange), the User
-& Role Admin screen's account-creation UI for internal staff, and any real
-mobile money or OTP gateway integration.
+Not yet built: the rest of Internal Operations (Reporting, MoFA Data
+Exchange), the User & Role Admin screen's account-creation UI for internal
+staff, and any real mobile money or OTP gateway integration. Order
+Reconciliation's vendor payout still only reads confirmed
+`MechanisationRequest` rows (seed-data-only, since that model still has no
+real creation endpoint) — a confirmed `InputOrder`'s real cost is not yet
+wired into reconciliation, even though Order Inputs itself (below) is now
+fully built.
 
 **Known gap, tracked for a separate task (not this one):** the Matching
 Queue records which farmer an Opportunity was assigned to
 (`assigned_farmer_id`), but the Farmer flow's opportunity list doesn't yet
 filter on it — every active farmer can currently see and accept an
-opportunity assigned to someone else. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+opportunity assigned to someone else. A background task to fix this
+("Fix farmer opportunity visibility scoping") has been queued but had not
+started as of 7 September 2026 — no commits from it exist yet, so this gap
+remains open. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
 "Known limitations" for detail.
 
-**Responsive QA pass (5 September 2026, extended 6 September 2026):**
+**Responsive QA pass (5 September 2026, extended 6–7 September 2026):**
 every flow above was verified at desktop (1280px), tablet (768px), and
 phone (375px) — no horizontal page overflow, no interactive element under
 the PRD Section 5.1-confirmed 44px touch-target minimum. The 5 September
@@ -121,10 +130,15 @@ new order-selection dropdown, found its two-column layout used a raw
 inline grid with no responsive collapse rule (unlike the shared pattern
 every other two-column layout in this codebase uses), so it stayed
 two-column and cramped below tablet width instead of stacking — fixed by
-switching it to the shared, already-responsive `.grid.g2` class. This
-check is mandatory for every new screen going forward, not retrofitted
-after — and, per this pass, applies again whenever an existing screen is
-substantively re-touched.
+switching it to the shared, already-responsive `.grid.g2` class. The 7
+September pass (building Order Inputs + Vendor Product Catalogue) caught a
+JS quote-mismatch typo before it ever reached testing, fixed two stale UI
+strings claiming already-shipped features had "no backend yet," and found
+a real navigation dead-end in the new Vendor flow (two parallel post-login
+destinations with no way to reach the second) — see [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+for the full writeup. This check is mandatory for every new screen going
+forward, not retrofitted after — and, per this pass, applies again
+whenever an existing screen is substantively re-touched.
 
 ## Tech stack
 
@@ -167,6 +181,8 @@ Then open:
 - <http://127.0.0.1:8000/harvest-pickup-flow> — Farmer Harvest Pickup Request
 - <http://127.0.0.1:8000/fulfilment-intake-flow> — Fulfilment Centre Intake & Grading (Internal Operations)
 - <http://127.0.0.1:8000/reconciliation-flow> — Finance & Reconciliation (Internal Operations)
+- <http://127.0.0.1:8000/order-inputs-flow> — Farmer Order Inputs
+- <http://127.0.0.1:8000/vendor-catalogue-flow> — Vendor Product Catalogue
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 Every flow above now signs in through two steps — password, then an OTP
