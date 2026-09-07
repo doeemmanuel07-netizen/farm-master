@@ -100,6 +100,10 @@ if FRONTEND_DIR.exists():
     def mofa_report_flow_page():
         return FileResponse(str(FRONTEND_DIR / "mofa_compliance_report_flow_live.html"))
 
+    @app.get("/user-admin-flow")
+    def user_admin_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "useradmin_flow_live.html"))
+
 
 @app.on_event("startup")
 def on_startup():

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Role, UserStatus, OtpPurpose, RegistrationApproval
+from ..models import User, Role, UserStatus, OtpPurpose, RegistrationApproval, SELF_REGISTER_ROLES
 from ..auth import verify_password, hash_password, create_access_token
 from ..audit import log_audit
 from ..otp import create_challenge, verify_challenge
@@ -26,7 +26,6 @@ from ..schemas import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SELF_REGISTER_ROLES = {Role.FARMER, Role.BUYER, Role.VENDOR}
 APPLICANT_TYPE = {Role.BUYER: "Private Buyer", Role.VENDOR: "Third-Party Vendor"}
 
 OTP_MESSAGE = (

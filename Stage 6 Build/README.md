@@ -1,7 +1,7 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus thirteen flows, end to end and tested: Buyer
+segregation of duties) plus fourteen flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
@@ -23,7 +23,11 @@ tools from a Vendor's catalogue (quantities pre-filled from their
 production formula), and the Vendor confirms or declines the order -- and
 MoFA Compliance Report, where Finance sees (and exports as CSV/PDF) one
 row per graded delivery linked to a real buyer order: volume, quality
-grade, buyer, and delivery date.
+grade, buyer, and delivery date -- and User & Role Admin, where a Super
+Admin manages accounts across all four portals: change an internal
+staff member's role, suspend/reactivate an external account, review a
+pending Buyer/Vendor registration inline, or create a new internal
+(Agronomist/Logistics/Finance/Super Admin) account outright.
 
 Logistics Dispatch and Order Inputs together complete PRD Section 6
 Must-Have #3 ("Vendor input ordering routed to logistics dispatch") --
@@ -33,6 +37,18 @@ real job source. Harvest Pickup + Fulfilment Intake completes Must-Have
 #4, and Finance & Reconciliation completes Must-Have #5, the last of the
 pilot's five must-haves -- all five are now built. See "Known limitations"
 for the trading-margin rate's business-unconfirmed status.
+
+**User & Role Admin (7 September 2026) closes out this pass's punch
+list** -- built against the confirmed Stage 4 visual
+(`internal_operations_visual.html:460-484`), which needed no scope
+decisions: the "+ Add internal user" action, both tables (internal staff
+with change-role; external accounts with suspend/reactivate/review), and
+the mockup's own caption requirement that every action here writes to the
+Audit Log, are all real and verified -- see "Known limitations" for the
+handful of adjacent internal-operations screens (Reporting's own
+dashboard, MoFA's import half, and a few Stage 4 screens never in Stage
+6's Must-Have scope to begin with) that remain genuinely unbuilt, so nothing
+here is overclaimed as "all of internal operations is done."
 
 **Fixed 7 September 2026, same pass as MoFA Compliance Report:** Order
 Reconciliation's vendor payout previously only read confirmed
@@ -58,7 +74,7 @@ response instead of an actual SMS/email being sent.
 A full responsive QA pass (5 September 2026) checked every flow at
 desktop/tablet/phone and found a systemic bug -- see "Known limitations."
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-23) for
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-25) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -178,6 +194,7 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Farmer Order Inputs: <http://127.0.0.1:8000/order-inputs-flow>
 - Live Vendor Product Catalogue: <http://127.0.0.1:8000/vendor-catalogue-flow>
 - Live MoFA Compliance Report: <http://127.0.0.1:8000/mofa-report-flow>
+- Live User & Role Admin: <http://127.0.0.1:8000/user-admin-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -317,6 +334,32 @@ then confirmed the release itself still works and still `409`s on a
 second attempt. Also clicked through the full flow in
 `/mofa-report-flow` -- sign in, OTP, the report table, and both exports.
 
+User & Role Admin, specifically: `GET /admin/users` returns real internal
+staff (with the Stage 4 mockup's own verbatim per-role "Scope" text) and
+external accounts, split into the two tables the mockup shows;
+`POST /admin/users` creates a real internal account (`422` if the role
+isn't Agronomist/Logistics/Finance/Super Admin -- Farmer/Buyer/Vendor
+self-register instead; `409` on a duplicate email); `PUT
+/admin/users/{id}/role` (pre-existing) and the new `POST .../suspend` /
+`.../reactivate` all `409` correctly on a no-op (already that role,
+already suspended, not suspended); a suspended account is verified to
+actually fail login (`403`) via `POST /auth/login`, not just show a
+badge; the inline "Review" action reuses the pre-existing
+`POST /admin/registrations/{id}/approve`/`reject`, verified end to end
+against a freshly self-registered Vendor (register -> OTP-verify ->
+appears `pending_review` with a real `registration_approval_id` -> Review
+-> Approve -> `active`, with a Suspend action now available). Every one
+of the five actions (internal user creation, role change, suspend,
+reactivate, registration approve/reject) writes a real audit-log entry --
+confirmed by reading `GET /admin/audit-log` after each, not just asserted
+from the code. Finance, Farmer, Vendor, Agronomist, and Logistics tokens
+each get `403` on every `/admin/*` route tested (Finance included, per
+the standing segregation-of-duties rule -- Finance can move money but
+must never also grant its own permissions). Also clicked through the
+full flow in `/user-admin-flow` -- sign in, OTP, changing a role,
+suspending and reactivating an account, adding a new internal user, and
+reviewing a real pending registration to approval, all in the browser.
+
 **Responsive QA pass (5 September 2026, extended 6-7 September 2026):**
 every one of the thirteen flows was checked at desktop (1280px), tablet
 (768px), and phone (375px) -- programmatically
@@ -353,11 +396,13 @@ parallel post-login destinations, not a linear sequence, but the shared
 rail-navigation pattern only allows clicking already-visited ("done")
 steps, so there was no way to ever reach Input Orders. Fixed by letting
 those two steps stay rail-clickable any time a session token exists. The
-7 September MoFA Compliance Report build introduced no new responsive
-issues -- a purely linear three-step flow with `.grid.g2` used from the
-start, verified clean at all three breakpoints on first pass. All
-thirteen flows now pass at all three breakpoints -- see "Known
-limitations" for the full fix list.
+7 September MoFA Compliance Report and User & Role Admin builds
+introduced no new responsive issues -- both are purely linear flows using
+`.grid.g2` from the start, verified clean at all three breakpoints on
+first pass; User & Role Admin has no parallel post-login destinations
+either, so the navigation-reachability check from the previous finding
+didn't apply. All fourteen flows now pass at all three breakpoints -- see
+"Known limitations" for the full fix list.
 
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
@@ -395,11 +440,28 @@ is a real network call to the backend, not a simulation.
   treatment as mobile money: no SMS/email provider is chosen yet (PRD
   Section 1.1/12), so both codes are returned directly in the API response
   instead of actually being sent.
-- Internal Operations account creation (Agronomist/Logistics/Finance/Super
-  Admin) still has no UI -- these roles are Super-Admin-provisioned per PRD
-  Section 3.2, and today that only happens via `seed.py`; `PUT
-  /admin/users/{id}/role` can change an existing account's role but there's
-  no "create an internal account" endpoint yet.
+- **Fixed 7 September 2026 -- User & Role Admin.** Internal Operations
+  account creation (Agronomist/Logistics/Finance/Super Admin) previously
+  had no UI or endpoint at all -- `seed.py` was the only way one ever came
+  into existence. `POST /admin/users` (Super Admin only, 422 for any
+  self-registering role) now creates one directly, active immediately, no
+  OTP challenge -- consistent with every seeded internal account, which
+  never went through a registration OTP either, only ever the login one.
+  Built against the confirmed Stage 4 visual
+  (`internal_operations_visual.html:460-484`) exactly, including a
+  "Reactivate" action for suspended accounts that the static mockup
+  doesn't itself depict (it shows only one illustrative Active example
+  row) but that a real, working Suspend action needs to not be a
+  permanent, un-undoable trap.
+- **Registration Approval Queue (a separate Stage 4 visual screen, id
+  "approvals") still has no dedicated flow file of its own.** Its backend
+  (`GET /admin/registrations`, approve/reject) has existed since the OTP
+  pass and is fully real, but until this pass it had no frontend surface
+  anywhere. User & Role Admin's inline "Review" action now gives it one --
+  reusing those exact endpoints rather than duplicating the logic -- but
+  that's a real UI living on a different screen than its own Stage 4
+  mockup, not a dedicated Registration Approval Queue screen. Worth
+  knowing precisely, not silently conflated as "that screen is built."
 - **PRD Section 6 Must-Have #3 is now fully built.** "Vendor input ordering
   routed to logistics dispatch" describes a Farmer buying seed/fertiliser
   from a Vendor's Product Catalogue -- Order Inputs + Vendor Product
@@ -495,7 +557,7 @@ is a real network call to the backend, not a simulation.
   linear sequence -- had no way to reach the second from the first, since
   the shared rail-navigation pattern only allows clicking already-visited
   steps. Fixed by letting those two steps stay rail-clickable any time a
-  session token exists. All thirteen flows now verified at 375/768/1280px
+  session token exists. All fourteen flows now verified at 375/768/1280px
   with no horizontal page overflow, no sub-44px interactive element, and no
   layout that stays cramped multi-column below its container's own
   breakpoint.
@@ -517,5 +579,13 @@ is a real network call to the backend, not a simulation.
   Reconciliation's own farmer-settlement math, since quality grade is
   itself one of the four confirmed report columns.
 - The rest of Internal Operations (the Reporting dashboard above, MoFA's
-  import half) is not yet built — see the SDD, Section 8, for the full
-  list.
+  import half, Field Visit Logs, Proof of Pickup/Delivery, and Trunking --
+  the last three were never in Stage 6's PRD Must-Have scope to begin
+  with) is not yet built — see the SDD, Section 8, for the full list.
+- **Stage 6's originally-scoped punch list is now complete.** All five PRD
+  Section 6 Must-Haves plus User & Role Admin (the account-creation UI
+  named as the last outstanding item) are built and tested. Real mobile
+  money/OTP gateway integration and the two items above (Reporting
+  dashboard, MoFA import) remain open, but were never part of that
+  punch list -- see the SDD status line for the exact, non-overclaimed
+  scope of "done" as of this pass.

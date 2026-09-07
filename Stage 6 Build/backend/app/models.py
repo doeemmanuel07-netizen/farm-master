@@ -48,6 +48,18 @@ ADMIN_ROLES = {Role.SUPER_ADMIN}
 # audit log -- visibility is not the same as authority to move money.
 FINANCE_ROLES = {Role.FINANCE}
 
+# The three portal roles that self-register (PRD Section 12) -- moved here
+# (7 Sep 2026, User & Role Admin) from being a routers/auth.py-local
+# constant, since routers/admin.py now needs the same classification (to
+# reject creating a Farmer/Buyer/Vendor through the internal-user-creation
+# endpoint, which would bypass self-registration's OTP + approval gate).
+# Single source of truth rather than two copies that could drift.
+SELF_REGISTER_ROLES = {Role.FARMER, Role.BUYER, Role.VENDOR}
+
+# The four roles Super-Admin-provisions directly (routers/admin.py's
+# POST /admin/users) rather than self-registering -- PRD Section 3.2.
+INTERNAL_ROLES = {Role.AGRONOMIST, Role.LOGISTICS, Role.FINANCE, Role.SUPER_ADMIN}
+
 
 class UserStatus(str, enum.Enum):
     # New self-registered account, phone/email not yet OTP-verified -- added

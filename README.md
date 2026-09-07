@@ -31,9 +31,10 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus thirteen flows implemented and tested end to end against
+retrofitted) plus fourteen flows implemented and tested end to end against
 a real database and a real frontend. All five of PRD Section 6's
-Must-Haves are now built:
+Must-Haves are now built, and so is the last item on this pass's own
+punch list, User & Role Admin:
 
 - Buyer commitment-fee payment
 - Farmer opportunity-acceptance + production-formula receipt
@@ -90,6 +91,16 @@ Must-Haves are now built:
   quality grade, buyer, delivery date) — a placeholder pending an actual
   MoFA data standard. REJECT-graded rows are included deliberately, since
   quality grade is itself one of the confirmed columns.
+- User & Role Admin (Super Admin) — built against the confirmed Stage 4
+  visual (`internal_operations_visual.html:460-484`), no scope decisions
+  needed. Cross-portal account management: change an internal staff
+  member's role (already existed), suspend/reactivate an external
+  account, review a pending Buyer/Vendor registration inline (reusing the
+  existing Registration Approval endpoints), or create a new internal
+  (Agronomist/Logistics/Finance/Super Admin) account outright via a real
+  "+ Add internal user" action. Every one of those five actions writes a
+  real audit-log entry, per the mockup's own caption — verified, not just
+  asserted.
 
 Also added 5 September 2026, cutting across every flow above: **real-time
 OTP verification** via both phone and email, at both registration and
@@ -105,14 +116,20 @@ Not yet built: the Reporting screen's own revenue-stream + pilot-metrics
 dashboard (a distinct concern from the MoFA compliance report above, and
 most of its own revenue streams are themselves deferred to Phase 2+, PRD
 Section 7), the MoFA import half (a static "no live API yet" stub even in
-the Stage 3 wireframe — no real MoFA import API exists to call), the User
-& Role Admin screen's account-creation UI for internal staff, and any real
-mobile money or OTP gateway integration. Order Reconciliation's vendor
-payout still reads confirmed `MechanisationRequest` via a link only
-`seed.py` can set (that model has no real creation endpoint yet) — fixed
-7 September 2026: it now also correctly includes a confirmed
+the Stage 3 wireframe — no real MoFA import API exists to call), a
+dedicated Registration Approval Queue screen of its own (its backend is
+real and now has a working UI, but that UI lives inline on User & Role
+Admin rather than on its own separate Stage 4 screen), Field Visit
+Logs/Proof of Pickup/Trunking (never in Stage 6's Must-Have scope), and
+any real mobile money or OTP gateway integration. Order Reconciliation's
+vendor payout still reads confirmed `MechanisationRequest` via a link
+only `seed.py` can set (that model has no real creation endpoint yet) —
+fixed 7 September 2026: it now also correctly includes a confirmed
 `InputOrder`'s real cost, closing a gap flagged at the end of the previous
-pass rather than leaving it unresolved.
+pass rather than leaving it unresolved. **With User & Role Admin now
+built, this pass's originally-scoped punch list — all five PRD Must-Haves
+plus the account-creation UI — is complete;** the items above were never
+part of that list and remain open on their own separate footing.
 
 **Known gap, tracked for a separate task (not this one):** the Matching
 Queue records which farmer an Opportunity was assigned to
@@ -147,8 +164,9 @@ JS quote-mismatch typo before it ever reached testing, fixed two stale UI
 strings claiming already-shipped features had "no backend yet," and found
 a real navigation dead-end in the new Vendor flow (two parallel post-login
 destinations with no way to reach the second). The MoFA Compliance Report
-build (also 7 September) introduced no new issues -- a purely linear
-three-step flow using `.grid.g2` from the start. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+and User & Role Admin builds (also 7 September) introduced no new issues
+-- both are purely linear flows using `.grid.g2` from the start, with no
+parallel post-login destinations to re-check for reachability either. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
 for the full writeup. This check is mandatory for every new screen going
 forward, not retrofitted after — and, per this pass, applies again
 whenever an existing screen is substantively re-touched.
@@ -197,6 +215,7 @@ Then open:
 - <http://127.0.0.1:8000/order-inputs-flow> — Farmer Order Inputs
 - <http://127.0.0.1:8000/vendor-catalogue-flow> — Vendor Product Catalogue
 - <http://127.0.0.1:8000/mofa-report-flow> — MoFA Compliance Report (Internal Operations)
+- <http://127.0.0.1:8000/user-admin-flow> — User & Role Admin (Super Admin)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 Every flow above now signs in through two steps — password, then an OTP

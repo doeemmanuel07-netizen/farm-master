@@ -423,3 +423,33 @@ class ComplianceReportRowResponse(BaseModel):
     grade: str
     volume_kg: float
     delivery_date: Optional[datetime]
+
+
+class AdminUserResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: Role
+    status: UserStatus
+    organisation_name: Optional[str] = None
+    # Internal-staff rows only (Stage 4 visual's "Scope" column) -- a fixed,
+    # per-role description of what that role's real endpoints permit, not
+    # per-user data. Null for external accounts, which show their portal
+    # (the role itself) instead, matching the mockup's two distinct tables.
+    scope: Optional[str] = None
+    # External-account rows only, and only while status is "pending_review"
+    # -- the RegistrationApproval row the "Review ->" action acts on.
+    registration_approval_id: Optional[str] = None
+
+
+class AdminUsersResponse(BaseModel):
+    internal: List[AdminUserResponse]
+    external: List[AdminUserResponse]
+
+
+class InternalUserCreate(BaseModel):
+    full_name: str
+    email: str
+    phone: str
+    role: Role
+    password: str
