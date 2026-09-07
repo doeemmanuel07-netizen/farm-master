@@ -13,11 +13,22 @@ The GHS figures are computed on read from real linked data, not stored:
   HarvestPickupRequest whose buyer_requirement_id matches this order --
   i.e. what was actually delivered and graded for THIS order, not the
   order's originally committed quantity_tonnes.
-- Vendor payout due: sum of (area_acres x vendor_service_fee_per_tonne) over
-  every CONFIRMED MechanisationRequest whose buyer_requirement_id matches
-  this order -- the same per-acre placeholder formula vendor.py already
-  uses for its own suggested_quote (PRD Section 10 flags this as a known
-  data-model mismatch, not reintroduced here).
+- Vendor payout due: two real sources, summed. (1) sum of (area_acres x
+  vendor_service_fee_per_tonne) over every CONFIRMED MechanisationRequest
+  whose buyer_requirement_id matches this order -- the same per-acre
+  placeholder formula vendor.py already uses for its own suggested_quote
+  (PRD Section 10 flags this as a known data-model mismatch, not
+  reintroduced here). (2) sum of total_cost over every CONFIRMED InputOrder
+  whose ProductionFormula traces back to an Opportunity for this order
+  (InputOrder has no buyer_requirement_id of its own -- production_formula_id
+  -> ProductionFormula.opportunity_id -> Opportunity.buyer_requirement_id is
+  the real chain, since an input order not tied to any formula genuinely
+  isn't attributable to a specific buyer order). Unlike the mechanisation
+  side, this uses the InputOrder's own real total_cost directly -- it's
+  already computed from real catalogue prices, not a placeholder rate.
+  Was silently missing before 7 September 2026: vendor payout only read
+  MechanisationRequest, so any order settled through a confirmed input
+  order under-reported what was actually owed to the vendor.
 - Trading margin: buyer invoice value (accepted delivered tonnes x
   price_per_tonne) x trading_margin_pct (RateConfig, BUSINESS-UNCONFIRMED --
   see seed.py). Farmer settlement due is the remainder.
@@ -35,6 +46,7 @@ from .models import (
     BuyerRequirement, CommitmentFeePayment, PaymentStatus, RateConfig,
     HarvestPickupRequest, FulfilmentIntake, GradeResult,
     MechanisationRequest, MechanisationRequestStatus,
+    InputOrder, InputOrderStatus, ProductionFormula, Opportunity,
 )
 
 
@@ -82,7 +94,18 @@ def compute_figures(db: Session, requirement: BuyerRequirement) -> Reconciliatio
         .filter(MechanisationRequest.buyer_requirement_id == requirement.id, MechanisationRequest.status == MechanisationRequestStatus.CONFIRMED)
         .all()
     )
-    vendor_payout_due = round(sum(r.area_acres * vendor_rate for r in confirmed_vendor_requests), 2)
+    mechanisation_payout = sum(r.area_acres * vendor_rate for r in confirmed_vendor_requests)
+
+    confirmed_input_orders = (
+        db.query(InputOrder)
+        .join(ProductionFormula, InputOrder.production_formula_id == ProductionFormula.id)
+        .join(Opportunity, ProductionFormula.opportunity_id == Opportunity.id)
+        .filter(InputOrder.status == InputOrderStatus.CONFIRMED, Opportunity.buyer_requirement_id == requirement.id)
+        .all()
+    )
+    input_order_payout = sum(o.total_cost for o in confirmed_input_orders)
+
+    vendor_payout_due = round(mechanisation_payout + input_order_payout, 2)
 
     return ReconciliationFigures(
         commitment_fee_received=round(commitment_fee_received, 2),

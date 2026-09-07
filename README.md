@@ -31,9 +31,9 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus twelve flows implemented and tested end to end against a
-real database and a real frontend. All five of PRD Section 6's Must-Haves
-are now built:
+retrofitted) plus thirteen flows implemented and tested end to end against
+a real database and a real frontend. All five of PRD Section 6's
+Must-Haves are now built:
 
 - Buyer commitment-fee payment
 - Farmer opportunity-acceptance + production-formula receipt
@@ -77,12 +77,19 @@ are now built:
   Commitment fee received, farmer settlement due, vendor payout due, and
   Farm Master's trading margin are computed live per buyer order from real
   linked data (a real commitment-fee payment, delivered & graded
-  non-reject tonnage, confirmed vendor requests) rather than the order's
-  originally committed quantity, and Finance can release settlement/payout
-  once there's something real to release. The trading margin rate itself
-  has no confirmed figure anywhere in the PRD or Business Concept doc
-  (unlike the buyer commitment fee and vendor service fee) — see "Not yet
-  built" below.
+  non-reject tonnage, confirmed mechanisation requests **and confirmed
+  input orders**) rather than the order's originally committed quantity,
+  and Finance can release settlement/payout once there's something real to
+  release. The trading margin rate itself has no confirmed figure anywhere
+  in the PRD or Business Concept doc (unlike the buyer commitment fee and
+  vendor service fee) — see "Not yet built" below.
+- MoFA Compliance Report (Internal Operations, Finance) — the export half
+  of the Stage 3 wireframe's "MoFA Data Exchange" screen (PRD Section
+  1.1/9): a generic CSV/PDF export, one row per graded delivery linked to
+  a real buyer order, covering exactly the four confirmed fields (volume,
+  quality grade, buyer, delivery date) — a placeholder pending an actual
+  MoFA data standard. REJECT-graded rows are included deliberately, since
+  quality grade is itself one of the confirmed columns.
 
 Also added 5 September 2026, cutting across every flow above: **real-time
 OTP verification** via both phone and email, at both registration and
@@ -94,14 +101,18 @@ treatment as mobile money: no SMS/email provider is chosen yet, so both
 OTP codes are returned directly in the API response instead of actually
 being sent.
 
-Not yet built: the rest of Internal Operations (Reporting, MoFA Data
-Exchange), the User & Role Admin screen's account-creation UI for internal
-staff, and any real mobile money or OTP gateway integration. Order
-Reconciliation's vendor payout still only reads confirmed
-`MechanisationRequest` rows (seed-data-only, since that model still has no
-real creation endpoint) — a confirmed `InputOrder`'s real cost is not yet
-wired into reconciliation, even though Order Inputs itself (below) is now
-fully built.
+Not yet built: the Reporting screen's own revenue-stream + pilot-metrics
+dashboard (a distinct concern from the MoFA compliance report above, and
+most of its own revenue streams are themselves deferred to Phase 2+, PRD
+Section 7), the MoFA import half (a static "no live API yet" stub even in
+the Stage 3 wireframe — no real MoFA import API exists to call), the User
+& Role Admin screen's account-creation UI for internal staff, and any real
+mobile money or OTP gateway integration. Order Reconciliation's vendor
+payout still reads confirmed `MechanisationRequest` via a link only
+`seed.py` can set (that model has no real creation endpoint yet) — fixed
+7 September 2026: it now also correctly includes a confirmed
+`InputOrder`'s real cost, closing a gap flagged at the end of the previous
+pass rather than leaving it unresolved.
 
 **Known gap, tracked for a separate task (not this one):** the Matching
 Queue records which farmer an Opportunity was assigned to
@@ -135,7 +146,9 @@ September pass (building Order Inputs + Vendor Product Catalogue) caught a
 JS quote-mismatch typo before it ever reached testing, fixed two stale UI
 strings claiming already-shipped features had "no backend yet," and found
 a real navigation dead-end in the new Vendor flow (two parallel post-login
-destinations with no way to reach the second) — see [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+destinations with no way to reach the second). The MoFA Compliance Report
+build (also 7 September) introduced no new issues -- a purely linear
+three-step flow using `.grid.g2` from the start. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
 for the full writeup. This check is mandatory for every new screen going
 forward, not retrofitted after — and, per this pass, applies again
 whenever an existing screen is substantively re-touched.
@@ -183,6 +196,7 @@ Then open:
 - <http://127.0.0.1:8000/reconciliation-flow> — Finance & Reconciliation (Internal Operations)
 - <http://127.0.0.1:8000/order-inputs-flow> — Farmer Order Inputs
 - <http://127.0.0.1:8000/vendor-catalogue-flow> — Vendor Product Catalogue
+- <http://127.0.0.1:8000/mofa-report-flow> — MoFA Compliance Report (Internal Operations)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 Every flow above now signs in through two steps — password, then an OTP

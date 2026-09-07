@@ -15,10 +15,11 @@ from .models import (
     MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
     HarvestPickupRequest, DispatchJobStatus, FulfilmentIntake, GradeResult,
     CommitmentFeePayment, PaymentStatus, Product, ProductCategory, FormulaInputType,
-    InputOrder, InputOrderLine, InputOrderStatus,
+    InputOrder, InputOrderLine, InputOrderStatus, ProductionFormula,
 )
 from .auth import hash_password
 from .dispatch import create_dispatch_job, create_inbound_dispatch_job, create_input_order_dispatch_job
+from .formula import compute_formula_inputs
 
 # Formula Builder demo data -- a requirement already past Matching Queue
 # assignment (status PRODUCTION, real Opportunity rows with
@@ -309,6 +310,34 @@ def seed():
                     kojo_opp.accepted_at = datetime.utcnow()
                     db.commit()
 
+                # Ama Serwaa is the requirement's other assigned farmer
+                # (SEED_ASSIGNED_FARMERS). Accepting her opportunity too and
+                # creating her real ProductionFormula (same computation the
+                # live accept_opportunity endpoint uses) gives the Order
+                # Inputs demo data below a real formula to link an input
+                # order to -- which in turn lets that same input order's
+                # cost feed into THIS requirement's vendor payout (Order
+                # Reconciliation, app/reconciliation.py), demonstrating the
+                # fix for input orders being silently excluded from it.
+                ama = db.query(User).filter(User.email == "ama.serwaa@farmmaster.test").first()
+                ama_opp = db.query(Opportunity).filter(
+                    Opportunity.buyer_requirement_id == production_req.id,
+                    Opportunity.assigned_farmer_id == ama.id,
+                ).first() if ama else None
+                if ama_opp and ama_opp.accepted_by is None:
+                    ama_opp.status = OpportunityStatus.ACCEPTED
+                    ama_opp.accepted_by = ama.id
+                    ama_opp.accepted_at = datetime.utcnow()
+                    db.commit()
+                    if db.query(ProductionFormula).filter(ProductionFormula.opportunity_id == ama_opp.id).count() == 0:
+                        ama_inputs = compute_formula_inputs(db, ama_opp.quantity_tonnes)
+                        db.add(ProductionFormula(
+                            opportunity_id=ama_opp.id, farmer_id=ama.id,
+                            seed_kg=ama_inputs.seed_kg, npk_bags=ama_inputs.npk_bags,
+                            topdress_bags=ama_inputs.topdress_bags,
+                        ))
+                        db.commit()
+
                 pickup = HarvestPickupRequest(
                     farmer_id=kojo.id, quantity_ready_tonnes=2.0, preferred_pickup_date="2026-09-16",
                     buyer_requirement_id=production_req.id,
@@ -349,15 +378,20 @@ def seed():
         # Vendor's input-order queue, the Farmer's order history, and the
         # Logistics Dispatch outbound tab (third job_type) all have real
         # data on first run, same treatment as every other feature above.
+        # Linked to her real ProductionFormula (seeded above) so this same
+        # order's real total_cost also feeds the PRODUCTION requirement's
+        # vendor payout in Order Reconciliation (app/reconciliation.py).
         if db.query(InputOrder).count() == 0:
             ama = db.query(User).filter(User.email == "ama.serwaa@farmmaster.test").first()
             vendor = db.query(User).filter(User.role == Role.VENDOR).first()
             seed_product = db.query(Product).filter(Product.formula_input_type == FormulaInputType.SEED).first()
             npk_product = db.query(Product).filter(Product.formula_input_type == FormulaInputType.NPK).first()
+            ama_formula = db.query(ProductionFormula).filter(ProductionFormula.farmer_id == ama.id).first() if ama else None
             if ama and vendor and seed_product and npk_product:
                 seed_qty, npk_qty = 8.0, 2.0
                 order = InputOrder(
                     farmer_id=ama.id, vendor_id=vendor.id,
+                    production_formula_id=ama_formula.id if ama_formula else None,
                     total_cost=round(seed_qty * seed_product.unit_price + npk_qty * npk_product.unit_price, 2),
                 )
                 db.add(order)

@@ -414,3 +414,12 @@ class InputOrderResponse(BaseModel):
     lines: List[InputOrderLineResponse]
     dispatch_status: Optional[DispatchJobStatus] = None
     created_at: datetime
+
+
+class ComplianceReportRowResponse(BaseModel):
+    farmer_name: str
+    crop: str
+    buyer_name: str
+    grade: str
+    volume_kg: float
+    delivery_date: Optional[datetime]

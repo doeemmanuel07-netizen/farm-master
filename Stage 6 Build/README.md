@@ -1,7 +1,7 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus twelve flows, end to end and tested: Buyer
+segregation of duties) plus thirteen flows, end to end and tested: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
@@ -17,10 +17,13 @@ accepted buyer orders) flows through dispatch to Finance, who weighs it in
 and grades it -- Finance & Reconciliation, where Finance sees the
 commitment fee received, farmer settlement due, vendor payout due, and
 Farm Master's trading margin for each order, computed live from that real
-linked data, and can release settlement/payout -- and Order Inputs +
-Vendor Product Catalogue, where a Farmer buys seed/fertiliser/crop-
-protection/tools from a Vendor's catalogue (quantities pre-filled from
-their production formula), and the Vendor confirms or declines the order.
+linked data, and can release settlement/payout -- Order Inputs + Vendor
+Product Catalogue, where a Farmer buys seed/fertiliser/crop-protection/
+tools from a Vendor's catalogue (quantities pre-filled from their
+production formula), and the Vendor confirms or declines the order -- and
+MoFA Compliance Report, where Finance sees (and exports as CSV/PDF) one
+row per graded delivery linked to a real buyer order: volume, quality
+grade, buyer, and delivery date.
 
 Logistics Dispatch and Order Inputs together complete PRD Section 6
 Must-Have #3 ("Vendor input ordering routed to logistics dispatch") --
@@ -30,6 +33,18 @@ real job source. Harvest Pickup + Fulfilment Intake completes Must-Have
 #4, and Finance & Reconciliation completes Must-Have #5, the last of the
 pilot's five must-haves -- all five are now built. See "Known limitations"
 for the trading-margin rate's business-unconfirmed status.
+
+**Fixed 7 September 2026, same pass as MoFA Compliance Report:** Order
+Reconciliation's vendor payout previously only read confirmed
+`MechanisationRequest` rows -- any order settled through a confirmed
+`InputOrder` (Order Inputs, above) silently under-reported what was
+actually owed to the vendor, since `InputOrder` has no direct link to a
+buyer order and nothing traced its real `total_cost` into the
+computation. Fixed by deriving the link (InputOrder.production_formula_id
+-> ProductionFormula.opportunity_id -> Opportunity.buyer_requirement_id)
+and summing both real sources. Flagged at the end of the previous pass,
+not left as another "flagged but not fixed" note -- see "Known
+limitations" for the verified before/after figures.
 
 Added 5 September 2026, cutting across all of the above: real-time OTP
 verification via both phone and email, at both registration and login, for
@@ -43,7 +58,7 @@ response instead of an actual SMS/email being sent.
 A full responsive QA pass (5 September 2026) checked every flow at
 desktop/tablet/phone and found a systemic bug -- see "Known limitations."
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-20) for
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-23) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -135,9 +150,14 @@ The first run creates the tables in `farm_master` and seeds:
   top-dress fertiliser, crop-protection, tools) -- so Order Inputs and the
   Vendor Product Catalogue both have real data on first run.
 - One input order already confirmed (real seed + NPK, real stock
-  decremented, real `DispatchJob`) so the Vendor's order queue, the
-  Farmer's order history, and the Logistics Dispatch outbound tab's third
-  job type all have real data on first run.
+  decremented, real `DispatchJob`), linked to a real `ProductionFormula`
+  for Ama Serwaa (her opportunity for the `PRODUCTION` requirement is
+  also marked accepted, mirroring Kojo Mensah's above) so the Vendor's
+  order queue, the Farmer's order history, the Logistics Dispatch outbound
+  tab's third job type, and the `PRODUCTION` requirement's Order
+  Reconciliation vendor payout (now correctly including this order's real
+  cost, not just the mechanisation request's) all have real data on first
+  run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -157,6 +177,7 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Finance & Reconciliation: <http://127.0.0.1:8000/reconciliation-flow>
 - Live Farmer Order Inputs: <http://127.0.0.1:8000/order-inputs-flow>
 - Live Vendor Product Catalogue: <http://127.0.0.1:8000/vendor-catalogue-flow>
+- Live MoFA Compliance Report: <http://127.0.0.1:8000/mofa-report-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -278,8 +299,26 @@ through both new flows in the browser end to end -- a Farmer (with a real
 Vendor adding a catalogue item and confirming an order in
 `/vendor-catalogue-flow`.
 
+MoFA Compliance Report, specifically: `GET /mofa/compliance-report`
+correctly excludes a graded delivery with no linked buyer order even
+after grading it (verified: grading Kofi Mensah's general, unlinked
+pickup left the report at the same 2 rows), and correctly *includes* a
+REJECT-graded row (verified: grading a second real delivery REJECT added
+it to the report, since quality grade is one of the four confirmed
+columns, not a filter); `GET .../export.csv` and `GET .../export.pdf`
+both return real files (`%PDF-` header verified on the PDF) with exactly
+the four confirmed columns, in the confirmed order; vendor and farmer
+tokens get `403` on all three routes. Order Reconciliation's vendor-payout
+fix, specifically: before the fix, the `PRODUCTION` requirement's vendor
+payout was `GHS 90` (mechanisation only); after linking Ama Serwaa's real,
+confirmed `InputOrder` (seeded, `GHS 784`) via her `ProductionFormula`, it
+correctly became `GHS 874` -- verified via the API before releasing it,
+then confirmed the release itself still works and still `409`s on a
+second attempt. Also clicked through the full flow in
+`/mofa-report-flow` -- sign in, OTP, the report table, and both exports.
+
 **Responsive QA pass (5 September 2026, extended 6-7 September 2026):**
-every one of the twelve flows was checked at desktop (1280px), tablet
+every one of the thirteen flows was checked at desktop (1280px), tablet
 (768px), and phone (375px) -- programmatically
 (`document.documentElement.scrollWidth` vs `clientWidth` for overflow;
 `getBoundingClientRect()` on every interactive element for touch-target
@@ -313,8 +352,11 @@ the new Vendor Product Catalogue flow -- Catalogue and Input Orders are
 parallel post-login destinations, not a linear sequence, but the shared
 rail-navigation pattern only allows clicking already-visited ("done")
 steps, so there was no way to ever reach Input Orders. Fixed by letting
-those two steps stay rail-clickable any time a session token exists.
-All twelve flows now pass at all three breakpoints -- see "Known
+those two steps stay rail-clickable any time a session token exists. The
+7 September MoFA Compliance Report build introduced no new responsive
+issues -- a purely linear three-step flow with `.grid.g2` used from the
+start, verified clean at all three breakpoints on first pass. All
+thirteen flows now pass at all three breakpoints -- see "Known
 limitations" for the full fix list.
 
 Or just open any of the `-flow` pages above and click through — every step
@@ -402,17 +444,24 @@ is a real network call to the backend, not a simulation.
   remainder. Changeable via `PUT /admin/rates/trading_margin_pct` with no
   code change, same treatment as every other provisional rate, but pending
   real business sign-off before this number means anything financially.
-- **Vendor payout in Order Reconciliation is seed-data-only for now, and
-  input orders don't feed it at all.** `MechanisationRequest.buyer_requirement_id`
-  (added for Must-Have #5, so a vendor payout can be tied to the order it
-  was for) still has no real farmer-facing creation endpoint for a
-  `MechanisationRequest` itself, so today this link can only be set by
-  `seed.py`. Separately, and not fixed here: Order Reconciliation's vendor
-  payout (`app/reconciliation.py`) only reads confirmed `MechanisationRequest`
-  rows -- a real, confirmed `InputOrder` (Must-Have #3, below) is not
-  counted towards vendor payout at all, even though it's real vendor
-  revenue now. Wiring input order costs into reconciliation is future work,
-  not silently assumed.
+- **Vendor payout's mechanisation side is still seed-data-only.**
+  `MechanisationRequest.buyer_requirement_id` (added for Must-Have #5, so a
+  vendor payout can be tied to the order it was for) still has no real
+  farmer-facing creation endpoint for a `MechanisationRequest` itself, so
+  today this link can only be set by `seed.py`.
+- **Fixed 7 September 2026 -- vendor payout was silently excluding
+  confirmed input orders.** Flagged at the end of the previous pass, not
+  left as another "flagged but not fixed" note. `InputOrder` has no direct
+  link to a buyer order, so `app/reconciliation.py` previously summed only
+  confirmed `MechanisationRequest` rows -- any order settled through a
+  confirmed `InputOrder` was under-reporting real vendor payout by exactly
+  that order's `total_cost`. Fixed by deriving the link
+  (`InputOrder.production_formula_id` -> `ProductionFormula.opportunity_id`
+  -> `Opportunity.buyer_requirement_id`) and summing both real sources --
+  an input order not tied to any formula still isn't attributable to a
+  specific buyer order, which is correct (it's a general farm-input
+  purchase, not tied to fulfilling one). Verified before/after against the
+  seeded `PRODUCTION` requirement: GHS 90 -> GHS 874.
 - Real settlement math uses the order's actually delivered, graded
   (non-reject) tonnage (via `HarvestPickupRequest.buyer_requirement_id`),
   not its originally committed `quantity_tonnes` -- a farmer's pickup is
@@ -446,9 +495,27 @@ is a real network call to the backend, not a simulation.
   linear sequence -- had no way to reach the second from the first, since
   the shared rail-navigation pattern only allows clicking already-visited
   steps. Fixed by letting those two steps stay rail-clickable any time a
-  session token exists. All twelve flows now verified at 375/768/1280px
+  session token exists. All thirteen flows now verified at 375/768/1280px
   with no horizontal page overflow, no sub-44px interactive element, and no
   layout that stays cramped multi-column below its container's own
   breakpoint.
-- The rest of Internal Operations (Reporting, MoFA Data Exchange) is not
-  yet built — see the SDD, Section 8, for the full list.
+- **MoFA Compliance Report is the export half only of the Stage 3
+  wireframe's "MoFA Data Exchange" screen.** The wireframe's other panel --
+  importing verified institutional buyer/accreditation data from MoFA --
+  is a static "no live API yet" stub even in the wireframe itself (no real
+  MoFA import API exists to call), so it isn't built here; a fake import
+  against nothing real would be decorative, not a real feature. The
+  separate "Reporting" screen (revenue-stream + pilot-metrics dashboard,
+  IA Section 6) is a distinct concern from the compliance report and is
+  also not built -- most of its own revenue streams are themselves
+  deferred to Phase 2+ (PRD Section 7), so a dashboard for it would mostly
+  show deferred placeholders today.
+- Report rows require a graded intake AND a buyer-linked pickup; a
+  farmer's general (unlinked) delivery never appears even once graded --
+  verified by test, not just asserted (see "Manual verification" above).
+  REJECT-graded rows are deliberately included, unlike Order
+  Reconciliation's own farmer-settlement math, since quality grade is
+  itself one of the four confirmed report columns.
+- The rest of Internal Operations (the Reporting dashboard above, MoFA's
+  import half) is not yet built — see the SDD, Section 8, for the full
+  list.

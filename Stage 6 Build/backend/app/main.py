@@ -16,6 +16,7 @@ from .routers import agronomist as agronomist_router
 from .routers import logistics as logistics_router
 from .routers import fulfilment as fulfilment_router
 from .routers import reconciliation as reconciliation_router
+from .routers import mofa as mofa_router
 
 app = FastAPI(
     title="Farm Master API",
@@ -41,6 +42,7 @@ app.include_router(agronomist_router.router)
 app.include_router(logistics_router.router)
 app.include_router(fulfilment_router.router)
 app.include_router(reconciliation_router.router)
+app.include_router(mofa_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
@@ -93,6 +95,10 @@ if FRONTEND_DIR.exists():
     @app.get("/vendor-catalogue-flow")
     def vendor_catalogue_flow_page():
         return FileResponse(str(FRONTEND_DIR / "vendor_product_catalogue_flow_live.html"))
+
+    @app.get("/mofa-report-flow")
+    def mofa_report_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "mofa_compliance_report_flow_live.html"))
 
 
 @app.on_event("startup")
