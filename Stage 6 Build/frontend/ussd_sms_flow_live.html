@@ -1,0 +1,291 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USSD/SMS Channel — Live Backend</title>
+<style>
+  :root { --primary:#1F5E3D;--primary-dark:#143D28;--gold:#E8A83C;--gold-dark:#C98A22;--ink:#1A1F1B;--muted:#5B6B5E;--faint:#8A9A8C;--bg:#F7F8F4;--surface:#FFFFFF;--border:#DDE3D9;--success:#2F9E44;--danger:#C0392B;--rail-bg:#F0F2EC; font-family:"Manrope",system-ui,sans-serif; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --primary:#7FBF9E;--primary-dark:#9ED4B8;--gold:#F0BC63;--gold-dark:#F5CD8A;--ink:#EAF0EA;--muted:#9BAA9D;--faint:#6C7A6E;--bg:#12160F;--surface:#1B211A;--border:#2C342A;--rail-bg:#171C15;--success:#4FBF6B;--danger:#E0685A; } }
+  :root[data-theme="dark"] { --primary:#7FBF9E;--primary-dark:#9ED4B8;--gold:#F0BC63;--gold-dark:#F5CD8A;--ink:#EAF0EA;--muted:#9BAA9D;--faint:#6C7A6E;--bg:#12160F;--surface:#1B211A;--border:#2C342A;--rail-bg:#171C15;--success:#4FBF6B;--danger:#E0685A; }
+  * { box-sizing: border-box; } html { overflow-x: hidden; }
+  body { margin:0; overflow-x:hidden; background:var(--bg); color:var(--ink); font-family:"Manrope",system-ui,sans-serif; }
+  .app { display:flex; min-height:100vh; }
+  .rail { width:272px; flex:0 0 272px; background:var(--rail-bg); border-right:1px solid var(--border); padding:20px 16px 24px; position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto; }
+  .rail-brand { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:2px; }
+  .rail-brand .name { font-weight:800; font-size:15px; color:var(--primary); }
+  .rail-brand .stage { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; }
+  .rail-sub { font-size:12px; color:var(--muted); margin-bottom:12px; font-weight:600; }
+  .pilot-chip { display:inline-flex; gap:6px; align-items:center; font-size:11px; font-weight:700; color:var(--primary); background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:5px 10px; margin-bottom:16px; }
+  .pilot-chip .dot { width:6px; height:6px; border-radius:50%; background:var(--gold); flex:none; }
+  .rail-note { font-size:11.5px; line-height:1.5; color:var(--muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 11px; margin-bottom:14px; }
+  .device-toggle { display:flex; gap:4px; margin-bottom:16px; }
+  .device-btn { flex:1; font-size:10px; font-weight:700; text-align:center; padding:7px 4px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--muted); cursor:pointer; min-height:44px; }
+  .device-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .rail-group-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; margin:4px 2px 6px; }
+  .flow-steps { display:flex; flex-direction:column; gap:3px; margin-bottom:16px; }
+  .flow-step { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; font-size:13px; font-weight:600; color:var(--faint); min-height:44px; }
+  .flow-step .dot { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); flex:none; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:var(--faint); background:var(--surface); }
+  .flow-step.done { color:var(--ink); cursor:pointer; } .flow-step.done .dot { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .flow-step.current { color:var(--ink); background:color-mix(in srgb,var(--primary) 10%,transparent); }
+  .flow-step.current .dot { border-color:var(--gold); color:var(--gold-dark); background:color-mix(in srgb,var(--gold) 18%,var(--surface)); }
+  .flow-step.locked { opacity:.55; }
+  .rail-footer { font-size:11px; color:var(--faint); line-height:1.6; border-top:1px solid var(--border); padding-top:12px; }
+  .restart-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; margin-top:10px; padding:9px; min-height:44px; border-radius:8px; border:1px dashed var(--border); background:transparent; color:var(--muted); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .main { flex:1; min-width:0; padding:28px 32px 80px; }
+  .topbar { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+  .topbar h1 { font-size:21px; margin:0 0 3px; font-weight:800; }
+  .topbar .crumb { font-size:11.5px; color:var(--faint); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .topbar .desc { font-size:13px; color:var(--muted); max-width:62ch; margin-top:6px; }
+  .screen-tag { font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--primary); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 10px; white-space:nowrap; }
+  .viewport-label { font-size:11px; color:var(--faint); margin-bottom:10px; font-weight:600; }
+  .canvas { background:var(--bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; container-type:inline-size; }
+  .canvas.device-desktop { max-width:1040px; } .canvas.device-tablet { max-width:834px; } .canvas.device-phone { max-width:390px; }
+  .body-pad { padding:20px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .card-label { font-size:10.5px; font-weight:700; color:var(--faint); text-transform:uppercase; margin-bottom:8px; display:block; }
+  .caption { font-size:11.5px; color:var(--faint); margin-top:6px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:8px; font-size:13.5px; font-weight:700; padding:11px 18px; border:1px solid var(--border); background:var(--surface); color:var(--ink); cursor:pointer; min-height:46px; font-family:inherit; }
+  .btn.primary { background:var(--gold); border-color:var(--gold); color:var(--primary-dark); }
+  .btn.small { min-height:44px; padding:7px 12px; font-size:12.5px; }
+  .grid { display:grid; gap:14px; } .g2 { grid-template-columns:1fr 1fr; }
+  @container (max-width:767px) { .grid.g2 { grid-template-columns:1fr; } }
+  .field-group { display:flex; flex-direction:column; gap:5px; }
+  .field-group input, .field-group select { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; width:100%; height:44px; }
+  .table-scroll { overflow-x:auto; }
+  table.data-table { width:100%; min-width:400px; border-collapse:collapse; font-size:12.5px; }
+  table.data-table th { text-align:left; font-size:10px; text-transform:uppercase; color:var(--faint); font-weight:700; padding:9px 10px; border-bottom:2px solid var(--border); }
+  table.data-table td { padding:11px 10px; border-bottom:1px solid var(--border); }
+  .spinner { width:18px; height:18px; border-radius:50%; border:2.5px solid rgba(20,61,40,.25); border-top-color:var(--primary-dark); animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .inline-alert { display:none; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--danger); background:color-mix(in srgb,var(--danger) 10%,transparent); border:1px solid color-mix(in srgb,var(--danger) 35%,transparent); border-radius:8px; padding:10px 12px; margin-top:12px; }
+  .inline-alert.show { display:flex; }
+
+  /* Phone/USSD emulator chrome */
+  .phone-wrap { display:flex; gap:24px; flex-wrap:wrap; padding:24px; justify-content:center; }
+  .phone { width:280px; background:#111; border-radius:28px; padding:14px 12px; box-shadow:0 10px 30px rgba(0,0,0,.25); flex:none; }
+  .phone-screen { background:#c9dcc4; border-radius:6px; min-height:280px; padding:14px 12px; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:#1a2b18; white-space:pre-wrap; line-height:1.6; }
+  .phone-topbar { display:flex; justify-content:space-between; font-size:10px; color:#4b5c46; margin-bottom:8px; }
+  .phone-keys { display:flex; gap:8px; margin-top:12px; }
+  .phone-keys input { flex:1; background:#222; border:1px solid #444; border-radius:8px; padding:10px; color:#fff; font-family:"IBM Plex Mono",monospace; }
+  .phone-keys button { background:var(--gold); border:none; border-radius:8px; padding:0 16px; font-weight:800; color:#3a2a00; cursor:pointer; }
+  .sms-panel { flex:1; min-width:280px; }
+  .sms-bubble { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:12.5px; }
+  .sms-bubble .meta { font-size:10px; color:var(--faint); margin-bottom:4px; text-transform:uppercase; font-weight:700; }
+  @media (max-width:860px) { .app { flex-direction:column; } .rail { width:100%; flex:none; height:auto; position:static; border-right:none; border-bottom:1px solid var(--border); padding:14px 16px; } .rail-note,.rail-footer{display:none;} .main{padding:20px 16px 60px;} }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand"><span class="name">FARM MASTER</span><span class="stage">Stage 6</span></div>
+    <div class="rail-sub">USSD/SMS Channel — Live Backend</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+    <div class="rail-note"><b>Added 8 Sep 2026.</b> The feature-phone fallback (PRD Section 8). No Stage 4 visual and zero build existed before this pass. Real USSD PIN auth is out of scope (same open-gateway status as OTP/payment) -- this emulator runs on your existing web session and reads/writes the exact same real tables as the Farmer Portal.</div>
+    <div class="device-toggle" id="deviceToggle"><div class="device-btn" data-device="desktop">Desktop</div><div class="device-btn" data-device="tablet">Tablet</div><div class="device-btn" data-device="phone">Phone</div></div>
+    <div class="rail-group-label">Flow</div><div class="flow-steps" id="flowSteps"></div>
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (new login)</button>
+    <div class="rail-footer">Backend: Stage 6 Build/backend (FastAPI + PostgreSQL).<br>Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.</div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><div><h1 id="screen-title">—</h1><div class="crumb">USSD/SMS / <span id="screen-crumb">—</span></div><div class="desc" id="screen-desc"></div></div><div class="screen-tag" id="screen-tag">STEP 1 / 3</div></div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+<script>
+(function () {
+  var API = "";
+  var SESSION_TIMEOUT_SECONDS = 45;
+  var state = {
+    token: null, email: "kojo.mensah@farmmaster.test", password: "password123",
+    challengeId: null, otpPhone: "", otpEmail: "",
+    menu: "main", opportunities: [], selectedOpp: null, smsLog: [], lastAlert: null, lastPayment: null,
+    timer: SESSION_TIMEOUT_SECONDS, timerHandle: null,
+    step: "login",
+  };
+  var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "ussd", label: "USSD/SMS Session" }];
+
+  function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
+  async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
+  async function apiPost(path, body) { var res = await fetch(API + path, { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), body: body === undefined ? undefined : JSON.stringify(body) }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
+  function field(id, cap, val, type) { return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>'; }
+
+  function startSessionTimer() {
+    stopSessionTimer();
+    state.timer = SESSION_TIMEOUT_SECONDS;
+    state.timerHandle = setInterval(function () {
+      state.timer -= 1;
+      var el = document.getElementById("sessionTimer");
+      if (el) el.textContent = state.timer + "s";
+      if (state.timer <= 0) {
+        stopSessionTimer();
+        state.menu = "expired";
+        renderUssd();
+      }
+    }, 1000);
+  }
+  function stopSessionTimer() { if (state.timerHandle) { clearInterval(state.timerHandle); state.timerHandle = null; } }
+
+  function ussdScreenText() {
+    if (state.menu === "expired") return "SESSION EXPIRED\n\nDial *920# to start again.";
+    if (state.menu === "main") return "FARM MASTER\n\n1. Opportunities\n2. Confirm Harvest Pickup\n3. Check Payment/Balance\n4. View SMS Log\n0. Exit";
+    if (state.menu === "opportunities") {
+      if (state.opportunities.length === 0) return "No open opportunities right now.\n\n0. Back";
+      return state.opportunities.map(function (o, i) { return (i + 1) + ". " + o.buyer_name + " -- " + o.quantity_tonnes + "t " + o.grade; }).join("\n") + "\n\n0. Back";
+    }
+    if (state.menu === "opportunity_detail") return state.lastAlert ? state.lastAlert.ussd_detail_text : "Loading…";
+    if (state.menu === "pickup_form") return "CONFIRM HARVEST PICKUP\n\nEnter quantity (t) and date below, then Send.\n\n0. Back";
+    if (state.menu === "pickup_result") return "Pickup confirmed.\nAn SMS notification was sent (see log).\n\n0. Back to menu";
+    if (state.menu === "payment") return state.lastPayment ? "BALANCE\n\n" + state.lastPayment.balance_text + "\n\n0. Back" : "Loading…";
+    if (state.menu === "sms_log") {
+      if (state.smsLog.length === 0) return "No SMS sent yet this session.\n\n0. Back";
+      return state.smsLog.map(function (l) { return "[" + l.purpose + "] " + l.body; }).join("\n\n") + "\n\n0. Back";
+    }
+    return "";
+  }
+
+  function ussdOptionsHint() {
+    if (state.menu === "expired") return "Type anything to dial in again";
+    if (state.menu === "main") return "Type 1, 2, 3, 4, or 0";
+    if (state.menu === "opportunities") return "Type a number to view, or 0 for Back";
+    if (state.menu === "opportunity_detail") return "Type 1 to Accept (opens the Opportunity Board), or 0 for Back";
+    return "Type 0 to go Back";
+  }
+
+  function renderUssd() {
+    document.getElementById("screen-title").textContent = "USSD/SMS Session";
+    document.getElementById("screen-crumb").textContent = "Session";
+    document.getElementById("screen-desc").textContent = "A live, session-based menu (numbered options, back navigation, and a real " + SESSION_TIMEOUT_SECONDS + "s inactivity timeout) driven by real backend state -- GET /farmer/opportunities, POST /ussd/opportunities/{id}/push-alert, POST /ussd/pickup-confirm, GET /ussd/payment-notification, GET /ussd/sms-log.";
+    var extra = "";
+    if (state.menu === "pickup_form") {
+      extra = '<div class="grid g2" style="margin-top:14px">' + field("pickupQty", "Quantity ready (t)", "2.0") + field("pickupDate", "Preferred date", "2026-09-25") + '</div>' +
+        '<button class="btn primary" id="pickupSendBtn" style="margin-top:10px">Send</button>' +
+        '<div class="inline-alert" id="pickupAlert"><span>⚠</span><span id="pickupAlertText"></span></div>';
+    }
+    document.getElementById("canvas").innerHTML =
+      '<div class="phone-wrap">' +
+        '<div class="phone">' +
+          '<div class="phone-topbar"><span>Farm Master USSD</span><span id="sessionTimer">' + state.timer + 's</span></div>' +
+          '<div class="phone-screen" id="phoneScreen">' + ussdScreenText() + '</div>' +
+          '<div class="phone-keys"><input id="ussdInput" placeholder="' + ussdOptionsHint() + '"><button id="ussdSendBtn">Send</button></div>' +
+        '</div>' +
+        '<div class="sms-panel"><div class="card"><span class="card-label">SMS inbox (simulated delivery)</span>' +
+          (state.smsLog.length === 0 ? '<div class="caption">No SMS received yet -- select an option on the left to trigger one.</div>' :
+            state.smsLog.map(function (l) { return '<div class="sms-bubble"><div class="meta">' + l.purpose.replace(/_/g, " ") + ' · ' + new Date(l.created_at).toLocaleTimeString() + '</div>' + l.body + '</div>'; }).join("")) +
+          '<div class="caption">Every row here is a real GET /ussd/sms-log entry -- the send is asserted, not assumed.</div>' +
+        '</div></div>' +
+      '</div>' +
+      (extra ? '<div class="body-pad">' + extra + '</div>' : "");
+    if (state.menu === "expired") {
+      stopSessionTimer();
+      document.getElementById("sessionTimer").textContent = "0s";
+    } else {
+      startSessionTimer();
+    }
+    document.getElementById("ussdSendBtn").addEventListener("click", onUssdInput);
+    document.getElementById("ussdInput").addEventListener("keydown", function (e) { if (e.key === "Enter") onUssdInput(); });
+    var pickupBtn = document.getElementById("pickupSendBtn");
+    if (pickupBtn) pickupBtn.addEventListener("click", onSubmitPickup);
+  }
+
+  async function refreshSmsLog() { state.smsLog = await apiGet("/ussd/sms-log"); }
+
+  async function onUssdInput() {
+    var val = document.getElementById("ussdInput").value.trim();
+    document.getElementById("ussdInput").value = "";
+    try {
+      if (state.menu === "expired") {
+        state.menu = "main";
+      } else if (state.menu === "main") {
+        if (val === "1") { state.opportunities = await apiGet("/farmer/opportunities"); state.menu = "opportunities"; }
+        else if (val === "2") { state.menu = "pickup_form"; }
+        else if (val === "3") { state.lastPayment = await apiGet("/ussd/payment-notification"); await refreshSmsLog(); state.menu = "payment"; }
+        else if (val === "4") { await refreshSmsLog(); state.menu = "sms_log"; }
+      } else if (state.menu === "opportunities") {
+        if (val === "0") { state.menu = "main"; }
+        else {
+          var idx = parseInt(val, 10) - 1;
+          if (state.opportunities[idx]) {
+            state.selectedOpp = state.opportunities[idx];
+            state.lastAlert = await apiPost("/ussd/opportunities/" + state.selectedOpp.id + "/push-alert");
+            await refreshSmsLog();
+            state.menu = "opportunity_detail";
+          }
+        }
+      } else if (state.menu === "opportunity_detail") {
+        if (val === "0") state.menu = "opportunities";
+      } else if (state.menu === "pickup_result" || state.menu === "payment" || state.menu === "sms_log") {
+        if (val === "0") state.menu = "main";
+      } else if (state.menu === "pickup_form") {
+        if (val === "0") state.menu = "main";
+      }
+      renderUssd();
+    } catch (e) { alert(e.message); }
+  }
+
+  async function onSubmitPickup() {
+    var btn = document.getElementById("pickupSendBtn"); btn.disabled = true;
+    try {
+      await apiPost("/ussd/pickup-confirm", { quantity_ready_tonnes: parseFloat(document.getElementById("pickupQty").value), preferred_pickup_date: document.getElementById("pickupDate").value });
+      await refreshSmsLog();
+      state.menu = "pickup_result";
+      renderUssd();
+    } catch (e) { document.getElementById("pickupAlertText").textContent = e.message; document.getElementById("pickupAlert").classList.add("show"); btn.disabled = false; }
+  }
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+    if (state.step === "login") {
+      document.getElementById("screen-title").textContent = "Sign in"; document.getElementById("screen-crumb").textContent = "Sign in";
+      document.getElementById("screen-desc").textContent = "Real authentication -- reused for the USSD session emulator below (real USSD PIN auth is a separate, unchosen gateway -- see rail note).";
+      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("email", "Email", state.email) + '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + '</div><button class="btn primary block" id="loginBtn" style="margin-top:16px;width:100%">Sign in</button><div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div></div></div>';
+      document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
+      document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
+      document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+    if (state.step === "otp") {
+      document.getElementById("screen-title").textContent = "Verify OTP"; document.getElementById("screen-crumb").textContent = "Verify OTP";
+      document.getElementById("screen-desc").textContent = "SIMULATED delivery (PRD Section 12) -- both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("otpPhone", "Phone OTP code", state.otpPhone) + '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + '</div><button class="btn primary block" id="otpBtn" style="margin-top:16px;width:100%">Verify &amp; continue</button><div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div></div></div>';
+      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
+      document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
+      document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
+    }
+    if (state.step === "ussd") { renderUssd(); }
+  }
+  async function onLogin() {
+    var btn = document.getElementById("loginBtn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
+      var data = await res.json(); if (!res.ok) throw new Error(data.detail || "Login failed");
+      state.challengeId = data.challenge_id; state.otpPhone = data.dev_only_phone_code; state.otpEmail = data.dev_only_email_code;
+      state.step = "otp"; render();
+    } catch (e) { document.getElementById("loginAlertText").textContent = e.message; document.getElementById("loginAlert").classList.add("show"); btn.disabled = false; btn.textContent = "Sign in"; }
+  }
+  async function onVerifyOtp() {
+    var btn = document.getElementById("otpBtn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying…';
+    try {
+      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }) });
+      var data = await res.json(); if (!res.ok) throw new Error(data.detail || "OTP verification failed");
+      state.token = data.access_token;
+      await refreshSmsLog();
+      state.step = "ussd"; render();
+    } catch (e) { document.getElementById("otpAlertText").textContent = e.message; document.getElementById("otpAlert").classList.add("show"); btn.disabled = false; btn.textContent = "Verify & continue"; }
+  }
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) { var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked"; var mark = i < activeIdx ? "✓" : (i + 1); return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>"; }).join("");
+    el.querySelectorAll(".flow-step.done").forEach(function (row) { row.addEventListener("click", function () { var target = STEPS[+row.dataset.idx].id; if (target === "login") { stopSessionTimer(); state.token = null; } state.step = target; render(); }); });
+  }
+  document.getElementById("restartBtn").addEventListener("click", function () {
+    stopSessionTimer();
+    state = { token: null, email: "kojo.mensah@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", menu: "main", opportunities: [], selectedOpp: null, smsLog: [], lastAlert: null, lastPayment: null, timer: SESSION_TIMEOUT_SECONDS, timerHandle: null, step: "login" };
+    setDevice("desktop"); render();
+  });
+  var DEVICE_LABEL = { desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)", tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)", phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)" };
+  function setDevice(d) { document.getElementById("canvas").className = "canvas device-" + d; document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); }); document.getElementById("viewport-label").textContent = DEVICE_LABEL[d]; }
+  document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
+  setDevice("desktop"); render();
+})();
+</script>

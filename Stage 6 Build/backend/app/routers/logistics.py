@@ -20,10 +20,15 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
     User, Role, DispatchJob, DispatchJobStatus, MechanisationRequest, HarvestPickupRequest,
-    InputOrder, InputOrderLine,
+    InputOrder, InputOrderLine, ProofOfDelivery, TrunkingJob, TrunkingStatus,
+    FulfilmentIntake, GradeResult,
 )
 from ..auth import require_roles
-from ..schemas import DispatchJobResponse, DispatchAssignRequest
+from ..schemas import (
+    DispatchJobResponse, DispatchAssignRequest,
+    ProofOfDeliveryCreate, ProofOfDeliveryResponse,
+    TrunkingJobCreate, TrunkingJobResponse, TrunkingAvailabilityResponse,
+)
 
 router = APIRouter(prefix="/logistics", tags=["logistics"])
 
@@ -124,3 +129,150 @@ def deliver_job(
     db.commit()
     db.refresh(job)
     return _job_view(job, db)
+
+
+# ---------------------------------------------------------------------------
+# Proof of Pickup/Delivery -- Stage 3 wireframe. Added 8 Sep 2026, closing a
+# gap this session's own completeness audit surfaced. Captured for a job
+# already DELIVERED (see models.ProofOfDelivery) -- additive to the existing,
+# already-tested "Mark delivered" action above, not a replacement for it.
+# ---------------------------------------------------------------------------
+
+
+def _proof_view(p: ProofOfDelivery, db: Session) -> ProofOfDeliveryResponse:
+    confirmer = db.query(User).filter(User.id == p.confirmed_by).first()
+    return ProofOfDeliveryResponse(
+        id=p.id, dispatch_job_id=p.dispatch_job_id,
+        confirmed_by_name=confirmer.full_name if confirmer else "Unknown",
+        gps_lat=p.gps_lat, gps_lng=p.gps_lng,
+        signature_captured=p.signature_captured, photo_captured=p.photo_captured, created_at=p.created_at,
+    )
+
+
+@router.get("/jobs/{job_id}/proof", response_model=ProofOfDeliveryResponse)
+def get_proof(
+    job_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    proof = db.query(ProofOfDelivery).filter(ProofOfDelivery.dispatch_job_id == job_id).first()
+    if not proof:
+        raise HTTPException(status_code=404, detail="No proof captured for this job yet.")
+    return _proof_view(proof, db)
+
+
+@router.post("/jobs/{job_id}/proof", response_model=ProofOfDeliveryResponse)
+def capture_proof(
+    job_id: str,
+    payload: ProofOfDeliveryCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    job = db.query(DispatchJob).filter(DispatchJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Dispatch job not found.")
+    if job.status != DispatchJobStatus.DELIVERED:
+        raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not yet delivered -- mark delivered first.")
+    if db.query(ProofOfDelivery).filter(ProofOfDelivery.dispatch_job_id == job_id).first():
+        raise HTTPException(status_code=409, detail="Proof has already been captured for this job.")
+
+    proof = ProofOfDelivery(
+        dispatch_job_id=job_id, confirmed_by=user.id,
+        gps_lat=payload.gps_lat, gps_lng=payload.gps_lng,
+        signature_captured=payload.signature_captured, photo_captured=payload.photo_captured,
+    )
+    db.add(proof)
+    db.commit()
+    db.refresh(proof)
+    return _proof_view(proof, db)
+
+
+# ---------------------------------------------------------------------------
+# Trunking -- Stage 3 wireframe. Added 8 Sep 2026, same audit. Previously
+# entirely absent (no model, no stub, no endpoint). Deliberately thin per
+# the wireframe's own caption: single origin (Tema), no multi-centre routing
+# (Phase 3) -- see models.TrunkingJob.
+# ---------------------------------------------------------------------------
+
+
+def _tonnes_available(db: Session) -> float:
+    graded_kg = sum(
+        i.weigh_in_kg for i in
+        db.query(FulfilmentIntake).filter(FulfilmentIntake.grade != GradeResult.REJECT).all()
+    )
+    already_trunked = sum(j.produce_tonnes for j in db.query(TrunkingJob).all())
+    return round(graded_kg / 1000.0 - already_trunked, 3)
+
+
+@router.get("/trunking/availability", response_model=TrunkingAvailabilityResponse)
+def trunking_availability(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    return TrunkingAvailabilityResponse(tonnes_available=_tonnes_available(db))
+
+
+@router.get("/trunking", response_model=List[TrunkingJobResponse])
+def list_trunking_jobs(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    return db.query(TrunkingJob).order_by(TrunkingJob.created_at.desc()).all()
+
+
+@router.post("/trunking", response_model=TrunkingJobResponse)
+def schedule_trunking_job(
+    payload: TrunkingJobCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    available = _tonnes_available(db)
+    if payload.produce_tonnes <= 0:
+        raise HTTPException(status_code=422, detail="produce_tonnes must be greater than zero.")
+    if payload.produce_tonnes > available:
+        raise HTTPException(status_code=409, detail=f"Only {available}t of graded produce is ready -- cannot trunk {payload.produce_tonnes}t.")
+
+    job = TrunkingJob(
+        produce_tonnes=payload.produce_tonnes, tonnes_available_at_creation=available,
+        destination=payload.destination, vehicle_label=payload.vehicle_label, scheduled_by=user.id,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post("/trunking/{job_id}/dispatch", response_model=TrunkingJobResponse)
+def dispatch_trunking_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    job = db.query(TrunkingJob).filter(TrunkingJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Trunking job not found.")
+    if job.status != TrunkingStatus.SCHEDULED:
+        raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not ready to dispatch.")
+    job.status = TrunkingStatus.DISPATCHED
+    job.dispatched_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post("/trunking/{job_id}/deliver", response_model=TrunkingJobResponse)
+def deliver_trunking_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.LOGISTICS)),
+):
+    job = db.query(TrunkingJob).filter(TrunkingJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Trunking job not found.")
+    if job.status != TrunkingStatus.DISPATCHED:
+        raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not dispatched.")
+    job.status = TrunkingStatus.DELIVERED
+    job.delivered_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+    return job

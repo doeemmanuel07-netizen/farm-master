@@ -20,16 +20,21 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
     User, Role, Opportunity, OpportunityStatus, ProductionFormula, HarvestPickupRequest, DispatchJob,
-    Product, InputOrder, InputOrderLine,
+    DispatchJobStatus, Product, InputOrder, InputOrderLine, InputOrderStatus,
+    MilestoneLogEntry, AgronomistMessage, FulfilmentIntake, GradeResult,
 )
 from ..auth import require_roles
 from ..formula import compute_formula_inputs
 from ..dispatch import create_inbound_dispatch_job
 from ..catalogue import product_view, order_view
+from ..wallet import compute_farmer_wallet
 from ..schemas import (
     OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
     HarvestPickupRequestCreate, HarvestPickupRequestResponse, FarmerOrderOption,
     ProductResponse, InputOrderCreate, InputOrderResponse,
+    MilestoneLogEntryCreate, MilestoneLogEntryResponse,
+    AgronomistMessageCreate, AgronomistMessageResponse,
+    FarmerWalletResponse, FarmerDashboardResponse,
 )
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
@@ -283,3 +288,135 @@ def my_input_orders(
         .all()
     )
     return [order_view(o, db) for o in orders]
+
+
+# ---------------------------------------------------------------------------
+# Milestone Log, Agronomist Messaging, Wallet & Settlement, Dashboard --
+# added 8 Sep 2026, closing gaps this session's own completeness audit
+# surfaced (Stage 3 wireframe screens in scope from day one, never built).
+# ---------------------------------------------------------------------------
+
+
+@router.get("/milestones", response_model=List[MilestoneLogEntryResponse])
+def list_milestones(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    entries = (
+        db.query(MilestoneLogEntry)
+        .filter(MilestoneLogEntry.farmer_id == user.id)
+        .order_by(MilestoneLogEntry.logged_at.desc())
+        .all()
+    )
+    return entries
+
+
+@router.post("/milestones", response_model=MilestoneLogEntryResponse)
+def add_milestone(
+    payload: MilestoneLogEntryCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    if not payload.title.strip():
+        raise HTTPException(status_code=422, detail="A milestone needs a title.")
+    if payload.opportunity_id:
+        owns_it = (
+            db.query(Opportunity)
+            .filter(Opportunity.id == payload.opportunity_id, Opportunity.accepted_by == user.id)
+            .first()
+        )
+        if not owns_it:
+            raise HTTPException(status_code=422, detail="That opportunity isn't one of your own.")
+    entry = MilestoneLogEntry(
+        farmer_id=user.id, opportunity_id=payload.opportunity_id, title=payload.title, note=payload.note,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.get("/messages", response_model=List[AgronomistMessageResponse])
+def my_messages(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    msgs = (
+        db.query(AgronomistMessage)
+        .filter(AgronomistMessage.farmer_id == user.id)
+        .order_by(AgronomistMessage.created_at.asc())
+        .all()
+    )
+    views = []
+    for m in msgs:
+        sender = db.query(User).filter(User.id == m.sender_id).first()
+        views.append(AgronomistMessageResponse(
+            id=m.id, sender_name=sender.full_name if sender else "Unknown",
+            sender_role=sender.role if sender else Role.FARMER, body=m.body, created_at=m.created_at,
+        ))
+    return views
+
+
+@router.post("/messages", response_model=AgronomistMessageResponse)
+def send_message(
+    payload: AgronomistMessageCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    if not payload.body.strip():
+        raise HTTPException(status_code=422, detail="Message body cannot be empty.")
+    msg = AgronomistMessage(farmer_id=user.id, sender_id=user.id, body=payload.body)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return AgronomistMessageResponse(
+        id=msg.id, sender_name=user.full_name, sender_role=user.role, body=msg.body, created_at=msg.created_at,
+    )
+
+
+@router.get("/wallet", response_model=FarmerWalletResponse)
+def my_wallet(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    rows = compute_farmer_wallet(db, user.id)
+    total_settlement = round(sum(r.own_settlement_due for r in rows), 2)
+    total_costs = round(sum(r.input_order_costs for r in rows), 2)
+    return FarmerWalletResponse(
+        rows=[
+            dict(
+                buyer_requirement_id=r.buyer_requirement_id, buyer_name=r.buyer_name,
+                own_delivered_tonnes=r.own_delivered_tonnes, own_settlement_due=r.own_settlement_due,
+                input_order_costs=r.input_order_costs,
+            ) for r in rows
+        ],
+        total_settlement_due=total_settlement,
+        total_input_order_costs=total_costs,
+        net_due=round(total_settlement - total_costs, 2),
+    )
+
+
+@router.get("/dashboard", response_model=FarmerDashboardResponse)
+def my_dashboard(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    open_count = db.query(Opportunity).filter(Opportunity.status == OpportunityStatus.OPEN).count()
+    accepted_count = db.query(Opportunity).filter(Opportunity.accepted_by == user.id).count()
+    pending_pickups = (
+        db.query(HarvestPickupRequest)
+        .join(DispatchJob, DispatchJob.harvest_pickup_request_id == HarvestPickupRequest.id)
+        .filter(HarvestPickupRequest.farmer_id == user.id, DispatchJob.status != DispatchJobStatus.DELIVERED)
+        .count()
+    )
+    last_msg = (
+        db.query(AgronomistMessage)
+        .filter(AgronomistMessage.farmer_id == user.id, AgronomistMessage.sender_id != user.id)
+        .order_by(AgronomistMessage.created_at.desc())
+        .first()
+    )
+    return FarmerDashboardResponse(
+        open_opportunities=open_count, accepted_opportunities=accepted_count,
+        pending_pickups=pending_pickups,
+        unread_message_note=f"New reply from Farm Master agronomy" if last_msg else None,
+    )

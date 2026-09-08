@@ -17,6 +17,9 @@ from .routers import logistics as logistics_router
 from .routers import fulfilment as fulfilment_router
 from .routers import reconciliation as reconciliation_router
 from .routers import mofa as mofa_router
+from .routers import reporting as reporting_router
+from .routers import dashboard as dashboard_router
+from .routers import ussd as ussd_router
 
 app = FastAPI(
     title="Farm Master API",
@@ -43,6 +46,9 @@ app.include_router(logistics_router.router)
 app.include_router(fulfilment_router.router)
 app.include_router(reconciliation_router.router)
 app.include_router(mofa_router.router)
+app.include_router(reporting_router.router)
+app.include_router(dashboard_router.router)
+app.include_router(ussd_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
@@ -103,6 +109,42 @@ if FRONTEND_DIR.exists():
     @app.get("/user-admin-flow")
     def user_admin_flow_page():
         return FileResponse(str(FRONTEND_DIR / "useradmin_flow_live.html"))
+
+    @app.get("/visit-logs-flow")
+    def visit_logs_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "agronomist_visit_logs_flow_live.html"))
+
+    @app.get("/proof-trunking-flow")
+    def proof_trunking_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "logistics_proof_trunking_flow_live.html"))
+
+    @app.get("/reporting-flow")
+    def reporting_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "finance_reporting_flow_live.html"))
+
+    @app.get("/approvals-flow")
+    def approvals_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "approvals_flow_live.html"))
+
+    @app.get("/control-centre-flow")
+    def control_centre_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "control_centre_dashboard_flow_live.html"))
+
+    @app.get("/buyer-dashboard-flow")
+    def buyer_dashboard_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "buyer_dashboard_flow_live.html"))
+
+    @app.get("/farmer-dashboard-flow")
+    def farmer_dashboard_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "farmer_dashboard_flow_live.html"))
+
+    @app.get("/vendor-dashboard-flow")
+    def vendor_dashboard_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "vendor_dashboard_flow_live.html"))
+
+    @app.get("/ussd-sms-flow")
+    def ussd_sms_flow_page():
+        return FileResponse(str(FRONTEND_DIR / "ussd_sms_flow_live.html"))
 
 
 @app.on_event("startup")

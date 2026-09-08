@@ -25,6 +25,7 @@ from ..database import get_db
 from ..models import (
     User, Role, UserStatus, BuyerRequirement, RequirementStatus,
     Opportunity, OpportunityStatus, RequirementFormulaPlan,
+    FieldVisitLog, FieldVisitStatus, AgronomistMessage,
 )
 from ..auth import require_roles
 from ..audit import log_audit
@@ -32,6 +33,8 @@ from ..formula import compute_formula_inputs
 from ..schemas import (
     AgronomistRequirementResponse, FarmerCandidateResponse, AssignFarmersRequest,
     FormulaBuilderResponse, FormulaPlanUpdate,
+    FieldVisitLogCreate, FieldVisitLogCompleteRequest, FieldVisitLogResponse,
+    AgronomistMessageCreate, AgronomistMessageResponse,
 )
 
 router = APIRouter(prefix="/agronomist", tags=["agronomist"])
@@ -269,3 +272,120 @@ def publish_formula_plan(
     # published formula is a real milestone within PRODUCTION, not a status
     # change of its own.
     return view
+
+
+# ---------------------------------------------------------------------------
+# Field Visit Logs -- Stage 3 wireframe "Field Visit Logs", the agronomist's
+# own counterpart to the Farmer Portal's Milestone Log. Added 8 Sep 2026,
+# closing a gap this session's own completeness audit surfaced: in the
+# confirmed IA/wireframe/visual scope from day one, never previously built.
+# Offline-tolerant capture is explicitly out of scope for the pilot build
+# (see models.FieldVisitLog).
+# ---------------------------------------------------------------------------
+
+
+def _visit_view(v: FieldVisitLog, db: Session) -> FieldVisitLogResponse:
+    farmer = db.query(User).filter(User.id == v.farmer_id).first()
+    return FieldVisitLogResponse(
+        id=v.id, farmer_name=farmer.full_name if farmer else "Unknown",
+        checkpoint_label=v.checkpoint_label, scheduled_date=v.scheduled_date,
+        status=v.status, notes=v.notes, logged_at=v.logged_at, created_at=v.created_at,
+    )
+
+
+@router.get("/visit-logs", response_model=List[FieldVisitLogResponse])
+def list_visit_logs(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    logs = (
+        db.query(FieldVisitLog)
+        .filter(FieldVisitLog.agronomist_id == user.id)
+        .order_by(FieldVisitLog.scheduled_date.asc())
+        .all()
+    )
+    return [_visit_view(v, db) for v in logs]
+
+
+@router.post("/visit-logs", response_model=FieldVisitLogResponse)
+def schedule_visit_log(
+    payload: FieldVisitLogCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    farmer = db.query(User).filter(User.id == payload.farmer_id, User.role == Role.FARMER).first()
+    if not farmer:
+        raise HTTPException(status_code=422, detail="farmer_id must be a real Farmer account.")
+    visit = FieldVisitLog(
+        agronomist_id=user.id, farmer_id=payload.farmer_id, opportunity_id=payload.opportunity_id,
+        checkpoint_label=payload.checkpoint_label, scheduled_date=payload.scheduled_date,
+        notes=payload.notes,
+    )
+    db.add(visit)
+    db.commit()
+    db.refresh(visit)
+    return _visit_view(visit, db)
+
+
+@router.post("/visit-logs/{visit_id}/complete", response_model=FieldVisitLogResponse)
+def complete_visit_log(
+    visit_id: str,
+    payload: FieldVisitLogCompleteRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    visit = db.query(FieldVisitLog).filter(FieldVisitLog.id == visit_id, FieldVisitLog.agronomist_id == user.id).first()
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visit log not found.")
+    if visit.status == FieldVisitStatus.COMPLETED:
+        raise HTTPException(status_code=409, detail="This visit is already logged as completed.")
+    visit.status = FieldVisitStatus.COMPLETED
+    visit.logged_at = datetime.utcnow()
+    if payload.notes:
+        visit.notes = payload.notes
+    db.commit()
+    db.refresh(visit)
+    return _visit_view(visit, db)
+
+
+# ---------------------------------------------------------------------------
+# Agronomist Messaging -- Stage 3 wireframe, "confirmed in Phase 1 pilot
+# scope" per its own caption. Added 8 Sep 2026, same audit as above. Single
+# shared Agronomy inbox -- see models.AgronomistMessage for why.
+# ---------------------------------------------------------------------------
+
+
+def _message_view(m: AgronomistMessage, db: Session) -> AgronomistMessageResponse:
+    sender = db.query(User).filter(User.id == m.sender_id).first()
+    return AgronomistMessageResponse(
+        id=m.id, sender_name=sender.full_name if sender else "Unknown",
+        sender_role=sender.role if sender else Role.AGRONOMIST, body=m.body, created_at=m.created_at,
+    )
+
+
+@router.get("/messages", response_model=List[AgronomistMessageResponse])
+def list_all_messages(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    msgs = db.query(AgronomistMessage).order_by(AgronomistMessage.created_at.asc()).all()
+    return [_message_view(m, db) for m in msgs]
+
+
+@router.post("/messages/{farmer_id}/reply", response_model=AgronomistMessageResponse)
+def reply_to_farmer(
+    farmer_id: str,
+    payload: AgronomistMessageCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    farmer = db.query(User).filter(User.id == farmer_id, User.role == Role.FARMER).first()
+    if not farmer:
+        raise HTTPException(status_code=404, detail="Farmer not found.")
+    if not payload.body.strip():
+        raise HTTPException(status_code=422, detail="Message body cannot be empty.")
+    msg = AgronomistMessage(farmer_id=farmer_id, agronomist_id=user.id, sender_id=user.id, body=payload.body)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return _message_view(msg, db)

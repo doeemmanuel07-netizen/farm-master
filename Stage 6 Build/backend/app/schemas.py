@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from .models import (
     Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
     UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus, GradeResult,
-    ProductCategory, FormulaInputType, InputOrderStatus,
+    ProductCategory, FormulaInputType, InputOrderStatus, FieldVisitStatus, TrunkingStatus,
 )
 
 
@@ -453,3 +453,284 @@ class InternalUserCreate(BaseModel):
     phone: str
     role: Role
     password: str
+
+
+# ---------------------------------------------------------------------------
+# Field Visit Logs + Agronomist Messaging + Milestone Log -- added 8 Sep 2026
+# closing gaps this session's own completeness audit surfaced (Stage 3
+# wireframe screens that had never been built).
+# ---------------------------------------------------------------------------
+
+
+class FieldVisitLogCreate(BaseModel):
+    farmer_id: str
+    checkpoint_label: str
+    scheduled_date: str  # ISO date
+    opportunity_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class FieldVisitLogCompleteRequest(BaseModel):
+    notes: Optional[str] = None
+
+
+class FieldVisitLogResponse(BaseModel):
+    id: str
+    farmer_name: str
+    checkpoint_label: str
+    scheduled_date: str
+    status: FieldVisitStatus
+    notes: Optional[str]
+    logged_at: Optional[datetime]
+    created_at: datetime
+
+
+class AgronomistMessageCreate(BaseModel):
+    body: str
+
+
+class AgronomistMessageResponse(BaseModel):
+    id: str
+    sender_name: str
+    sender_role: Role
+    body: str
+    created_at: datetime
+
+
+class MilestoneLogEntryCreate(BaseModel):
+    title: str
+    note: Optional[str] = None
+    opportunity_id: Optional[str] = None
+
+
+class MilestoneLogEntryResponse(BaseModel):
+    id: str
+    title: str
+    note: Optional[str]
+    opportunity_id: Optional[str]
+    logged_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Proof of Pickup/Delivery + Trunking -- added 8 Sep 2026, same audit.
+# ---------------------------------------------------------------------------
+
+
+class ProofOfDeliveryCreate(BaseModel):
+    gps_lat: Optional[float] = None
+    gps_lng: Optional[float] = None
+    signature_captured: bool = False
+    photo_captured: bool = False
+
+
+class ProofOfDeliveryResponse(BaseModel):
+    id: str
+    dispatch_job_id: str
+    confirmed_by_name: str
+    gps_lat: Optional[float]
+    gps_lng: Optional[float]
+    signature_captured: bool
+    photo_captured: bool
+    created_at: datetime
+
+
+class TrunkingJobCreate(BaseModel):
+    produce_tonnes: float
+    destination: str
+    vehicle_label: str
+
+
+class TrunkingJobResponse(BaseModel):
+    id: str
+    produce_tonnes: float
+    tonnes_available_at_creation: float
+    destination: str
+    vehicle_label: str
+    status: TrunkingStatus
+    dispatched_at: Optional[datetime]
+    delivered_at: Optional[datetime]
+    created_at: datetime
+
+
+class TrunkingAvailabilityResponse(BaseModel):
+    tonnes_available: float
+
+
+# ---------------------------------------------------------------------------
+# Reporting dashboard + MoFA import -- added 8 Sep 2026, same audit.
+# ---------------------------------------------------------------------------
+
+
+class RevenueStreamStat(BaseModel):
+    label: str
+    value: Optional[str] = None
+    deferred_phase: Optional[str] = None
+
+
+class ReportingDashboardResponse(BaseModel):
+    revenue_streams: List[RevenueStreamStat]
+    registered_farmers: int
+    active_buyers: int
+    volume_aggregated_tonnes: float
+    spec_compliance_rate_pct: Optional[float]
+
+
+class MofaImportCreate(BaseModel):
+    buyer_name: str
+    verified: bool = False
+
+
+class MofaImportRecordResponse(BaseModel):
+    id: str
+    buyer_name: str
+    verified: bool
+    imported_by_name: str
+    synced_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Portal dashboards + Buyer Docs/Tracking/Invoice + Vendor Billing/Payout/
+# Handoff + Farmer Wallet -- added 8 Sep 2026, same audit.
+# ---------------------------------------------------------------------------
+
+
+class BuyerDashboardResponse(BaseModel):
+    active_orders: int
+    commitment_fees_due: int
+    maize_in_transit_tonnes: float
+    spec_compliance_rate_pct: Optional[float]
+    recent_orders: List[RequirementResponse]
+
+
+class BuyerDocumentRow(BaseModel):
+    label: str
+    doc_type: str
+    status: str  # verified | pending | not_yet_available
+    detail: Optional[str] = None
+
+
+class BuyerDocumentsResponse(BaseModel):
+    buyer_requirement_id: str
+    rows: List[BuyerDocumentRow]
+
+
+class BuyerTrackingLogRow(BaseModel):
+    text: str
+    when: datetime
+
+
+class BuyerTrackingResponse(BaseModel):
+    buyer_requirement_id: str
+    status: RequirementStatus
+    accepted_delivered_tonnes: float
+    target_quantity_tonnes: float
+    log: List[BuyerTrackingLogRow]
+
+
+class BuyerInvoiceResponse(BaseModel):
+    buyer_requirement_id: str
+    price_per_tonne: float
+    accepted_delivered_tonnes: float
+    subtotal: float
+    commitment_fee_applied: float
+    net_payable: float
+
+
+class VendorDashboardResponse(BaseModel):
+    pending_mechanisation_requests: int
+    pending_input_orders: int
+    catalogue_item_count: int
+    catalogue_low_stock_count: int
+
+
+class VendorBillingResponse(BaseModel):
+    plan: str
+    monthly_fee: float
+    status: str
+    last_billed_at: Optional[datetime]
+    history: List[PaymentResponse]
+
+
+class VendorBillingPayRequest(BaseModel):
+    method: str
+
+
+class VendorPayoutRow(BaseModel):
+    buyer_requirement_id: str
+    buyer_name: str
+    mechanisation_amount: float
+    input_order_amount: float
+    total: float
+    released: bool
+    released_at: Optional[datetime]
+
+
+class VendorHandoffRow(BaseModel):
+    dispatch_job_id: str
+    description: str
+    status: DispatchJobStatus
+    tricycle_label: Optional[str]
+    delivered_at: Optional[datetime]
+    proof_captured: bool
+
+
+class FarmerWalletOrderRow(BaseModel):
+    buyer_requirement_id: str
+    buyer_name: str
+    own_delivered_tonnes: float
+    own_settlement_due: float
+    input_order_costs: float
+
+
+class FarmerWalletResponse(BaseModel):
+    rows: List[FarmerWalletOrderRow]
+    total_settlement_due: float
+    total_input_order_costs: float
+    net_due: float
+
+
+class FarmerDashboardResponse(BaseModel):
+    open_opportunities: int
+    accepted_opportunities: int
+    pending_pickups: int
+    unread_message_note: Optional[str] = None
+
+
+class ControlCentreDashboardResponse(BaseModel):
+    role: Role
+    registered_farmers: int
+    active_buyers: int
+    volume_aggregated_tonnes: float
+    tiles: dict
+
+
+# ---------------------------------------------------------------------------
+# USSD/SMS channel -- added 8 Sep 2026, same audit. A browser-based session
+# emulator drives these against real farmer data; delivery is SIMULATED, the
+# same treatment as OtpChallenge -- see models.UssdSmsLog.
+# ---------------------------------------------------------------------------
+
+
+class UssdOpportunityAlert(BaseModel):
+    opportunity_id: str
+    sms_text: str
+    ussd_detail_text: str
+
+
+class UssdPickupConfirmRequest(BaseModel):
+    quantity_ready_tonnes: float
+    preferred_pickup_date: str
+    buyer_requirement_id: Optional[str] = None
+
+
+class UssdPaymentNotification(BaseModel):
+    sms_text: str
+    balance_text: str
+
+
+class UssdSmsLogEntry(BaseModel):
+    id: str
+    channel: str
+    purpose: str
+    body: str
+    created_at: datetime

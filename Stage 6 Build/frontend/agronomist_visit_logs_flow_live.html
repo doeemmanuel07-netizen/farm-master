@@ -1,6 +1,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MoFA Data Exchange — Live Backend</title>
+<title>Field Visit Logs &amp; Messaging — Live Backend</title>
 <style>
   :root {
     --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
@@ -99,8 +99,8 @@
 
   .field-group { display: flex; flex-direction: column; gap: 5px; }
   .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
-  .field-group input, .field-group select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; height: 44px; }
-  .field-group input:focus, .field-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+  .field-group input, .field-group select, .field-group textarea { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; min-height: 44px; }
+  .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
 
   .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; }
   .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
@@ -117,6 +117,18 @@
   .grid { display: grid; gap: 14px; }
   .g2 { grid-template-columns: 1fr 1fr; }
   @container (max-width: 767px) { .grid.g2 { grid-template-columns: 1fr; } }
+
+  .timeline { display: flex; flex-direction: column; gap: 12px; }
+  .tl-item { display: flex; gap: 10px; align-items: flex-start; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 4px; flex: none; }
+  .tl-dot.hollow { background: transparent; border: 2px solid var(--faint); }
+  .tl-body .t { font-size: 13px; font-weight: 700; }
+  .tl-body .d { font-size: 11.5px; color: var(--muted); }
+
+  .msg { padding: 9px 12px; border-radius: 10px; margin-bottom: 8px; max-width: 80%; font-size: 12.5px; }
+  .msg.mine { background: var(--primary); color: #fff; margin-left: auto; }
+  .msg.theirs { background: var(--surface); border: 1px solid var(--border); }
+  .msg .who { font-size: 10px; opacity: 0.75; margin-bottom: 2px; font-weight: 700; }
 
   .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -148,11 +160,11 @@
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
     </div>
-    <div class="rail-sub">MoFA Data Exchange — Live Backend</div>
+    <div class="rail-sub">Field Visit Logs &amp; Messaging — Live Backend</div>
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>PRD Section 1.1/9.</b> No MoFA data standard is confirmed yet — this is a generic exportable report (volume, quality grade, buyer, delivery date), a placeholder pending an actual MoFA template. Import half added 8 Sep 2026, closing a gap this session's own completeness audit surfaced.
+      <b>Added 8 Sep 2026.</b> Closes a gap this session's own completeness audit surfaced -- in the confirmed IA/wireframe scope from day one, never previously built. Offline-tolerant capture is structure-only for the pilot (Stage 3 wireframe caption).
     </div>
 
     <div class="device-toggle" id="deviceToggle">
@@ -179,7 +191,7 @@
         <div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div>
         <div class="desc" id="screen-desc"></div>
       </div>
-      <div class="screen-tag" id="screen-tag">STEP 1 / 3</div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 4</div>
     </div>
     <div class="viewport-label" id="viewport-label"></div>
     <div class="canvas device-desktop" id="canvas"></div>
@@ -188,25 +200,27 @@
 
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Fulfilment", "Finance", "Reporting"];
+  var PORTAL_NAV = ["Dashboard", "Matching", "Visit Logs", "Messaging"];
   var API = "";
 
   var state = {
     token: null,
-    email: "finance@farmmaster.test",
+    email: "agronomist@farmmaster.test",
     password: "password123",
     challengeId: null,
     otpPhone: "",
     otpEmail: "",
-    rows: [],
-    importRecords: [],
+    visits: [],
+    farmers: [],
+    messages: [],
     step: "login",
   };
 
   var STEPS = [
     { id: "login", label: "Sign in" },
     { id: "otp", label: "Verify OTP" },
-    { id: "report", label: "Compliance Report" },
+    { id: "visits", label: "Field Visit Logs" },
+    { id: "messaging", label: "Agronomist Messaging" },
   ];
 
   function authHeaders(extra) {
@@ -220,21 +234,11 @@
     if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
     return data;
   }
-  async function downloadFile(path, filename) {
-    var res = await fetch(API + path, { headers: authHeaders() });
-    if (!res.ok) {
-      var data = await res.json().catch(function () { return {}; });
-      throw new Error(data.detail || ("Request failed: " + res.status));
-    }
-    var blob = await res.blob();
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  async function apiPost(path, body) {
+    var res = await fetch(API + path, { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), body: body === null ? undefined : JSON.stringify(body) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
   }
 
   function chrome(current, bodyHtml) {
@@ -247,14 +251,8 @@
   function field(id, cap, val, type) {
     return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>';
   }
-  function gradeBadge(grade) {
-    if (grade === "Reject") return '<span class="badge danger">Reject</span>';
-    if (grade === "Grade 1") return '<span class="badge success">Grade 1</span>';
-    return '<span class="badge pending">Grade 2</span>';
-  }
-  function fmtDate(d) {
-    if (!d) return "—";
-    return new Date(d).toLocaleDateString();
+  function select(id, cap, options) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><select id="' + id + '">' + options.map(function (o) { return '<option value="' + o.value + '">' + o.label + '</option>'; }).join("") + '</select></div>';
   }
 
   function render() {
@@ -298,70 +296,66 @@
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
 
-    if (state.step === "report") {
-      document.getElementById("screen-title").textContent = "MoFA Compliance Report";
-      document.getElementById("screen-crumb").textContent = "Compliance Report";
-      document.getElementById("screen-desc").textContent = "Fetched live from GET /mofa/compliance-report + /mofa/import-records -- one row per graded delivery linked to a real buyer order. Exports stick to exactly the four confirmed fields (volume, quality grade, buyer, delivery date); this in-app view adds farmer and crop for internal reference.";
-      document.getElementById("canvas").innerHTML = chrome("Reporting",
-        '<div class="grid g2" style="margin-bottom:14px">' +
-          '<div class="card"><span class="card-label">Import — MoFA accreditation data</span>' +
-            '<div class="table-scroll" style="margin-bottom:10px"><table class="data-table"><thead><tr><th>Buyer</th><th>Status</th><th>Synced</th></tr></thead><tbody>' +
-              (state.importRecords.length === 0 ? '<tr><td colspan="3" class="caption">No manual imports yet.</td></tr>' : state.importRecords.map(function (r) {
-                return '<tr><td>' + r.buyer_name + '</td><td>' + (r.verified ? '<span class="badge success">verified</span>' : '<span class="badge pending">unverified</span>') + '</td><td>' + new Date(r.synced_at).toLocaleDateString() + '</td></tr>';
-              }).join("")) +
-            '</tbody></table></div>' +
-            '<div class="grid g2">' + field("importBuyer", "Institutional buyer", "") +
-              '<div class="field-group"><span class="cap">Verified?</span><select id="importVerified"><option value="false">No</option><option value="true">Yes</option></select></div>' +
-            '</div>' +
-            '<button class="btn" id="manualImportBtn" style="width:100%;margin-top:10px">Manual import (no live API yet)</button>' +
-            '<div class="caption">No live MoFA API exists to call (PRD Section 1.1/9) -- this is a real manual-entry record, not a decorative stub.</div>' +
-            '<div class="inline-alert" id="importAlert"><span>⚠</span><span id="importAlertText"></span></div>' +
-          "</div>" +
-          '<div class="card"><span class="card-label">Export — compliance report</span>' +
-            '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-              '<button class="btn primary" id="exportCsvBtn">Export CSV</button>' +
-              '<button class="btn primary" id="exportPdfBtn">Export PDF</button>' +
-            '</div>' +
-            '<div class="caption">Format: Generic CSV / PDF -- a placeholder pending an actual MoFA data standard (PRD Section 9).</div>' +
-            '<div class="caption">' + state.rows.length + ' graded ' + (state.rows.length === 1 ? "delivery" : "deliveries") + ' linked to a real buyer order. Rejected loads are included -- quality grade is one of the four confirmed columns.</div>' +
-            '<div class="inline-alert" id="exportAlert"><span>⚠</span><span id="exportAlertText"></span></div>' +
-          "</div>" +
+    if (state.step === "visits") {
+      document.getElementById("screen-title").textContent = "Field Visit Logs";
+      document.getElementById("screen-crumb").textContent = "Visit Logs";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /agronomist/visit-logs. Agronomist's record of scheduled and completed farm visits -- the internal counterpart to a farmer's own Milestone Log.";
+      document.getElementById("canvas").innerHTML = chrome("Visit Logs",
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">' +
+          '<div class="card-label" style="margin:0">Visit schedule</div>' +
+          '<button class="btn primary small" id="newVisitBtn">+ Log visit</button>' +
+        '</div>' +
+        '<div class="card" id="newVisitCard" style="display:none;margin-bottom:16px">' +
+          '<div class="grid g2">' +
+            select("visitFarmer", "Farmer", state.farmers.map(function (f) { return { value: f.id, label: f.full_name }; })) +
+            field("visitCheckpoint", "Checkpoint", "Top-dress checkpoint") +
+            field("visitDate", "Scheduled date", "2026-09-15") +
+          '</div>' +
+          '<button class="btn primary" id="saveVisitBtn" style="margin-top:12px">Save</button>' +
+          '<div class="inline-alert" id="visitAlert"><span>⚠</span><span id="visitAlertText"></span></div>' +
+        '</div>' +
+        '<div class="timeline">' +
+          (state.visits.length === 0 ? '<div class="caption">No visits logged yet.</div>' : state.visits.map(function (v) {
+            var done = v.status === "completed";
+            return '<div class="tl-item"><div class="tl-dot' + (done ? "" : " hollow") + '"></div><div class="tl-body" style="flex:1"><div class="t">' + v.farmer_name + ' — ' + v.checkpoint_label + '</div>' +
+              '<div class="d">' + (done ? "Logged " + new Date(v.logged_at).toLocaleDateString() : "Scheduled — " + v.scheduled_date) + (v.notes ? " · " + v.notes : "") + '</div></div>' +
+              (done ? "" : '<button class="btn small" data-complete="' + v.id + '">Mark completed</button>') +
+              "</div>";
+          }).join("")) +
         "</div>" +
-        '<div class="table-scroll"><table class="data-table"><thead><tr>' +
-          "<th>Farmer</th><th>Crop</th><th>Buyer</th><th>Grade</th><th>Volume (kg)</th><th>Delivery Date</th>" +
-        "</tr></thead><tbody>" +
-          state.rows.map(function (r) {
-            return '<tr><td>' + r.farmer_name + '</td><td>' + r.crop + '</td><td>' + r.buyer_name + '</td><td>' + gradeBadge(r.grade) + '</td><td class="num">' + r.volume_kg.toFixed(1) + '</td><td>' + fmtDate(r.delivery_date) + "</td></tr>";
-          }).join("") +
-        "</tbody></table></div>" +
-        (state.rows.length === 0 ? '<div class="caption" style="margin-top:12px">No graded, buyer-linked deliveries yet.</div>' : "")
+        '<div class="caption" style="margin-top:12px">Capture is structure-only for the pilot -- offline-tolerant on-device sync is explicitly out of scope (Stage 3 wireframe caption).</div>'
       );
-      document.getElementById("exportCsvBtn").addEventListener("click", function () { onExport("csv"); });
-      document.getElementById("exportPdfBtn").addEventListener("click", function () { onExport("pdf"); });
-      document.getElementById("manualImportBtn").addEventListener("click", onManualImport);
+      document.getElementById("newVisitBtn").addEventListener("click", function () {
+        document.getElementById("newVisitCard").style.display = document.getElementById("newVisitCard").style.display === "none" ? "block" : "none";
+      });
+      var saveBtn = document.getElementById("saveVisitBtn");
+      if (saveBtn) saveBtn.addEventListener("click", onScheduleVisit);
+      document.querySelectorAll("[data-complete]").forEach(function (b) {
+        b.addEventListener("click", function () { onCompleteVisit(b.dataset.complete); });
+      });
     }
-  }
 
-  async function apiPost(path, body) {
-    var res = await fetch(API + path, { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) });
-    var data = await res.json().catch(function () { return {}; });
-    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
-    return data;
-  }
-
-  async function onManualImport() {
-    var btn = document.getElementById("manualImportBtn");
-    btn.disabled = true;
-    try {
-      var buyerName = document.getElementById("importBuyer").value;
-      if (!buyerName.trim()) throw new Error("Institutional buyer name is required.");
-      await apiPost("/mofa/import-records", { buyer_name: buyerName, verified: document.getElementById("importVerified").value === "true" });
-      state.importRecords = await apiGet("/mofa/import-records");
-      render();
-    } catch (e) {
-      document.getElementById("importAlertText").textContent = e.message;
-      document.getElementById("importAlert").classList.add("show");
-      btn.disabled = false;
+    if (state.step === "messaging") {
+      document.getElementById("screen-title").textContent = "Agronomist Messaging";
+      document.getElementById("screen-crumb").textContent = "Messaging";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /agronomist/messages -- a single shared Agronomy inbox (the pilot's seed data has exactly one Agronomist account, Tema region).";
+      document.getElementById("canvas").innerHTML = chrome("Messaging",
+        '<div class="card">' +
+          '<div id="threadBox" style="max-height:320px;overflow-y:auto;margin-bottom:12px">' +
+            (state.messages.length === 0 ? '<div class="caption">No messages yet.</div>' : state.messages.map(function (m) {
+              var mine = m.sender_role === "agronomist";
+              return '<div class="msg ' + (mine ? "mine" : "theirs") + '"><div class="who">' + m.sender_name + '</div>' + m.body + '</div>';
+            }).join("")) +
+          '</div>' +
+          '<div class="grid g2">' +
+            select("replyTo", "Reply to farmer", state.farmers.map(function (f) { return { value: f.id, label: f.full_name }; })) +
+            field("replyBody", "Message", "") +
+          '</div>' +
+          '<button class="btn primary" id="sendReplyBtn" style="margin-top:12px">Send reply</button>' +
+          '<div class="inline-alert" id="msgAlert"><span>⚠</span><span id="msgAlertText"></span></div>' +
+        "</div>"
+      );
+      document.getElementById("sendReplyBtn").addEventListener("click", onSendReply);
     }
   }
 
@@ -395,9 +389,9 @@
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.rows = await apiGet("/mofa/compliance-report");
-      state.importRecords = await apiGet("/mofa/import-records");
-      state.step = "report";
+      state.farmers = await apiGet("/agronomist/farmers");
+      state.visits = await apiGet("/agronomist/visit-logs");
+      state.step = "visits";
       render();
     } catch (e) {
       document.getElementById("otpAlertText").textContent = e.message;
@@ -407,20 +401,48 @@
     }
   }
 
-  async function onExport(fmt) {
-    var btnId = fmt === "csv" ? "exportCsvBtn" : "exportPdfBtn";
-    var btn = document.getElementById(btnId);
-    var original = btn.textContent;
+  async function onScheduleVisit() {
+    var btn = document.getElementById("saveVisitBtn");
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Preparing…';
     try {
-      await downloadFile("/mofa/compliance-report/export." + fmt, "mofa_compliance_report." + fmt);
+      await apiPost("/agronomist/visit-logs", {
+        farmer_id: document.getElementById("visitFarmer").value,
+        checkpoint_label: document.getElementById("visitCheckpoint").value,
+        scheduled_date: document.getElementById("visitDate").value,
+      });
+      state.visits = await apiGet("/agronomist/visit-logs");
+      render();
     } catch (e) {
-      document.getElementById("exportAlertText").textContent = e.message;
-      document.getElementById("exportAlert").classList.add("show");
+      document.getElementById("visitAlertText").textContent = e.message;
+      document.getElementById("visitAlert").classList.add("show");
+      btn.disabled = false;
     }
-    btn.disabled = false;
-    btn.textContent = original;
+  }
+
+  async function onCompleteVisit(id) {
+    try {
+      await apiPost("/agronomist/visit-logs/" + id + "/complete", {});
+      state.visits = await apiGet("/agronomist/visit-logs");
+      render();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function onSendReply() {
+    var btn = document.getElementById("sendReplyBtn");
+    btn.disabled = true;
+    try {
+      var farmerId = document.getElementById("replyTo").value;
+      var body = document.getElementById("replyBody").value;
+      await apiPost("/agronomist/messages/" + farmerId + "/reply", { body: body });
+      state.messages = await apiGet("/agronomist/messages");
+      render();
+    } catch (e) {
+      document.getElementById("msgAlertText").textContent = e.message;
+      document.getElementById("msgAlert").classList.add("show");
+      btn.disabled = false;
+    }
   }
 
   function renderFlowRail(activeIdx) {
@@ -428,12 +450,15 @@
     el.innerHTML = STEPS.map(function (s, i) {
       var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked";
       var mark = i < activeIdx ? "✓" : (i + 1);
+      var clickable = state.token && s.id !== "login" && s.id !== "otp";
+      if (clickable) cls = i === activeIdx ? "current" : "done";
       return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
     }).join("");
     el.querySelectorAll(".flow-step.done").forEach(function (row) {
-      row.addEventListener("click", function () {
+      row.addEventListener("click", async function () {
         var target = STEPS[+row.dataset.idx].id;
-        if (target === "login") state.token = null;
+        if (target === "login") { state.token = null; state.step = target; render(); return; }
+        if (target === "messaging" && state.token) { state.messages = await apiGet("/agronomist/messages"); }
         state.step = target;
         render();
       });
@@ -441,7 +466,7 @@
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", rows: [], importRecords: [], step: "login" };
+    state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", visits: [], farmers: [], messages: [], step: "login" };
     setDevice("desktop");
     render();
   });

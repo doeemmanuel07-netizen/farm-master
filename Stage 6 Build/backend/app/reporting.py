@@ -41,7 +41,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
 from sqlalchemy.orm import Session
 
-from .models import FulfilmentIntake, HarvestPickupRequest, BuyerRequirement, User, DispatchJob, GradeResult
+from .models import (
+    FulfilmentIntake, HarvestPickupRequest, BuyerRequirement, User, DispatchJob, GradeResult,
+    Role, UserStatus, RateConfig, CommitmentFeePayment, PaymentStatus,
+    VendorBilling,
+)
 
 GRADE_LABELS = {
     GradeResult.GRADE_1: "Grade 1",
@@ -142,3 +146,69 @@ def to_pdf_bytes(rows: List[ComplianceReportRow]) -> bytes:
     elements.append(table)
     doc.build(elements)
     return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Reporting dashboard -- Stage 3 wireframe "Reporting" screen (PRD Section 7:
+# the six revenue streams as Phase 1 success metrics, alongside pilot
+# operating metrics). Added 8 Sep 2026, closing a gap this session's own
+# completeness audit surfaced -- distinct from the MoFA compliance export
+# above. Every live figure is computed from real data; the three
+# Phase-2/Phase-4-deferred streams (PRD Section 6/8) are shown disabled with
+# their deferred phase, not fabricated numbers.
+# ---------------------------------------------------------------------------
+
+from sqlalchemy.orm import Session as _Session  # local alias, avoids shadowing above
+
+
+def get_reporting_dashboard(db: _Session):
+    from .schemas import RevenueStreamStat, ReportingDashboardResponse  # avoid import cycle
+
+    def _rate(key: str, default: float) -> float:
+        row = db.query(RateConfig).filter(RateConfig.key == key).first()
+        return row.value if row else default
+
+    # Aggregation & trade margin, and logistics support fees, are both real
+    # per-order figures (reconciliation.py) -- summed here across every
+    # order that has at least one graded, non-REJECT delivery (the same
+    # scope reconciliation.py itself uses per order).
+    from .reconciliation import compute_figures
+    reqs = db.query(BuyerRequirement).all()
+    trade_margin_total = 0.0
+    for req in reqs:
+        figures = compute_figures(db, req)
+        if figures.accepted_delivered_tonnes > 0:
+            trade_margin_total += figures.trading_margin_amount
+
+    delivered_jobs = db.query(DispatchJob).filter(DispatchJob.delivered_at.isnot(None)).count()
+    logistics_fee_rate = _rate("logistics_fee_per_delivery", 30.0)
+    logistics_fees_total = round(delivered_jobs * logistics_fee_rate, 2)
+
+    vendor_storefronts_billable = db.query(VendorBilling).filter(VendorBilling.status == "active").count()
+
+    revenue_streams = [
+        RevenueStreamStat(label="Aggregation & trade margin", value=f"GHS {trade_margin_total:.0f}"),
+        RevenueStreamStat(label="Logistics support fees", value=f"GHS {logistics_fees_total:.0f}"),
+        RevenueStreamStat(label="Mechanisation support", deferred_phase="Phase 2"),
+        RevenueStreamStat(label="Vendor storefront billable (FM-owned)", value=str(vendor_storefronts_billable)),
+        RevenueStreamStat(label="Company-owned production", deferred_phase="Phase 4"),
+        RevenueStreamStat(label="Consultation services", deferred_phase="Phase 2+"),
+    ]
+
+    registered_farmers = db.query(User).filter(User.role == Role.FARMER, User.status == UserStatus.ACTIVE).count()
+    active_buyers = db.query(User).filter(User.role == Role.BUYER, User.status == UserStatus.ACTIVE).count()
+
+    all_intakes = db.query(FulfilmentIntake).all()
+    volume_tonnes = sum(i.weigh_in_kg for i in all_intakes if i.grade != GradeResult.REJECT) / 1000.0
+    compliance_rate = (
+        round(100.0 * sum(1 for i in all_intakes if i.grade != GradeResult.REJECT) / len(all_intakes), 1)
+        if all_intakes else None
+    )
+
+    return ReportingDashboardResponse(
+        revenue_streams=revenue_streams,
+        registered_farmers=registered_farmers,
+        active_buyers=active_buyers,
+        volume_aggregated_tonnes=round(volume_tonnes, 3),
+        spec_compliance_rate_pct=compliance_rate,
+    )

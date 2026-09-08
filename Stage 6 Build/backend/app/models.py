@@ -609,6 +609,210 @@ class OtpChallenge(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class FieldVisitStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+
+
+class FieldVisitLog(Base):
+    """
+    Field Visit Logs (Stage 3 wireframe) -- the agronomist's own counterpart
+    to the Farmer Portal's Milestone Log (see MilestoneLogEntry below), tied
+    to a specific farmer's production-formula checkpoints. Added 8 Sep 2026
+    to close a gap this session's own completeness audit surfaced: this
+    screen was in the confirmed IA/wireframe/visual scope from the start but
+    had never been built. Offline-tolerant capture (per the wireframe's own
+    caption) is explicitly out of scope for the pilot build, same treatment
+    as Fulfilment Intake's photo capture -- structure only, no real
+    on-device queue/sync.
+    """
+    __tablename__ = "field_visit_logs"
+
+    id = Column(String, primary_key=True, default=uid)
+    agronomist_id = Column(String, ForeignKey("users.id"), nullable=False)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    opportunity_id = Column(String, ForeignKey("opportunities.id"), nullable=True)
+    checkpoint_label = Column(String, nullable=False)
+    scheduled_date = Column(String, nullable=False)  # ISO date
+    status = Column(SAEnum(FieldVisitStatus), nullable=False, default=FieldVisitStatus.SCHEDULED)
+    notes = Column(Text, nullable=True)
+    logged_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProofOfDelivery(Base):
+    """
+    Proof of Pickup/Delivery (Stage 3 wireframe) -- field confirmation
+    linked to a DispatchJob, closing the loop for both outbound (input/
+    mechanisation delivery to a farm) and inbound (harvest pickup to the
+    fulfilment centre) jobs. Added 8 Sep 2026, same audit as FieldVisitLog
+    above. One row per DispatchJob (unique) -- a job is confirmed once.
+
+    GPS is captured for real via the browser's Geolocation API where the
+    rider's device/browser grants permission (frontend falls back to manual
+    lat/lng entry, never silently fakes a value) -- unlike photo/signature,
+    which stay boolean "captured" flags, consistent with no other flow in
+    this codebase doing real file upload.
+    """
+    __tablename__ = "proof_of_deliveries"
+
+    id = Column(String, primary_key=True, default=uid)
+    dispatch_job_id = Column(String, ForeignKey("dispatch_jobs.id"), nullable=False, unique=True)
+    confirmed_by = Column(String, ForeignKey("users.id"), nullable=False)
+    gps_lat = Column(Float, nullable=True)
+    gps_lng = Column(Float, nullable=True)
+    signature_captured = Column(Boolean, nullable=False, default=False)
+    photo_captured = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TrunkingStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    DISPATCHED = "dispatched"
+    DELIVERED = "delivered"
+
+
+class TrunkingJob(Base):
+    """
+    Trunking (Stage 3 wireframe) -- bulk consolidated movement of graded
+    produce out of the Tema fulfilment centre, distinct from last-mile
+    tricycle collection (DispatchJob). Added 8 Sep 2026, same audit as
+    FieldVisitLog/ProofOfDelivery above -- previously entirely absent (no
+    model, no stub, no endpoint), not merely unfinished.
+
+    Deliberately thin per the wireframe's own caption: single origin (Tema),
+    no multi-centre routing (Phase 3). tonnes_available_at_creation is a
+    real snapshot of graded, non-REJECT FulfilmentIntake weight not yet
+    claimed by another TrunkingJob at the moment this one was scheduled --
+    shown back to Logistics as the "how much is actually ready" figure the
+    wireframe displays, not a fabricated placeholder number.
+    """
+    __tablename__ = "trunking_jobs"
+
+    id = Column(String, primary_key=True, default=uid)
+    produce_tonnes = Column(Float, nullable=False)
+    tonnes_available_at_creation = Column(Float, nullable=False)
+    destination = Column(String, nullable=False)
+    vehicle_label = Column(String, nullable=False)
+    status = Column(SAEnum(TrunkingStatus), nullable=False, default=TrunkingStatus.SCHEDULED)
+    scheduled_by = Column(String, ForeignKey("users.id"), nullable=False)
+    dispatched_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MofaImportRecord(Base):
+    """
+    MoFA Data Exchange's import half (Stage 3 wireframe: "Manual import (no
+    live API yet)") -- added 8 Sep 2026 alongside the rest of this pass's
+    gap-closing. No live MoFA API exists to call (confirmed, PRD Section
+    1.1/9), so this is a real manual-entry form and table, not a stub button
+    -- the honest equivalent of what the wireframe itself describes, since
+    the wireframe's own caption already concedes no live API exists.
+    """
+    __tablename__ = "mofa_import_records"
+
+    id = Column(String, primary_key=True, default=uid)
+    buyer_name = Column(String, nullable=False)
+    verified = Column(Boolean, nullable=False, default=False)
+    imported_by = Column(String, ForeignKey("users.id"), nullable=False)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MilestoneLogEntry(Base):
+    """
+    Farmer Portal's Milestone Log (Stage 3 wireframe) -- farmer-side field
+    data capture against their own accepted opportunity, the farmer-facing
+    counterpart to FieldVisitLog above. Added 8 Sep 2026. Offline-tolerant
+    sync is explicitly flagged in the wireframe's own caption as a Stage 6
+    build concern deferred to structure-only -- same treatment as
+    FieldVisitLog.
+    """
+    __tablename__ = "milestone_log_entries"
+
+    id = Column(String, primary_key=True, default=uid)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    opportunity_id = Column(String, ForeignKey("opportunities.id"), nullable=True)
+    title = Column(String, nullable=False)
+    note = Column(Text, nullable=True)
+    logged_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgronomistMessage(Base):
+    """
+    Agronomist Messaging (Stage 3 wireframe) -- "confirmed in Phase 1 pilot
+    scope" per the wireframe's own caption. Added 8 Sep 2026. The pilot's
+    seed data has exactly one Agronomist account (Kwabena Osei, Tema) and
+    PRD Section 1.1 scopes the whole pilot to one region -- so this is
+    modelled as a single shared Agronomy inbox (agronomist_id nullable,
+    filled in on the agronomist's reply) rather than a farmer-to-a-specific-
+    assigned-agronomist thread, since no per-farmer agronomist assignment
+    field exists anywhere else in this schema to thread against.
+    """
+    __tablename__ = "agronomist_messages"
+
+    id = Column(String, primary_key=True, default=uid)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    agronomist_id = Column(String, ForeignKey("users.id"), nullable=True)
+    sender_id = Column(String, ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class VendorBilling(Base):
+    """
+    Vendor Portal's Subscription & Billing (Stage 3 wireframe). Added 8 Sep
+    2026. Card payment gateway stays TBD (PRD Section 1.1, same as
+    everywhere else in this codebase) -- the subscription fee itself is
+    charged through the same simulated MoMo/Vodafone/AirtelTigo rails as
+    every other payment here (see VendorBillingPayment), not a new payment
+    path. One row per vendor (unique) -- every vendor gets the single
+    Farm Master-owned storefront plan for the pilot (PRD Section 6:
+    "at least the Farm Master-owned vendor storefront live and billable";
+    third-party vendor subscription tiers are Phase 2).
+    """
+    __tablename__ = "vendor_billing"
+
+    id = Column(String, primary_key=True, default=uid)
+    vendor_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True)
+    plan = Column(String, nullable=False, default="Farm Master Storefront -- Standard")
+    monthly_fee = Column(Float, nullable=False)
+    status = Column(String, nullable=False, default="active")  # active | past_due
+    last_billed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class VendorBillingPayment(Base):
+    __tablename__ = "vendor_billing_payments"
+
+    id = Column(String, primary_key=True, default=uid)
+    vendor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    method = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="success")
+    transaction_ref = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UssdSmsLog(Base):
+    """
+    Records every simulated SMS/USSD push to a farmer's phone -- added 8 Sep
+    2026 specifically so "the SMS was sent" is an assertable, queryable fact
+    (GET /ussd/sms-log) rather than something the frontend merely displays
+    and no one can verify actually happened. Same SIMULATED-delivery
+    treatment as OtpChallenge and mobile money: the message body is real and
+    computed from real data, only the carrier hop is not real.
+    """
+    __tablename__ = "ussd_sms_log"
+
+    id = Column(String, primary_key=True, default=uid)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    channel = Column(String, nullable=False)  # sms | ussd
+    purpose = Column(String, nullable=False)  # opportunity_alert | pickup_confirmation | payment_notification
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AuditLog(Base):
     """
     Every role/permission change and every financial action, attributable to

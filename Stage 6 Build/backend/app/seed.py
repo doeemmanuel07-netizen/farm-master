@@ -16,6 +16,8 @@ from .models import (
     HarvestPickupRequest, DispatchJobStatus, FulfilmentIntake, GradeResult,
     CommitmentFeePayment, PaymentStatus, Product, ProductCategory, FormulaInputType,
     InputOrder, InputOrderLine, InputOrderStatus, ProductionFormula,
+    FieldVisitLog, FieldVisitStatus, AgronomistMessage, MilestoneLogEntry,
+    VendorBilling,
 )
 from .auth import hash_password
 from .dispatch import create_dispatch_job, create_inbound_dispatch_job, create_input_order_dispatch_job
@@ -116,6 +118,12 @@ SEED_RATES = [
      "graded (non-reject) tonnage. BUSINESS-UNCONFIRMED, pending Emmanuel's sign-off -- no rate or "
      "formula for this exists anywhere in the PRD (Section 10) or Business Concept doc; see "
      "Farm_Master_SDD_Stage6.docx Section 18."),
+    ("vendor_subscription_fee_monthly", 150.0, "GHS/month",
+     "Farm Master-owned vendor storefront subscription fee (PRD Section 6 revenue stream). "
+     "BUSINESS-UNCONFIRMED, added 8 Sep 2026 alongside Subscription & Billing."),
+    ("logistics_fee_per_delivery", 30.0, "GHS/delivery",
+     "Flat logistics support fee per delivered dispatch job, used only by the Reporting "
+     "dashboard's revenue-stream tally. BUSINESS-UNCONFIRMED, added 8 Sep 2026."),
 ]
 
 
@@ -145,7 +153,21 @@ def seed():
             db.commit()
             print(f"Seeded {len(SEED_RATES)} rate config rows (all PROVISIONAL).")
         else:
-            print("Rate config already exists, skipping rate seed.")
+            # Backfill any rate keys added in a later pass (e.g. 8 Sep 2026's
+            # vendor_subscription_fee_monthly / logistics_fee_per_delivery) --
+            # the block above only fires once, ever, on a totally empty
+            # table, so a new key added after go-live needs its own check.
+            existing_keys = {r.key for r in db.query(RateConfig.key).all()}
+            added = 0
+            for key, value, unit, note in SEED_RATES:
+                if key not in existing_keys:
+                    db.add(RateConfig(key=key, value=value, unit=unit, status="PROVISIONAL", note=note))
+                    added += 1
+            if added:
+                db.commit()
+                print(f"Backfilled {added} new rate config row(s).")
+            else:
+                print("Rate config already exists, skipping rate seed.")
 
         if db.query(BuyerRequirement).count() == 0:
             fee_rate = db.query(RateConfig).filter(RateConfig.key == "buyer_commitment_fee_per_tonne").first()
@@ -408,6 +430,69 @@ def seed():
                 print("Seeded 1 confirmed input order with a real dispatch job (Order Inputs demo data).")
         else:
             print("Input orders already exist, skipping Order Inputs seed.")
+
+        # Field Visit Logs / Agronomist Messaging / Milestone Log demo data --
+        # added 8 Sep 2026, closing gaps this session's own completeness
+        # audit surfaced. One scheduled + one completed visit, one message
+        # thread, one milestone, so none of these screens are empty on
+        # first run, same treatment as every other feature above.
+        if db.query(FieldVisitLog).count() == 0:
+            agronomist = db.query(User).filter(User.role == Role.AGRONOMIST).first()
+            kojo = db.query(User).filter(User.email == "kojo.mensah@farmmaster.test").first()
+            ama = db.query(User).filter(User.email == "ama.serwaa@farmmaster.test").first()
+            if agronomist and kojo and ama:
+                db.add(FieldVisitLog(
+                    agronomist_id=agronomist.id, farmer_id=kojo.id,
+                    checkpoint_label="Top-dress checkpoint", scheduled_date="2026-09-06",
+                    status=FieldVisitStatus.COMPLETED, logged_at=datetime.utcnow(),
+                    notes="Logged today - photo + GPS attached.",
+                ))
+                db.add(FieldVisitLog(
+                    agronomist_id=agronomist.id, farmer_id=ama.id,
+                    checkpoint_label="Planting verification", scheduled_date="2026-09-12",
+                    status=FieldVisitStatus.SCHEDULED,
+                ))
+                db.commit()
+                print("Seeded 2 field visit logs (Field Visit Logs demo data).")
+        else:
+            print("Field visit logs already exist, skipping seed.")
+
+        if db.query(AgronomistMessage).count() == 0:
+            kojo = db.query(User).filter(User.email == "kojo.mensah@farmmaster.test").first()
+            agronomist = db.query(User).filter(User.role == Role.AGRONOMIST).first()
+            if kojo and agronomist:
+                db.add(AgronomistMessage(farmer_id=kojo.id, sender_id=kojo.id, body="When should I apply the second round of top-dress?"))
+                db.add(AgronomistMessage(farmer_id=kojo.id, agronomist_id=agronomist.id, sender_id=agronomist.id, body="Apply within the next 5 days while the soil is still moist from last week's rain."))
+                db.commit()
+                print("Seeded 1 message thread (Agronomist Messaging demo data).")
+        else:
+            print("Agronomist messages already exist, skipping seed.")
+
+        if db.query(MilestoneLogEntry).count() == 0:
+            kojo = db.query(User).filter(User.email == "kojo.mensah@farmmaster.test").first()
+            if kojo:
+                db.add(MilestoneLogEntry(farmer_id=kojo.id, title="Planting complete", note="All 2 acres planted on schedule."))
+                db.commit()
+                print("Seeded 1 milestone log entry (Milestone Log demo data).")
+        else:
+            print("Milestone log entries already exist, skipping seed.")
+
+        # Vendor Subscription & Billing demo data -- one already-active
+        # subscription with one payment on record, added 8 Sep 2026.
+        if db.query(VendorBilling).count() == 0:
+            vendor = db.query(User).filter(User.role == Role.VENDOR).first()
+            fee_row = db.query(RateConfig).filter(RateConfig.key == "vendor_subscription_fee_monthly").first()
+            if vendor:
+                fee = fee_row.value if fee_row else 150.0
+                billing = VendorBilling(vendor_id=vendor.id, monthly_fee=fee, status="active", last_billed_at=datetime.utcnow())
+                db.add(billing)
+                db.commit()
+                from .models import VendorBillingPayment
+                db.add(VendorBillingPayment(vendor_id=vendor.id, amount=fee, method="momo", status="success", transaction_ref=f"SIM-{vendor.id[:8]}"))
+                db.commit()
+                print("Seeded 1 vendor billing subscription with 1 payment (Subscription & Billing demo data).")
+        else:
+            print("Vendor billing already exists, skipping seed.")
     finally:
         db.close()
 

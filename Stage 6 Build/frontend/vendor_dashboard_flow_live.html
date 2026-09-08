@@ -1,0 +1,247 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor Dashboard, Billing, Payout &amp; Handoff — Live Backend</title>
+<style>
+  :root { --primary:#1F5E3D;--primary-dark:#143D28;--gold:#E8A83C;--gold-dark:#C98A22;--ink:#1A1F1B;--muted:#5B6B5E;--faint:#8A9A8C;--bg:#F7F8F4;--surface:#FFFFFF;--border:#DDE3D9;--success:#2F9E44;--danger:#C0392B;--rail-bg:#F0F2EC; font-family:"Manrope",system-ui,sans-serif; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --primary:#7FBF9E;--primary-dark:#9ED4B8;--gold:#F0BC63;--gold-dark:#F5CD8A;--ink:#EAF0EA;--muted:#9BAA9D;--faint:#6C7A6E;--bg:#12160F;--surface:#1B211A;--border:#2C342A;--rail-bg:#171C15;--success:#4FBF6B;--danger:#E0685A; } }
+  :root[data-theme="dark"] { --primary:#7FBF9E;--primary-dark:#9ED4B8;--gold:#F0BC63;--gold-dark:#F5CD8A;--ink:#EAF0EA;--muted:#9BAA9D;--faint:#6C7A6E;--bg:#12160F;--surface:#1B211A;--border:#2C342A;--rail-bg:#171C15;--success:#4FBF6B;--danger:#E0685A; }
+  * { box-sizing: border-box; } html { overflow-x: hidden; }
+  body { margin:0; overflow-x:hidden; background:var(--bg); color:var(--ink); font-family:"Manrope",system-ui,sans-serif; }
+  .app { display:flex; min-height:100vh; }
+  .rail { width:272px; flex:0 0 272px; background:var(--rail-bg); border-right:1px solid var(--border); padding:20px 16px 24px; position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto; }
+  .rail-brand { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:2px; }
+  .rail-brand .name { font-weight:800; font-size:15px; color:var(--primary); }
+  .rail-brand .stage { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; }
+  .rail-sub { font-size:12px; color:var(--muted); margin-bottom:12px; font-weight:600; }
+  .pilot-chip { display:inline-flex; gap:6px; align-items:center; font-size:11px; font-weight:700; color:var(--primary); background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:5px 10px; margin-bottom:16px; }
+  .pilot-chip .dot { width:6px; height:6px; border-radius:50%; background:var(--gold); flex:none; }
+  .rail-note { font-size:11.5px; line-height:1.5; color:var(--muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 11px; margin-bottom:14px; }
+  .device-toggle { display:flex; gap:4px; margin-bottom:16px; }
+  .device-btn { flex:1; font-size:10px; font-weight:700; text-align:center; padding:7px 4px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--muted); cursor:pointer; min-height:44px; }
+  .device-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .rail-group-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; margin:4px 2px 6px; }
+  .flow-steps { display:flex; flex-direction:column; gap:3px; margin-bottom:16px; }
+  .flow-step { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; font-size:13px; font-weight:600; color:var(--faint); min-height:44px; }
+  .flow-step .dot { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); flex:none; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:var(--faint); background:var(--surface); }
+  .flow-step.done { color:var(--ink); cursor:pointer; } .flow-step.done .dot { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .flow-step.current { color:var(--ink); background:color-mix(in srgb,var(--primary) 10%,transparent); }
+  .flow-step.current .dot { border-color:var(--gold); color:var(--gold-dark); background:color-mix(in srgb,var(--gold) 18%,var(--surface)); }
+  .flow-step.locked { opacity:.55; }
+  .rail-footer { font-size:11px; color:var(--faint); line-height:1.6; border-top:1px solid var(--border); padding-top:12px; }
+  .restart-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; margin-top:10px; padding:9px; min-height:44px; border-radius:8px; border:1px dashed var(--border); background:transparent; color:var(--muted); font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .main { flex:1; min-width:0; padding:28px 32px 80px; }
+  .topbar { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+  .topbar h1 { font-size:21px; margin:0 0 3px; font-weight:800; }
+  .topbar .crumb { font-size:11.5px; color:var(--faint); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .topbar .desc { font-size:13px; color:var(--muted); max-width:62ch; margin-top:6px; }
+  .screen-tag { font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--primary); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 10px; white-space:nowrap; }
+  .viewport-label { font-size:11px; color:var(--faint); margin-bottom:10px; font-weight:600; }
+  .canvas { background:var(--bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; container-type:inline-size; }
+  .canvas.device-desktop { max-width:1040px; } .canvas.device-tablet { max-width:834px; } .canvas.device-phone { max-width:390px; }
+  .app-header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; background:var(--primary); color:#fff; }
+  .app-header .logo { display:flex; align-items:center; gap:9px; }
+  .app-header .logo .mark { width:26px; height:26px; border-radius:6px; background:var(--gold); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--primary-dark); font-size:12px; }
+  .app-header .logo .word { font-size:13.5px; font-weight:800; }
+  .app-header .navlinks { display:flex; gap:18px; } .app-header .navlinks span { font-size:12px; color:rgba(255,255,255,.72); font-weight:600; }
+  .app-header .navlinks span.current { color:#fff; border-bottom:2px solid var(--gold); padding-bottom:3px; }
+  .app-header .avatar { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.4); }
+  .app-header .hamburger { display:none; flex-direction:column; gap:4px; width:20px; }
+  .app-header .hamburger span { height:2px; background:#fff; border-radius:1px; }
+  @container (max-width:767px) { .app-header .navlinks { display:none; } .app-header .hamburger { display:flex; } }
+  .body-pad { padding:20px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .card-label { font-size:10.5px; font-weight:700; color:var(--faint); text-transform:uppercase; margin-bottom:8px; display:block; }
+  .caption { font-size:11.5px; color:var(--faint); margin-top:6px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:8px; font-size:13.5px; font-weight:700; padding:11px 18px; border:1px solid var(--border); background:var(--surface); color:var(--ink); cursor:pointer; min-height:46px; font-family:inherit; }
+  .btn.primary { background:var(--gold); border-color:var(--gold); color:var(--primary-dark); }
+  .btn.small { min-height:44px; padding:7px 12px; font-size:12.5px; }
+  .grid { display:grid; gap:14px; } .g2 { grid-template-columns:1fr 1fr; } .g4 { grid-template-columns:repeat(4,1fr); }
+  @container (max-width:767px) { .grid.g2, .grid.g4 { grid-template-columns:1fr; } }
+  @container (min-width:768px) and (max-width:1023px) { .grid.g4 { grid-template-columns:repeat(2,1fr); } }
+  .stat-tile { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .stat-tile .num { font-size:22px; font-weight:800; color:var(--primary); }
+  .stat-tile .cap { font-size:11.5px; color:var(--muted); margin-top:4px; }
+  .kv { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--border); font-size:13px; }
+  .kv .k { color:var(--muted); } .kv .v { font-weight:700; }
+  .field-group { display:flex; flex-direction:column; gap:5px; }
+  .field-group select, .field-group input { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; width:100%; height:44px; }
+  .badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px; border-radius:5px; }
+  .badge.success { background:color-mix(in srgb,var(--success) 15%,transparent); color:var(--success); }
+  .badge.pending { background:color-mix(in srgb,var(--gold) 20%,transparent); color:var(--gold-dark); }
+  .badge.muted { background:var(--bg); color:var(--muted); border:1px solid var(--border); }
+  .table-scroll { overflow-x:auto; }
+  table.data-table { width:100%; min-width:480px; border-collapse:collapse; font-size:12.5px; }
+  table.data-table th { text-align:left; font-size:10px; text-transform:uppercase; color:var(--faint); font-weight:700; padding:9px 10px; border-bottom:2px solid var(--border); }
+  table.data-table td { padding:11px 10px; border-bottom:1px solid var(--border); }
+  .spinner { width:18px; height:18px; border-radius:50%; border:2.5px solid rgba(20,61,40,.25); border-top-color:var(--primary-dark); animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .inline-alert { display:none; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--danger); background:color-mix(in srgb,var(--danger) 10%,transparent); border:1px solid color-mix(in srgb,var(--danger) 35%,transparent); border-radius:8px; padding:10px 12px; margin-top:12px; }
+  .inline-alert.show { display:flex; }
+  @media (max-width:860px) { .app { flex-direction:column; } .rail { width:100%; flex:none; height:auto; position:static; border-right:none; border-bottom:1px solid var(--border); padding:14px 16px; } .rail-note,.rail-footer{display:none;} .main{padding:20px 16px 60px;} }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand"><span class="name">FARM MASTER</span><span class="stage">Stage 6</span></div>
+    <div class="rail-sub">Vendor Dashboard, Billing, Payout &amp; Handoff — Live Backend</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+    <div class="rail-note"><b>Added 8 Sep 2026.</b> Four Stage 3 wireframe screens closing gaps this session's own completeness audit surfaced. Billing's card gateway stays TBD (Paystack/Hubtel) -- MoMo/Vodafone/AirtelTigo reuse the same simulated rails as the rest of the app.</div>
+    <div class="device-toggle" id="deviceToggle"><div class="device-btn" data-device="desktop">Desktop</div><div class="device-btn" data-device="tablet">Tablet</div><div class="device-btn" data-device="phone">Phone</div></div>
+    <div class="rail-group-label">Flow</div><div class="flow-steps" id="flowSteps"></div>
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (new login)</button>
+    <div class="rail-footer">Backend: Stage 6 Build/backend (FastAPI + PostgreSQL).<br>Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.</div>
+  </aside>
+  <main class="main">
+    <div class="topbar"><div><h1 id="screen-title">—</h1><div class="crumb">Vendor Portal / <span id="screen-crumb">—</span></div><div class="desc" id="screen-desc"></div></div><div class="screen-tag" id="screen-tag">STEP 1 / 5</div></div>
+    <div class="viewport-label" id="viewport-label"></div>
+    <div class="canvas device-desktop" id="canvas"></div>
+  </main>
+</div>
+<script>
+(function () {
+  var PORTAL_NAV = ["Dashboard", "Catalogue", "Billing", "Payout"];
+  var API = "";
+  var state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", dashboard: null, billing: null, payout: [], handoff: [], step: "login" };
+  var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "dashboard", label: "Vendor Dashboard" }, { id: "billing", label: "Subscription & Billing" }, { id: "payout", label: "Payout Statement" }, { id: "handoff", label: "Logistics Handoff" }];
+  function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
+  async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
+  async function apiPost(path, body) { var res = await fetch(API + path, { method: "POST", headers: authHeaders({ "Content-Type": "application/json" }), body: JSON.stringify(body) }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
+  function chrome(current, bodyHtml) {
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
+    return '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Vendor</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div><div class="body-pad">' + bodyHtml + "</div>";
+  }
+  function field(id, cap, val, type) { return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>'; }
+  function select(id, cap, options) { return '<div class="field-group"><span class="cap">' + cap + '</span><select id="' + id + '">' + options.map(function (o) { return '<option value="' + o.value + '">' + o.label + '</option>'; }).join("") + '</select></div>'; }
+  function stat(n, cap) { return '<div class="stat-tile"><div class="num">' + n + '</div><div class="cap">' + cap + '</div></div>'; }
+  function statusBadge(s) {
+    if (s === "delivered") return '<span class="badge success">delivered</span>';
+    if (s === "en_route") return '<span class="badge pending">en route</span>';
+    return '<span class="badge muted">assigned</span>';
+  }
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+    if (state.step === "login") {
+      document.getElementById("screen-title").textContent = "Sign in"; document.getElementById("screen-crumb").textContent = "Sign in";
+      document.getElementById("screen-desc").textContent = "Real authentication -- a genuine JWT, not a local flag.";
+      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("email", "Email", state.email) + '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + '</div><button class="btn primary block" id="loginBtn" style="margin-top:16px;width:100%">Sign in</button><div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div></div></div>';
+      document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
+      document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
+      document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+    if (state.step === "otp") {
+      document.getElementById("screen-title").textContent = "Verify OTP"; document.getElementById("screen-crumb").textContent = "Verify OTP";
+      document.getElementById("screen-desc").textContent = "SIMULATED delivery (PRD Section 12) -- both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("otpPhone", "Phone OTP code", state.otpPhone) + '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + '</div><button class="btn primary block" id="otpBtn" style="margin-top:16px;width:100%">Verify &amp; continue</button><div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div></div></div>';
+      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
+      document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
+      document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
+    }
+    if (state.step === "dashboard") {
+      document.getElementById("screen-title").textContent = "Vendor Dashboard"; document.getElementById("screen-crumb").textContent = "Dashboard";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/dashboard -- order queue and catalogue health at a glance.";
+      var d = state.dashboard;
+      document.getElementById("canvas").innerHTML = chrome("Dashboard",
+        '<div class="grid g4">' + stat(d.pending_mechanisation_requests, "Pending mech. requests") + stat(d.pending_input_orders, "Pending input orders") + stat(d.catalogue_item_count, "Catalogue items") + stat(d.catalogue_low_stock_count, "Low stock (<10)") + '</div>' +
+        '<div class="caption" style="margin-top:12px">Phase 2 items (subscription tiers, analytics) are shown disabled for IA continuity, not built as fake functionality.</div>'
+      );
+    }
+    if (state.step === "billing") {
+      document.getElementById("screen-title").textContent = "Subscription & Billing"; document.getElementById("screen-crumb").textContent = "Billing";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/billing -- card gateway not yet locked (Paystack/Hubtel TBD, PRD Section 1.1); MoMo/Vodafone/AirtelTigo reuse the same simulated rails as the Buyer commitment-fee flow.";
+      var b = state.billing;
+      document.getElementById("canvas").innerHTML = chrome("Billing",
+        '<div class="grid g2">' +
+          '<div class="card"><span class="card-label">Plan</span>' +
+            '<div class="kv"><span class="k">Plan</span><span class="v">' + b.plan + '</span></div>' +
+            '<div class="kv"><span class="k">Monthly fee</span><span class="v">GHS ' + b.monthly_fee + '</span></div>' +
+            '<div class="kv"><span class="k">Status</span><span class="v">' + (b.status === "active" ? '<span class="badge success">active</span>' : '<span class="badge pending">' + b.status + '</span>') + '</span></div>' +
+            '<div class="kv"><span class="k">Last billed</span><span class="v">' + (b.last_billed_at ? new Date(b.last_billed_at).toLocaleDateString() : "never") + '</span></div>' +
+          '</div>' +
+          '<div class="card"><span class="card-label">Pay subscription</span>' +
+            select("billMethod", "Method", [{ value: "momo", label: "MTN MoMo" }, { value: "vodafone", label: "Vodafone Cash" }, { value: "airteltigo", label: "AirtelTigo Money" }, { value: "card", label: "Card — via Paystack / Hubtel (TBD, returns 501)" }]) +
+            '<button class="btn primary" id="payBillBtn" style="width:100%;margin-top:10px">Pay GHS ' + b.monthly_fee + '</button>' +
+            '<div class="inline-alert" id="billAlert"><span>⚠</span><span id="billAlertText"></span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card-label" style="margin:16px 0 10px">Billing history</div>' +
+        '<div class="table-scroll"><table class="data-table"><thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Ref</th></tr></thead><tbody>' +
+          (b.history.length === 0 ? '<tr><td colspan="4" class="caption">No payments yet.</td></tr>' : b.history.map(function (p) { return '<tr><td>GHS ' + p.amount + '</td><td>' + p.method + '</td><td>' + p.status + '</td><td class="mono">' + (p.transaction_ref || "—") + '</td></tr>'; }).join("")) +
+        '</tbody></table></div>'
+      );
+      document.getElementById("payBillBtn").addEventListener("click", onPayBilling);
+    }
+    if (state.step === "payout") {
+      document.getElementById("screen-title").textContent = "Payout Statement"; document.getElementById("screen-crumb").textContent = "Payout";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/payout -- what you're owed after Farm Master's platform fee, per order, and when Finance releases it.";
+      document.getElementById("canvas").innerHTML = chrome("Payout",
+        '<div class="table-scroll"><table class="data-table"><thead><tr><th>Buyer</th><th>Mechanisation</th><th>Input orders</th><th>Total</th><th>Released</th></tr></thead><tbody>' +
+          (state.payout.length === 0 ? '<tr><td colspan="5" class="caption">No payout-eligible orders yet.</td></tr>' : state.payout.map(function (r) {
+            return '<tr><td>' + r.buyer_name + '</td><td>GHS ' + r.mechanisation_amount + '</td><td>GHS ' + r.input_order_amount + '</td><td><b>GHS ' + r.total + '</b></td><td>' + (r.released ? '<span class="badge success">released</span>' : '<span class="badge pending">pending</span>') + '</td></tr>';
+          }).join("")) +
+        '</tbody></table></div>' +
+        '<div class="caption" style="margin-top:10px">Release is a Finance-only action (Finance &amp; Reconciliation screen) -- this view is read-only, matching the segregation-of-duties rule (PRD Section 5).</div>'
+      );
+    }
+    if (state.step === "handoff") {
+      document.getElementById("screen-title").textContent = "Order → Logistics Handoff Status"; document.getElementById("screen-crumb").textContent = "Handoff";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/handoff -- tracks a confirmed order from vendor packing through Logistics pickup to delivery confirmation.";
+      document.getElementById("canvas").innerHTML = chrome("Catalogue",
+        '<div class="table-scroll"><table class="data-table"><thead><tr><th>Job</th><th>Status</th><th>Tricycle</th><th>Delivered</th><th>Proof</th></tr></thead><tbody>' +
+          (state.handoff.length === 0 ? '<tr><td colspan="5" class="caption">No jobs yet.</td></tr>' : state.handoff.map(function (j) {
+            return '<tr><td>' + j.description + '</td><td>' + statusBadge(j.status) + '</td><td>' + (j.tricycle_label || "—") + '</td><td>' + (j.delivered_at ? new Date(j.delivered_at).toLocaleDateString() : "—") + '</td><td>' + (j.proof_captured ? '<span class="badge success">captured</span>' : '<span class="badge muted">not yet</span>') + '</td></tr>';
+          }).join("")) +
+        '</tbody></table></div>'
+      );
+    }
+  }
+  async function onLogin() {
+    var btn = document.getElementById("loginBtn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
+      var data = await res.json(); if (!res.ok) throw new Error(data.detail || "Login failed");
+      state.challengeId = data.challenge_id; state.otpPhone = data.dev_only_phone_code; state.otpEmail = data.dev_only_email_code;
+      state.step = "otp"; render();
+    } catch (e) { document.getElementById("loginAlertText").textContent = e.message; document.getElementById("loginAlert").classList.add("show"); btn.disabled = false; btn.textContent = "Sign in"; }
+  }
+  async function onVerifyOtp() {
+    var btn = document.getElementById("otpBtn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying…';
+    try {
+      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }) });
+      var data = await res.json(); if (!res.ok) throw new Error(data.detail || "OTP verification failed");
+      state.token = data.access_token;
+      state.dashboard = await apiGet("/vendor/dashboard");
+      state.step = "dashboard"; render();
+    } catch (e) { document.getElementById("otpAlertText").textContent = e.message; document.getElementById("otpAlert").classList.add("show"); btn.disabled = false; btn.textContent = "Verify & continue"; }
+  }
+  async function onPayBilling() {
+    var btn = document.getElementById("payBillBtn"); btn.disabled = true;
+    try {
+      state.billing = await apiPost("/vendor/billing/pay", { method: document.getElementById("billMethod").value });
+      render();
+    } catch (e) { document.getElementById("billAlertText").textContent = e.message; document.getElementById("billAlert").classList.add("show"); btn.disabled = false; }
+  }
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) { var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked"; var mark = i < activeIdx ? "✓" : (i + 1); if (state.token && s.id !== "login" && s.id !== "otp") cls = i === activeIdx ? "current" : "done"; return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>"; }).join("");
+    el.querySelectorAll(".flow-step.done").forEach(function (row) {
+      row.addEventListener("click", async function () {
+        var target = STEPS[+row.dataset.idx].id;
+        if (target === "login") { state.token = null; state.step = target; render(); return; }
+        if (target === "billing") state.billing = await apiGet("/vendor/billing");
+        if (target === "payout") state.payout = await apiGet("/vendor/payout");
+        if (target === "handoff") state.handoff = await apiGet("/vendor/handoff");
+        state.step = target; render();
+      });
+    });
+  }
+  document.getElementById("restartBtn").addEventListener("click", function () { state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", dashboard: null, billing: null, payout: [], handoff: [], step: "login" }; setDevice("desktop"); render(); });
+  var DEVICE_LABEL = { desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)", tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)", phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)" };
+  function setDevice(d) { document.getElementById("canvas").className = "canvas device-" + d; document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); }); document.getElementById("viewport-label").textContent = DEVICE_LABEL[d]; }
+  document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
+  setDevice("desktop"); render();
+})();
+</script>
