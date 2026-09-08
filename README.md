@@ -31,10 +31,12 @@ Following the 9-stage workflow in
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
-retrofitted) plus fourteen flows implemented and tested end to end against
-a real database and a real frontend. All five of PRD Section 6's
-Must-Haves are now built, and so is the last item on this pass's own
-punch list, User & Role Admin:
+retrofitted) plus twenty-three flows implemented and tested end to end
+against a real database and a real frontend — every screen in the
+confirmed IA/wireframe/visual scope except the payment/OTP gateway
+integration itself. All five of PRD Section 6's Must-Haves are now built,
+and so is every screen from this session's own 8 September 2026
+completeness audit (see "8 September 2026" below). The original fourteen:
 
 - Buyer commitment-fee payment
 - Farmer opportunity-acceptance + production-formula receipt
@@ -112,24 +114,38 @@ treatment as mobile money: no SMS/email provider is chosen yet, so both
 OTP codes are returned directly in the API response instead of actually
 being sent.
 
-Not yet built: the Reporting screen's own revenue-stream + pilot-metrics
-dashboard (a distinct concern from the MoFA compliance report above, and
-most of its own revenue streams are themselves deferred to Phase 2+, PRD
-Section 7), the MoFA import half (a static "no live API yet" stub even in
-the Stage 3 wireframe — no real MoFA import API exists to call), a
-dedicated Registration Approval Queue screen of its own (its backend is
-real and now has a working UI, but that UI lives inline on User & Role
-Admin rather than on its own separate Stage 4 screen), Field Visit
-Logs/Proof of Pickup/Trunking (never in Stage 6's Must-Have scope), and
-any real mobile money or OTP gateway integration. Order Reconciliation's
-vendor payout still reads confirmed `MechanisationRequest` via a link
-only `seed.py` can set (that model has no real creation endpoint yet) —
-fixed 7 September 2026: it now also correctly includes a confirmed
-`InputOrder`'s real cost, closing a gap flagged at the end of the previous
-pass rather than leaving it unresolved. **With User & Role Admin now
-built, this pass's originally-scoped punch list — all five PRD Must-Haves
-plus the account-creation UI — is complete;** the items above were never
-part of that list and remain open on their own separate footing.
+**8 September 2026 — 24 items closed in one pass.** This session ran its
+own fresh completeness audit against the confirmed Stage 1-6 documents
+(rather than trusting prior session notes) and found the actual
+unbuilt-screen list was longer than the six items already being tracked:
+roughly eighteen more IA/wireframe/visual-scoped screens, plus the entire
+USSD/SMS channel, had been in scope since Stage 2/3 but were never
+enumerated anywhere. Emmanuel's decision: all of it is now in Stage 6
+scope, not Phase 2. Built and verified in this pass: the Reporting
+dashboard (real revenue-stream + pilot metrics, three streams live and
+three shown disabled with their deferred phase); the MoFA import half (a
+real manual-entry record, the honest equivalent of the wireframe's own
+"no live API yet" caption); the Registration Approval Queue's own
+dedicated screen (reusing its pre-existing, already-audited backend);
+Field Visit Logs and Proof of Pickup/Delivery (GPS via the browser's real
+Geolocation API); Trunking (previously entirely absent — no model, no
+stub); all four portal dashboards (Buyer, Farmer, Vendor, and a shared
+Control Centre Dashboard for all four internal roles); Farmer Wallet &
+Settlement, Milestone Log, and Agronomist Messaging; Vendor Subscription &
+Billing, Payout Statement, and Logistics Handoff Status; Buyer Documents,
+Tracking, and Invoice; the Audit Log's first real browsing screen; and
+the entire USSD/SMS channel — a session-based menu emulator (numbered
+options, a real inactivity timeout, back navigation) reusing the existing
+web login rather than a second fake auth system, with every simulated SMS
+push logged so delivery is an assertable fact. One real bug was found and
+fixed during browser testing, not merely flagged: the USSD session
+emulator's inactivity timer kept counting down even after the session
+showed "SESSION EXPIRED." Real mobile money/OTP/SMS gateway integration
+remains simulated — confirmed 8 September 2026 as Emmanuel's deliberate,
+unchanged decision, not an oversight, and now the only item left on
+Stage 6's "not yet built" list. Order Reconciliation's vendor payout was
+also fixed 7 September 2026 to correctly include a confirmed
+`InputOrder`'s real cost, not just `MechanisationRequest` rows.
 
 **Known gap, tracked for a separate task (not this one):** the Matching
 Queue records which farmer an Opportunity was assigned to
@@ -166,7 +182,14 @@ a real navigation dead-end in the new Vendor flow (two parallel post-login
 destinations with no way to reach the second). The MoFA Compliance Report
 and User & Role Admin builds (also 7 September) introduced no new issues
 -- both are purely linear flows using `.grid.g2` from the start, with no
-parallel post-login destinations to re-check for reachability either. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+parallel post-login destinations to re-check for reachability either.
+**Extended again 8 September 2026** across all ten new/touched files in
+the 24-item expanded-scope pass: every screen reuses the same shared
+chrome and responsive patterns established above, so no fresh instances
+of the earlier systemic bugs turned up — verified via live DOM
+measurement at 375/768/1280px, including the USSD emulator's bespoke
+phone-frame layout, independently checked and clean. All twenty-three
+flows now pass at all three breakpoints. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
 for the full writeup. This check is mandatory for every new screen going
 forward, not retrofitted after — and, per this pass, applies again
 whenever an existing screen is substantively re-touched.
@@ -216,6 +239,15 @@ Then open:
 - <http://127.0.0.1:8000/vendor-catalogue-flow> — Vendor Product Catalogue
 - <http://127.0.0.1:8000/mofa-report-flow> — MoFA Compliance Report (Internal Operations)
 - <http://127.0.0.1:8000/user-admin-flow> — User & Role Admin (Super Admin)
+- <http://127.0.0.1:8000/visit-logs-flow> — Field Visit Logs & Agronomist Messaging (Agronomist)
+- <http://127.0.0.1:8000/proof-trunking-flow> — Proof of Delivery & Trunking (Logistics)
+- <http://127.0.0.1:8000/reporting-flow> — Reporting Dashboard (Finance)
+- <http://127.0.0.1:8000/approvals-flow> — Registration Approval Queue & Audit Log (Super Admin)
+- <http://127.0.0.1:8000/control-centre-flow> — Control Centre Dashboard (any internal role)
+- <http://127.0.0.1:8000/buyer-dashboard-flow> — Buyer Dashboard, Docs, Tracking & Invoice
+- <http://127.0.0.1:8000/farmer-dashboard-flow> — Farmer Dashboard, Milestones, Messaging & Wallet
+- <http://127.0.0.1:8000/vendor-dashboard-flow> — Vendor Dashboard, Billing, Payout & Handoff
+- <http://127.0.0.1:8000/ussd-sms-flow> — USSD/SMS Channel (session emulator, Farmer)
 - <http://127.0.0.1:8000/docs> — interactive Swagger API reference
 
 Every flow above now signs in through two steps — password, then an OTP

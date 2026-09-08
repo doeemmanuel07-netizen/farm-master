@@ -1,7 +1,10 @@
 # Farm Master — Stage 6 Build
 
 Backend foundation (RBAC across 7 roles, audit logging, Finance/Super Admin
-segregation of duties) plus fourteen flows, end to end and tested: Buyer
+segregation of duties) plus twenty-three flows, end to end and tested,
+covering every screen in the confirmed IA/wireframe/visual scope except
+the payment/OTP gateway integration itself (see "8 September 2026" below
+for the full list of what this pass added). The original fourteen: Buyer
 commitment-fee payment, Farmer opportunity-acceptance + production-formula
 receipt, Vendor mechanisation request (including the Super-Admin-approved
 date-conflict override), the Matching Queue -- where an Agronomist assigns
@@ -74,7 +77,79 @@ response instead of an actual SMS/email being sent.
 A full responsive QA pass (5 September 2026) checked every flow at
 desktop/tablet/phone and found a systemic bug -- see "Known limitations."
 
-See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-25) for
+**8 September 2026 — 24 items closed in one pass, following this
+session's own completeness audit.** The audit found the confirmed IA/
+Stage 3 wireframe/Stage 4 visual scope included substantially more screens
+than the six already being tracked (Reporting dashboard, MoFA import,
+Registration Approval Queue as its own screen, Field Visit Logs, Proof of
+Pickup/Delivery, Trunking) -- eighteen more screens had been in scope
+since Stage 2/3 but were never enumerated as missing anywhere. Emmanuel's
+decision: all of it is now in Stage 6 scope, not Phase 2. Built and
+verified in this pass:
+
+- **The six previously-tracked items**, now all real: Reporting dashboard
+  (`GET /reporting/dashboard` -- PRD Section 7's six revenue streams, three
+  live and three shown disabled with their deferred phase); MoFA import
+  (`GET`/`POST /mofa/import-records` -- a real manual-entry record, the
+  honest equivalent of the wireframe's own "no live API yet" stub); the
+  Registration Approval Queue's own dedicated screen
+  (`/approvals-flow`, reusing the pre-existing, already-audited
+  `GET /admin/registrations` and approve/reject endpoints -- no backend
+  change); Field Visit Logs (`GET`/`POST /agronomist/visit-logs`); Proof of
+  Pickup/Delivery (`GET`/`POST /logistics/jobs/{id}/proof`, GPS via the
+  browser's real Geolocation API with manual fallback); and Trunking
+  (`GET`/`POST /logistics/trunking`, a real snapshot of graded produce not
+  yet claimed by another load, 409 on over-allocation) -- previously
+  entirely absent, no model or stub of any kind.
+- **Portal dashboards**: Buyer (`GET /buyer/dashboard`), Farmer
+  (`GET /farmer/dashboard`), Vendor (`GET /vendor/dashboard`), and the
+  Control Centre Dashboard shared by all four internal roles
+  (`GET /dashboard/control-centre` -- a common non-sensitive season
+  snapshot plus role-scoped tiles; Finance never sees account-admin
+  counts, Super Admin never sees reconciliation figures).
+- **Farmer**: Wallet & Settlement (`GET /farmer/wallet`, a farmer's own
+  delivered tonnage and settlement, order by order), Milestone Log
+  (`GET`/`POST /farmer/milestones`, structure-only -- offline sync
+  explicitly out of scope, same treatment as Field Visit Logs), and
+  Agronomist Messaging (`GET`/`POST /farmer/messages` -- a single shared
+  Agronomy inbox, since the pilot's seed data has exactly one Agronomist).
+- **Vendor**: Subscription & Billing (`GET /vendor/billing`,
+  `POST .../pay` -- reuses the same simulated MoMo/Vodafone/AirtelTigo
+  rails as the Buyer commitment fee, card still 501s), Payout Statement
+  (`GET /vendor/payout`, read-only -- release stays Finance-only), and
+  Logistics Handoff Status (`GET /vendor/handoff`).
+- **Buyer**: Documents (`GET /buyer/requirements/{id}/docs`, built from
+  real grading results, not a fabricated certificate system), Tracking
+  (`.../tracking`), and Invoice (`.../invoice`, reusing
+  `reconciliation.py`'s own compute_figures).
+- **The Audit Log's first real browsing screen** -- `GET /admin/audit-log`
+  has returned real data since 3 September 2026, but nothing ever
+  displayed it until now (folded into `/approvals-flow`).
+- **The entire USSD/SMS channel** (`/ussd-sms-flow`) -- the feature-phone
+  fallback (PRD Section 8) had a Stage 3 wireframe but no Stage 4 visual
+  and zero build of any kind before this pass. A real USSD gateway
+  authenticates by phone + PIN, a separate unchosen gateway (same status
+  as OTP/payment) -- so this reuses the existing JWT web session instead
+  of a second fake auth system: a session-based menu emulator (numbered
+  options, a real 45-second inactivity timeout, back navigation) driving
+  the exact same real backend/tables as the Farmer Portal --
+  `POST /ussd/pickup-confirm` literally calls `farmer.py`'s own
+  `request_harvest_pickup` rather than reimplementing it. Every simulated
+  SMS push is logged (`GET /ussd/sms-log`) so delivery is an assertable
+  fact, not just something the frontend claims happened.
+
+One real bug was found and fixed during browser testing, not merely
+flagged: the USSD session emulator's inactivity timer kept counting down
+even after showing "SESSION EXPIRED," because the render function called
+`startSessionTimer()` unconditionally -- fixed to stop for real on expiry,
+with a genuine "type anything to dial in again" recovery path.
+
+Real mobile money/OTP/SMS gateway integration remains simulated -- 
+confirmed 8 September 2026 as Emmanuel's deliberate, unchanged decision
+("keep it simulated"), not an oversight. It is now the only item left on
+Stage 6's "not yet built" list.
+
+See `Farm_Master_SDD_Stage6.docx` (repo root, Sections 13-27) for
 architecture and `Farm_Master_API_Documentation_Stage6.docx` for the API
 contract.
 
@@ -195,6 +270,15 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Vendor Product Catalogue: <http://127.0.0.1:8000/vendor-catalogue-flow>
 - Live MoFA Compliance Report: <http://127.0.0.1:8000/mofa-report-flow>
 - Live User & Role Admin: <http://127.0.0.1:8000/user-admin-flow>
+- Live Field Visit Logs & Agronomist Messaging: <http://127.0.0.1:8000/visit-logs-flow>
+- Live Proof of Delivery & Trunking: <http://127.0.0.1:8000/proof-trunking-flow>
+- Live Reporting Dashboard: <http://127.0.0.1:8000/reporting-flow>
+- Live Registration Approval Queue & Audit Log: <http://127.0.0.1:8000/approvals-flow>
+- Live Control Centre Dashboard (any internal role): <http://127.0.0.1:8000/control-centre-flow>
+- Live Buyer Dashboard, Docs, Tracking & Invoice: <http://127.0.0.1:8000/buyer-dashboard-flow>
+- Live Farmer Dashboard, Milestones, Messaging & Wallet: <http://127.0.0.1:8000/farmer-dashboard-flow>
+- Live Vendor Dashboard, Billing, Payout & Handoff: <http://127.0.0.1:8000/vendor-dashboard-flow>
+- Live USSD/SMS Channel (session emulator): <http://127.0.0.1:8000/ussd-sms-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -401,8 +485,38 @@ introduced no new responsive issues -- both are purely linear flows using
 `.grid.g2` from the start, verified clean at all three breakpoints on
 first pass; User & Role Admin has no parallel post-login destinations
 either, so the navigation-reachability check from the previous finding
-didn't apply. All fourteen flows now pass at all three breakpoints -- see
-"Known limitations" for the full fix list.
+didn't apply. All fourteen flows from that pass passed at all three
+breakpoints. **Extended again 8 September 2026**, across all ten
+new/touched files in the 24-item expanded-scope pass: every screen reuses
+the same shared chrome, `.grid.g2`/g3/g4 patterns, and viewport meta tag
+established above, so the systemic bugs found there had no fresh
+instances -- verified via live DOM measurement (not stale screenshots) at
+375/768/1280px, with the USSD emulator's bespoke phone-frame layout (not
+the shared `.grid` pattern) independently checked and confirmed clean at
+375px on its own. All twenty-three flows now pass at all three
+breakpoints -- see "Known limitations" for the full fix list.
+
+**8 September 2026, the 24-item expanded-scope pass, specifically:** a
+full curl RBAC battery confirmed 403 both directions on every new/extended
+router (agronomist, logistics, finance/reporting, mofa import, buyer,
+farmer, vendor, the shared control-centre dashboard, and ussd), plus real
+409s on double-capturing proof of delivery and on scheduling more trunking
+tonnage than is really available. Every one of the 24 screens was then
+clicked through in the browser end to end, not just curled: submitting the
+MoFA manual-import form and watching the new row appear; capturing
+GPS-based proof of delivery via the browser's real Geolocation API;
+scheduling and dispatching a trunking load; paying (and correctly
+501-failing on card) a vendor subscription; opening a buyer order's
+Documents/Tracking/Invoice tabs and confirming the figures matched the
+API exactly; and running a full USSD session end to end -- main menu,
+opportunity alert (a real simulated SMS logged), harvest pickup
+confirmation (a real `HarvestPickupRequest` created), payment/balance
+check, and the SMS log itself, confirming every "sent" message is really
+there. One real bug was found this way, not merely flagged: the USSD
+emulator's inactivity timer restarted itself after the session already
+showed "SESSION EXPIRED" (`renderUssd()` called `startSessionTimer()`
+unconditionally) -- fixed to stop for real on expiry, with a genuine
+recovery path to dial back in.
 
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
@@ -453,15 +567,12 @@ is a real network call to the backend, not a simulation.
   doesn't itself depict (it shows only one illustrative Active example
   row) but that a real, working Suspend action needs to not be a
   permanent, un-undoable trap.
-- **Registration Approval Queue (a separate Stage 4 visual screen, id
-  "approvals") still has no dedicated flow file of its own.** Its backend
-  (`GET /admin/registrations`, approve/reject) has existed since the OTP
-  pass and is fully real, but until this pass it had no frontend surface
-  anywhere. User & Role Admin's inline "Review" action now gives it one --
-  reusing those exact endpoints rather than duplicating the logic -- but
-  that's a real UI living on a different screen than its own Stage 4
-  mockup, not a dedicated Registration Approval Queue screen. Worth
-  knowing precisely, not silently conflated as "that screen is built."
+- **Fixed 8 September 2026 -- Registration Approval Queue now has its own
+  dedicated screen** (`/approvals-flow`), split out of its previous inline
+  location on User & Role Admin, per the original IA (Stage 4 visual id
+  "approvals"). Reuses the same real, already-audited
+  `GET /admin/registrations` and approve/reject endpoints -- no backend
+  change, purely a UI move.
 - **PRD Section 6 Must-Have #3 is now fully built.** "Vendor input ordering
   routed to logistics dispatch" describes a Farmer buying seed/fertiliser
   from a Vendor's Product Catalogue -- Order Inputs + Vendor Product
@@ -474,12 +585,13 @@ is a real network call to the backend, not a simulation.
   must belong to the same `vendor_id`. With only one seeded vendor this
   isn't a real limitation for the pilot, but a multi-vendor cart (splitting
   one order across vendors) is not supported.
-- **Input order costs aren't captured as a payment anywhere yet.** The
-  Stage 3 wireframe shows input costs as a deduction on the Farmer Wallet &
-  Settlement Statement (not built) rather than an upfront charge like the
-  buyer commitment fee -- so `InputOrder.total_cost` is real and computed,
-  but nothing collects or deducts it yet. Confirm/decline are themselves
-  not audited (PRD Section 5's scope is role/permission changes and
+- **Fixed 8 September 2026 -- input order costs now show as a real
+  deduction on the Farmer Wallet & Settlement Statement**
+  (`GET /farmer/wallet`), per the Stage 3 wireframe. `InputOrder.total_cost`
+  was already real and computed; the Wallet screen now actually surfaces
+  it against the same farmer's own real settlement due, rather than
+  nothing collecting or displaying it. Confirm/decline are themselves
+  still not audited (PRD Section 5's scope is role/permission changes and
   financial actions), same treatment as `MechanisationRequest`
   confirm/decline and dispatch/deliver.
 - The Vendor Product Catalogue has no edit or delete endpoint, matching the
@@ -491,9 +603,9 @@ is a real network call to the backend, not a simulation.
   *is* audited (`fulfilment_intake_graded`), since it's Finance-owned and
   feeds settlement.
 - A graded Fulfilment Intake now feeds real farmer settlement (Finance &
-  Reconciliation, below) when its pickup is linked to a buyer order --
-  feeding Buyer Compliance Docs, also shown in the Stage 3 wireframe, is
-  still not built (Reporting/MoFA Data Exchange scope).
+  Reconciliation, below) when its pickup is linked to a buyer order, and
+  (fixed 8 September 2026) also feeds the Buyer's own Documents screen
+  (`GET /buyer/requirements/{id}/docs`) as a real grading-result row.
 - **Order Reconciliation's trading margin rate is BUSINESS-UNCONFIRMED.**
   Unlike the buyer commitment fee (GHS 90/tonne) and vendor service fee
   (GHS 60/tonne), no rate or formula for what a farmer is actually paid, or
@@ -561,31 +673,27 @@ is a real network call to the backend, not a simulation.
   with no horizontal page overflow, no sub-44px interactive element, and no
   layout that stays cramped multi-column below its container's own
   breakpoint.
-- **MoFA Compliance Report is the export half only of the Stage 3
-  wireframe's "MoFA Data Exchange" screen.** The wireframe's other panel --
-  importing verified institutional buyer/accreditation data from MoFA --
-  is a static "no live API yet" stub even in the wireframe itself (no real
-  MoFA import API exists to call), so it isn't built here; a fake import
-  against nothing real would be decorative, not a real feature. The
-  separate "Reporting" screen (revenue-stream + pilot-metrics dashboard,
-  IA Section 6) is a distinct concern from the compliance report and is
-  also not built -- most of its own revenue streams are themselves
-  deferred to Phase 2+ (PRD Section 7), so a dashboard for it would mostly
-  show deferred placeholders today.
+- **Fixed 8 September 2026 -- MoFA Data Exchange's import half is now
+  real too.** No live MoFA API exists to call (still true -- PRD Section
+  1.1/9), so `POST /mofa/import-records` is a real manual-entry record,
+  the honest equivalent of the wireframe's own "no live API yet" caption,
+  not a fake integration against nothing real. The separate "Reporting"
+  screen (revenue-stream + pilot-metrics dashboard, IA Section 6) is also
+  now real (`GET /reporting/dashboard`) -- three revenue streams are live,
+  three stay shown disabled with their deferred phase (Phase 2/2+/4, PRD
+  Section 7), never fabricated.
 - Report rows require a graded intake AND a buyer-linked pickup; a
   farmer's general (unlinked) delivery never appears even once graded --
   verified by test, not just asserted (see "Manual verification" above).
   REJECT-graded rows are deliberately included, unlike Order
   Reconciliation's own farmer-settlement math, since quality grade is
   itself one of the four confirmed report columns.
-- The rest of Internal Operations (the Reporting dashboard above, MoFA's
-  import half, Field Visit Logs, Proof of Pickup/Delivery, and Trunking --
-  the last three were never in Stage 6's PRD Must-Have scope to begin
-  with) is not yet built — see the SDD, Section 8, for the full list.
-- **Stage 6's originally-scoped punch list is now complete.** All five PRD
-  Section 6 Must-Haves plus User & Role Admin (the account-creation UI
-  named as the last outstanding item) are built and tested. Real mobile
-  money/OTP gateway integration and the two items above (Reporting
-  dashboard, MoFA import) remain open, but were never part of that
-  punch list -- see the SDD status line for the exact, non-overclaimed
-  scope of "done" as of this pass.
+- **Stage 6's build now covers every screen in the confirmed IA/
+  wireframe/visual scope.** All five PRD Section 6 Must-Haves, User &
+  Role Admin, and (8 September 2026) all 24 items from this session's own
+  completeness audit -- the six previously-tracked gaps plus eighteen
+  more screens and the full USSD/SMS channel -- are built and tested.
+  Real mobile money/OTP/SMS gateway integration is the only item left
+  not yet built, confirmed as Emmanuel's deliberate, unchanged decision
+  (not an oversight) -- see the SDD status line (Section 26) for the
+  exact, non-overclaimed scope of "done" as of this pass.
