@@ -12,9 +12,17 @@ it isn't built here; building a fake import against nothing real would be
 decorative, not a real feature. See app/reporting.py for the query and
 export-rendering logic this router only wires up to real routes.
 
-Every route is Role.FINANCE-gated, matching the wireframe and IA Section
-10's confirmed ownership (Reporting/MoFA Data Exchange stay with Finance,
-not Super Admin, since they're external/financial reporting duties).
+The three compliance-report routes (list/CSV export/PDF export) are also
+open to Role.COMPLIANCE_OFFICER as of 9 Sep 2026 -- the new Compliance/
+Reporting Officer role's real job is exactly generating and reviewing this
+report. Import-records below stays Role.FINANCE-only: that's institutional
+buyer/accreditation data entry, not report generation, and the Compliance
+Officer role was scoped to reporting, not MoFA data-exchange authorship.
+
+Every other route is Role.FINANCE-gated, matching the wireframe and IA
+Section 10's confirmed ownership (Reporting/MoFA Data Exchange stay with
+Finance, not Super Admin, since they're external/financial reporting
+duties).
 """
 
 from typing import List
@@ -34,7 +42,7 @@ router = APIRouter(prefix="/mofa", tags=["mofa"])
 @router.get("/compliance-report", response_model=List[ComplianceReportRowResponse])
 def list_compliance_report(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.FINANCE)),
+    user: User = Depends(require_roles(Role.FINANCE, Role.COMPLIANCE_OFFICER)),
 ):
     return get_compliance_rows(db)
 
@@ -42,7 +50,7 @@ def list_compliance_report(
 @router.get("/compliance-report/export.csv")
 def export_compliance_report_csv(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.FINANCE)),
+    user: User = Depends(require_roles(Role.FINANCE, Role.COMPLIANCE_OFFICER)),
 ):
     csv_bytes = to_csv_bytes(get_compliance_rows(db))
     return Response(
@@ -55,7 +63,7 @@ def export_compliance_report_csv(
 @router.get("/compliance-report/export.pdf")
 def export_compliance_report_pdf(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.FINANCE)),
+    user: User = Depends(require_roles(Role.FINANCE, Role.COMPLIANCE_OFFICER)),
 ):
     pdf_bytes = to_pdf_bytes(get_compliance_rows(db))
     return Response(

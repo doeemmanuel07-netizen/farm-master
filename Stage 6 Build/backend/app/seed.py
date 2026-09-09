@@ -50,6 +50,12 @@ SEED_USERS = [
     ("kojo.mensah@farmmaster.test", "Kojo Mensah", Role.FARMER, None, "+233241000009"),
     ("ama.serwaa@farmmaster.test", "Ama Serwaa", Role.FARMER, None, "+233241000010"),
     ("vendor@farmmaster.test", "Kwame's Agro Supplies", Role.VENDOR, "Kwame's Agro Supplies", "+233241000011"),
+    # Internal Ops Staff roles, added 9 Sep 2026 to split real pilot job
+    # functions out from Super Admin -- see models.Role and this pass's SDD
+    # RBAC section for exactly what each is (and isn't) granted.
+    ("ops.coordinator@farmmaster.test", "Nana Yeboah", Role.OPERATIONS_COORDINATOR, None, "+233241000012"),
+    ("fleet.coordinator@farmmaster.test", "Kwesi Ankrah", Role.LOGISTICS, None, "+233241000013"),
+    ("compliance.officer@farmmaster.test", "Adjoa Frimpong", Role.COMPLIANCE_OFFICER, None, "+233241000014"),
 ]
 
 SEED_OPPORTUNITIES = [

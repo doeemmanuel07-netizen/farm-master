@@ -62,7 +62,7 @@
   .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
   .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
 
-  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 520px; }
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 520px; width: 100%; container-type: inline-size; }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
   .card-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
@@ -81,6 +81,7 @@
   .field-group input:focus, .field-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
 
   .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @container (max-width: 420px) { .role-grid { grid-template-columns: 1fr; } }
   .role-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px 10px; text-align: center; cursor: pointer; background: var(--surface); }
   .role-card:hover { border-color: var(--primary); }
   .role-card.selected { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--surface)); }
@@ -111,12 +112,18 @@
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 
-  @media (max-width: 860px) {
-    .app { flex-direction: column; }
-    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
-    .rail-note, .rail-footer { display: none; }
-    .main { padding: 20px 16px 60px; }
-    .role-grid { grid-template-columns: 1fr; }
+  .rail-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 60; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 20px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.16); }
+  .rail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; }
+  @media (max-width: 1023px) {
+    .rail { width: 232px; flex: 0 0 232px; }
+  }
+  @media (max-width: 767px) {
+    .app { display: block; }
+    .rail-toggle { display: flex; }
+    .rail { position: fixed; top: 0; left: 0; width: 84vw; max-width: 300px; flex: none; height: 100vh; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 50; box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
+    .rail.open { transform: translateX(0); }
+    .rail.open ~ .rail-backdrop { display: block; }
+    .main { padding: 64px 16px 60px; }
   }
 </style>
 
@@ -124,7 +131,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <div class="app">
-  <aside class="rail">
+  <button class="rail-toggle" id="railToggle" aria-label="Menu">☰</button>
+  <aside class="rail" id="rail">
     <div class="rail-brand">
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
@@ -146,6 +154,7 @@
       Docs: Farm_Master_PRD_Stage1.docx Section 12, Farm_Master_IA_Stage2.docx Section 11.
     </div>
   </aside>
+  <div class="rail-backdrop" id="railBackdrop"></div>
 
   <main class="main">
     <div class="topbar">
@@ -162,7 +171,12 @@
 
 <script>
 (function () {
-  var API = "";
+    var railToggleBtn = document.getElementById("railToggle");
+  var railEl = document.getElementById("rail");
+  var railBackdropEl = document.getElementById("railBackdrop");
+  if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
+  if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
+var API = "";
   var ROLES = [
     { id: "farmer", label: "Farmer", sub: "Individual smallholder" },
     { id: "buyer", label: "Buyer", sub: "Institutional or private" },

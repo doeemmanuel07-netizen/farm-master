@@ -34,18 +34,30 @@ class Role(str, enum.Enum):
     LOGISTICS = "logistics"
     FINANCE = "finance"
     SUPER_ADMIN = "super_admin"
+    # Added 9 Sep 2026: splitting Internal Ops Staff out from Super Admin so
+    # real pilot staff can be onboarded into scoped roles instead of sharing
+    # the one Super Admin login. Each is a genuinely narrower slice of what
+    # Super Admin/Agronomist/Finance could already do, not a relabelling --
+    # see routers/dashboard.py, routers/agronomist.py, routers/mofa.py and
+    # routers/reconciliation.py for the exact endpoints each is granted.
+    OPERATIONS_COORDINATOR = "operations_coordinator"
+    COMPLIANCE_OFFICER = "compliance_officer"
 
 
 # Roles permitted to perform account/role administration and registration
 # approval. Deliberately excludes FINANCE -- this is the segregation-of-duties
 # rule from PRD Section 5: no role that can move money can also grant
-# permissions or approve accounts.
+# permissions or approve accounts. Also excludes the two Internal Ops Staff
+# roles below (9 Sep 2026) -- their whole point is scoped operational access
+# without account/role administration.
 ADMIN_ROLES = {Role.SUPER_ADMIN}
 
 # Roles permitted to perform financial actions (fee capture, settlement/
 # payout release). Deliberately excludes SUPER_ADMIN for release actions in
 # the general case, though Super Admin can still view everything via the
-# audit log -- visibility is not the same as authority to move money.
+# audit log -- visibility is not the same as authority to move money. Also
+# excludes COMPLIANCE_OFFICER (9 Sep 2026): read-only reconciliation
+# visibility for reporting, not authority to release money.
 FINANCE_ROLES = {Role.FINANCE}
 
 # The three portal roles that self-register (PRD Section 12) -- moved here
@@ -56,9 +68,13 @@ FINANCE_ROLES = {Role.FINANCE}
 # Single source of truth rather than two copies that could drift.
 SELF_REGISTER_ROLES = {Role.FARMER, Role.BUYER, Role.VENDOR}
 
-# The four roles Super-Admin-provisions directly (routers/admin.py's
-# POST /admin/users) rather than self-registering -- PRD Section 3.2.
-INTERNAL_ROLES = {Role.AGRONOMIST, Role.LOGISTICS, Role.FINANCE, Role.SUPER_ADMIN}
+# The roles Super-Admin-provisions directly (routers/admin.py's
+# POST /admin/users) rather than self-registering -- PRD Section 3.2,
+# extended 9 Sep 2026 with the two new Internal Ops Staff roles.
+INTERNAL_ROLES = {
+    Role.AGRONOMIST, Role.LOGISTICS, Role.FINANCE, Role.SUPER_ADMIN,
+    Role.OPERATIONS_COORDINATOR, Role.COMPLIANCE_OFFICER,
+}
 
 
 class UserStatus(str, enum.Enum):

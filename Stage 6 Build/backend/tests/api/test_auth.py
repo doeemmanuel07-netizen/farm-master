@@ -97,7 +97,10 @@ def test_vendor_registration_rejected_leaves_account_suspended(client, rate_conf
     assert "suspended" in login_res.json()["detail"].lower()
 
 
-@pytest.mark.parametrize("role", ["agronomist", "logistics", "finance", "super_admin"])
+@pytest.mark.parametrize("role", [
+    "agronomist", "logistics", "finance", "super_admin",
+    "operations_coordinator", "compliance_officer",
+])
 def test_internal_roles_cannot_self_register(client, rate_config, role):
     res = client.post("/auth/register", json={
         "email": unique_email(role), "phone": "+233241111114", "full_name": "Sneaky Internal",

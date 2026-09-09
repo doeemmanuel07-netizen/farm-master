@@ -12,6 +12,14 @@ requirement's tonnage evenly across them -- a documented placeholder for
 real per-farm allocation logic, same PROVISIONAL treatment as the other
 Stage 6 config values (PRD Section 10) -- and moves the requirement out of
 the "needs review" state.
+
+The three Matching Queue endpoints (list_requirements, list_candidate_
+farmers, assign_farmers) are also open to Role.OPERATIONS_COORDINATOR as
+of 9 Sep 2026 -- the new Pilot Operations Coordinator / Field-Farmer
+Liaison role's real job is exactly this matching duty. Formula Builder,
+Field Visit Logs, and Messaging below stay Agronomist-only: those are
+crop-science duties the Coordinator role was never asked to cover, not an
+oversight.
 """
 
 from typing import List
@@ -131,7 +139,7 @@ def _formula_builder_view(req: BuyerRequirement, db: Session) -> FormulaBuilderR
 @router.get("/requirements", response_model=List[AgronomistRequirementResponse])
 def list_requirements(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.AGRONOMIST)),
+    user: User = Depends(require_roles(Role.AGRONOMIST, Role.OPERATIONS_COORDINATOR)),
 ):
     reqs = (
         db.query(BuyerRequirement)
@@ -145,7 +153,7 @@ def list_requirements(
 @router.get("/farmers", response_model=List[FarmerCandidateResponse])
 def list_candidate_farmers(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.AGRONOMIST)),
+    user: User = Depends(require_roles(Role.AGRONOMIST, Role.OPERATIONS_COORDINATOR)),
 ):
     return (
         db.query(User)
@@ -160,7 +168,7 @@ def assign_farmers(
     requirement_id: str,
     payload: AssignFarmersRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.AGRONOMIST)),
+    user: User = Depends(require_roles(Role.AGRONOMIST, Role.OPERATIONS_COORDINATOR)),
 ):
     req = db.query(BuyerRequirement).filter(BuyerRequirement.id == requirement_id).first()
     if not req:

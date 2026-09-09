@@ -13,6 +13,12 @@ needs at least one CONFIRMED vendor request against this order. Releasing
 an order with nothing to release, or releasing twice, is a 409 --
 reconciliation should never silently record money moving that has no real
 source.
+
+The two read-only routes (list_orders, get_order) are also open to
+Role.COMPLIANCE_OFFICER as of 9 Sep 2026 -- the new Compliance/Reporting
+Officer role needs order/delivery visibility to produce its MoFA reports,
+but never the authority to release money. Both release-* routes below
+stay Role.FINANCE-only.
 """
 
 from typing import List
@@ -61,7 +67,7 @@ def _buyer_name(req: BuyerRequirement) -> str:
 @router.get("", response_model=List[OrderReconciliationSummary])
 def list_orders(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.FINANCE)),
+    user: User = Depends(require_roles(Role.FINANCE, Role.COMPLIANCE_OFFICER)),
 ):
     reqs = db.query(BuyerRequirement).filter(BuyerRequirement.status.in_(RECONCILABLE_STATUSES)).all()
     out = []
@@ -85,7 +91,7 @@ def list_orders(
 def get_order(
     buyer_requirement_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.FINANCE)),
+    user: User = Depends(require_roles(Role.FINANCE, Role.COMPLIANCE_OFFICER)),
 ):
     req = _requirement_or_404(db, buyer_requirement_id)
     figures = compute_figures(db, req)

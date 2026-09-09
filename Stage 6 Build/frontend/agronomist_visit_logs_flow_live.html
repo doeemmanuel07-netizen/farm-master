@@ -39,10 +39,7 @@
   .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
   .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
   .rail-note b { color: var(--ink); }
-  .device-toggle { display: flex; gap: 4px; margin-bottom: 16px; }
-  .device-btn { flex: 1; font-size: 10px; font-weight: 700; text-align: center; padding: 7px 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--muted); cursor: pointer; min-height: 44px; }
-  .device-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+.rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
 
   .flow-steps { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
   .flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); min-height: 44px; }
@@ -64,14 +61,8 @@
   .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
   .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
   .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
-  .viewport-label { font-size: 11px; color: var(--faint); margin-bottom: 10px; font-weight: 600; }
-
-  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; transition: max-width 0.15s ease; }
-  .canvas.device-desktop { max-width: 1040px; }
-  .canvas.device-tablet { max-width: 834px; }
-  .canvas.device-phone { max-width: 390px; }
-
-  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
+.canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; width: 100%; max-width: 1040px; }
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
   .app-header .logo { display: flex; align-items: center; gap: 9px; }
   .app-header .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 12px; }
   .app-header .logo .word { font-size: 13.5px; font-weight: 800; }
@@ -143,11 +134,18 @@
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 
-  @media (max-width: 860px) {
-    .app { flex-direction: column; }
-    .rail { width: 100%; flex: none; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); padding: 14px 16px; }
-    .rail-note, .rail-footer { display: none; }
-    .main { padding: 20px 16px 60px; }
+  .rail-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 60; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 20px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.16); }
+  .rail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; }
+  @media (max-width: 1023px) {
+    .rail { width: 232px; flex: 0 0 232px; }
+  }
+  @media (max-width: 767px) {
+    .app { display: block; }
+    .rail-toggle { display: flex; }
+    .rail { position: fixed; top: 0; left: 0; width: 84vw; max-width: 300px; flex: none; height: 100vh; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 50; box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
+    .rail.open { transform: translateX(0); }
+    .rail.open ~ .rail-backdrop { display: block; }
+    .main { padding: 64px 16px 60px; }
   }
 </style>
 
@@ -155,7 +153,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <div class="app">
-  <aside class="rail">
+  <button class="rail-toggle" id="railToggle" aria-label="Menu">☰</button>
+  <aside class="rail" id="rail">
     <div class="rail-brand">
       <span class="name">FARM MASTER</span>
       <span class="stage">Stage 6</span>
@@ -167,11 +166,6 @@
       <b>Added 8 Sep 2026.</b> Closes a gap this session's own completeness audit surfaced -- in the confirmed IA/wireframe scope from day one, never previously built. Offline-tolerant capture is structure-only for the pilot (Stage 3 wireframe caption).
     </div>
 
-    <div class="device-toggle" id="deviceToggle">
-      <div class="device-btn" data-device="desktop">Desktop</div>
-      <div class="device-btn" data-device="tablet">Tablet</div>
-      <div class="device-btn" data-device="phone">Phone</div>
-    </div>
 
     <div class="rail-group-label">Flow</div>
     <div class="flow-steps" id="flowSteps"></div>
@@ -183,6 +177,7 @@
       Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.
     </div>
   </aside>
+  <div class="rail-backdrop" id="railBackdrop"></div>
 
   <main class="main">
     <div class="topbar">
@@ -193,14 +188,18 @@
       </div>
       <div class="screen-tag" id="screen-tag">STEP 1 / 4</div>
     </div>
-    <div class="viewport-label" id="viewport-label"></div>
-    <div class="canvas device-desktop" id="canvas"></div>
+    <div class="canvas" id="canvas"></div>
   </main>
 </div>
 
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Matching", "Visit Logs", "Messaging"];
+    var railToggleBtn = document.getElementById("railToggle");
+  var railEl = document.getElementById("rail");
+  var railBackdropEl = document.getElementById("railBackdrop");
+  if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
+  if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
+var PORTAL_NAV = ["Dashboard", "Matching", "Visit Logs", "Messaging"];
   var API = "";
 
   var state = {
@@ -467,22 +466,9 @@
 
   document.getElementById("restartBtn").addEventListener("click", function () {
     state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", visits: [], farmers: [], messages: [], step: "login" };
-    setDevice("desktop");
     render();
   });
 
-  var DEVICE_LABEL = {
-    desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)",
-    tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)",
-    phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)"
-  };
-  function setDevice(d) {
-    document.getElementById("canvas").className = "canvas device-" + d;
-    document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); });
-    document.getElementById("viewport-label").textContent = DEVICE_LABEL[d];
-  }
-  document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
-  setDevice("desktop");
   render();
 })();
 </script>

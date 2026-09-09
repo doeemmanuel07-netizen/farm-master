@@ -197,6 +197,10 @@ ROLE_SCOPE_LABEL = {
     Role.LOGISTICS: "Dispatch, proof of pickup/delivery — no financial data",
     Role.FINANCE: "Reconciliation, reporting, MoFA export — no account/role admin",
     Role.SUPER_ADMIN: "Accounts, roles, registration approval, audit log — all four portals",
+    # Added 9 Sep 2026: Internal Ops Staff, split out from Super Admin so
+    # real pilot staff aren't all sharing the one Super Admin login.
+    Role.OPERATIONS_COORDINATOR: "Control Centre: Matching Queue only — no account/role admin",
+    Role.COMPLIANCE_OFFICER: "Control Centre: MoFA compliance report + read-only reconciliation — no fee capture or release authority",
 }
 
 
@@ -246,7 +250,8 @@ def create_internal_user(
     if payload.role not in INTERNAL_ROLES:
         raise HTTPException(
             status_code=422,
-            detail="Only internal roles (Agronomist, Logistics, Finance, Super Admin) can be "
+            detail="Only internal roles (Agronomist, Logistics, Finance, Super Admin, "
+                   "Pilot Operations Coordinator, Compliance/Reporting Officer) can be "
                    "created here -- Farmer/Buyer/Vendor self-register.",
         )
     if db.query(User).filter(User.email == payload.email).first():

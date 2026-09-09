@@ -16,10 +16,7 @@
   .pilot-chip { display:inline-flex; gap:6px; align-items:center; font-size:11px; font-weight:700; color:var(--primary); background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:5px 10px; margin-bottom:16px; }
   .pilot-chip .dot { width:6px; height:6px; border-radius:50%; background:var(--gold); flex:none; }
   .rail-note { font-size:11.5px; line-height:1.5; color:var(--muted); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 11px; margin-bottom:14px; }
-  .device-toggle { display:flex; gap:4px; margin-bottom:16px; }
-  .device-btn { flex:1; font-size:10px; font-weight:700; text-align:center; padding:7px 4px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--muted); cursor:pointer; min-height:44px; }
-  .device-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
-  .rail-group-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; margin:4px 2px 6px; }
+.rail-group-label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--faint); font-weight:700; margin:4px 2px 6px; }
   .flow-steps { display:flex; flex-direction:column; gap:3px; margin-bottom:16px; }
   .flow-step { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; font-size:13px; font-weight:600; color:var(--faint); min-height:44px; }
   .flow-step .dot { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); flex:none; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:var(--faint); background:var(--surface); }
@@ -35,10 +32,8 @@
   .topbar .crumb { font-size:11.5px; color:var(--faint); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
   .topbar .desc { font-size:13px; color:var(--muted); max-width:62ch; margin-top:6px; }
   .screen-tag { font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--primary); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 10px; white-space:nowrap; }
-  .viewport-label { font-size:11px; color:var(--faint); margin-bottom:10px; font-weight:600; }
-  .canvas { background:var(--bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; container-type:inline-size; }
-  .canvas.device-desktop { max-width:1040px; } .canvas.device-tablet { max-width:834px; } .canvas.device-phone { max-width:390px; }
-  .app-header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; background:var(--primary); color:#fff; }
+.canvas { background:var(--bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; container-type:inline-size; width: 100%; max-width: 1040px; }
+.app-header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; background:var(--primary); color:#fff; }
   .app-header .logo { display:flex; align-items:center; gap:9px; }
   .app-header .logo .mark { width:26px; height:26px; border-radius:6px; background:var(--gold); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--primary-dark); font-size:12px; }
   .app-header .logo .word { font-size:13.5px; font-weight:800; }
@@ -69,30 +64,48 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   .inline-alert { display:none; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--danger); background:color-mix(in srgb,var(--danger) 10%,transparent); border:1px solid color-mix(in srgb,var(--danger) 35%,transparent); border-radius:8px; padding:10px 12px; margin-top:12px; }
   .inline-alert.show { display:flex; }
-  @media (max-width:860px) { .app { flex-direction:column; } .rail { width:100%; flex:none; height:auto; position:static; border-right:none; border-bottom:1px solid var(--border); padding:14px 16px; } .rail-note,.rail-footer{display:none;} .main{padding:20px 16px 60px;} }
+  .rail-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 60; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 20px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.16); }
+  .rail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; }
+  @media (max-width: 1023px) {
+    .rail { width: 232px; flex: 0 0 232px; }
+  }
+  @media (max-width: 767px) {
+    .app { display: block; }
+    .rail-toggle { display: flex; }
+    .rail { position: fixed; top: 0; left: 0; width: 84vw; max-width: 300px; flex: none; height: 100vh; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 50; box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
+    .rail.open { transform: translateX(0); }
+    .rail.open ~ .rail-backdrop { display: block; }
+    .main { padding: 64px 16px 60px; }
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <div class="app">
-  <aside class="rail">
+  <button class="rail-toggle" id="railToggle" aria-label="Menu">☰</button>
+  <aside class="rail" id="rail">
     <div class="rail-brand"><span class="name">FARM MASTER</span><span class="stage">Stage 6</span></div>
     <div class="rail-sub">Registration Approval Queue &amp; Audit Log — Live Backend</div>
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
     <div class="rail-note"><b>Added 8 Sep 2026.</b> Approvals split out of its inline location on User &amp; Role Admin into its own dedicated screen, per the original IA (Stage 4 visual id "approvals"). Audit Log gets its first real browsing UI -- GET /admin/audit-log already existed and returned real data, but nothing displayed it. Both reuse existing, already-audited endpoints -- no new backend logic.</div>
-    <div class="device-toggle" id="deviceToggle"><div class="device-btn" data-device="desktop">Desktop</div><div class="device-btn" data-device="tablet">Tablet</div><div class="device-btn" data-device="phone">Phone</div></div>
     <div class="rail-group-label">Flow</div><div class="flow-steps" id="flowSteps"></div>
     <button class="restart-btn" id="restartBtn">↺ Restart flow (new login)</button>
     <div class="rail-footer">Backend: Stage 6 Build/backend (FastAPI + PostgreSQL).<br>Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.</div>
   </aside>
+  <div class="rail-backdrop" id="railBackdrop"></div>
+
   <main class="main">
     <div class="topbar"><div><h1 id="screen-title">—</h1><div class="crumb">Internal Operations / <span id="screen-crumb">—</span></div><div class="desc" id="screen-desc"></div></div><div class="screen-tag" id="screen-tag">STEP 1 / 3</div></div>
-    <div class="viewport-label" id="viewport-label"></div>
-    <div class="canvas device-desktop" id="canvas"></div>
+    <div class="canvas" id="canvas"></div>
   </main>
 </div>
 <script>
 (function () {
-  var PORTAL_NAV = ["Dashboard", "Admin", "Approvals", "Audit Log"];
+    var railToggleBtn = document.getElementById("railToggle");
+  var railEl = document.getElementById("rail");
+  var railBackdropEl = document.getElementById("railBackdrop");
+  if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
+  if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
+var PORTAL_NAV = ["Dashboard", "Admin", "Approvals", "Audit Log"];
   var API = "";
   var state = { token: null, email: "emmanuel@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", regs: [], auditLog: [], step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "approvals", label: "Approval Queue" }, { id: "auditlog", label: "Audit Log" }];
@@ -204,10 +217,7 @@
       });
     });
   }
-  document.getElementById("restartBtn").addEventListener("click", function () { state = { token: null, email: "emmanuel@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", regs: [], auditLog: [], step: "login" }; setDevice("desktop"); render(); });
-  var DEVICE_LABEL = { desktop: "Simulated viewport: 1040px — Desktop (≥ 1024px)", tablet: "Simulated viewport: 834px — Tablet (768–1023px, iPad / Android tablet)", phone: "Simulated viewport: 390px — Phone (< 768px, iPhone / Android)" };
-  function setDevice(d) { document.getElementById("canvas").className = "canvas device-" + d; document.querySelectorAll(".device-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.device === d); }); document.getElementById("viewport-label").textContent = DEVICE_LABEL[d]; }
-  document.querySelectorAll(".device-btn").forEach(function (b) { b.addEventListener("click", function () { setDevice(b.dataset.device); }); });
-  setDevice("desktop"); render();
+  document.getElementById("restartBtn").addEventListener("click", function () { state = { token: null, email: "emmanuel@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", regs: [], auditLog: [], step: "login" }; render(); });
+  render();
 })();
 </script>

@@ -212,6 +212,9 @@ The first run creates the tables in `farm_master` and seeds:
   - `kojo.mensah@farmmaster.test` — Farmer (Kojo Mensah)
   - `ama.serwaa@farmmaster.test` — Farmer (Ama Serwaa)
   - `vendor@farmmaster.test` — Vendor (Kwame's Agro Supplies)
+  - `ops.coordinator@farmmaster.test` — Pilot Operations Coordinator (Nana Yeboah)
+  - `fleet.coordinator@farmmaster.test` — Logistics/Fleet Coordinator (Kwesi Ankrah, Role.LOGISTICS)
+  - `compliance.officer@farmmaster.test` — Compliance/Reporting Officer (Adjoa Frimpong)
 - The six provisional rate config rows from PRD Section 10 and this pass
   (buyer commitment fee, vendor service fee, the three formula-scaling
   constants, and `trading_margin_pct`) — all marked `PROVISIONAL` (the last
@@ -600,6 +603,53 @@ touch targets) — fixed in `frontend/ussd_sms_flow_live.html` by adding
 a test-infrastructure bug, fixed without changing any app behaviour — see
 TEST_PLAN.md, "Bugs found during Stage 7," for the full list and how each
 was diagnosed.
+
+## Roles & Access (Internal Operations)
+
+Split 9 September 2026 so real pilot staff can be onboarded into scoped
+roles instead of everyone sharing the Super Admin login. All nine roles
+sign in the same way (two-step OTP); the table below is what each one can
+reach once logged in. Full reasoning, including which of the four
+requested roles turned out to already exist under a different name, is in
+`Farm_Master_SDD_Stage6.docx` Section 29.
+
+| Role | Seeded account | Control Centre | Other access | Cannot do |
+|---|---|---|---|---|
+| Super Admin | `emmanuel@farmmaster.test` | Full tiles | User & Role Admin, Registration Approval, Audit Log, Rate config | Release a financial settlement/payout directly (Finance-only) |
+| Pilot Operations Coordinator | `ops.coordinator@farmmaster.test` | Matching-queue tiles | Matching Queue (`/agronomist/requirements`, `/agronomist/farmers`, assign) | Formula Builder, visit logs, messaging (stay Agronomist-only); User & Role Admin; any admin/finance route |
+| Logistics/Fleet Coordinator | `fleet.coordinator@farmmaster.test` (Role.LOGISTICS — already existed under this name) | Dispatch/fleet tiles | Dispatch queue, trunking/fleet tracking, proof of pickup/delivery | Matching Queue; any admin/finance route |
+| Compliance/Reporting Officer | `compliance.officer@farmmaster.test` | Compliance-report tile | MoFA compliance report (list + CSV/PDF export), read-only Order Reconciliation | Release settlement/payout; MoFA import-records; Matching Queue; Logistics; any admin route |
+| Agronomist | `agronomist@farmmaster.test` | Matching/visits/messages tiles | Matching Queue, Formula Builder, Field Visit Logs, Messaging | Account/role admin |
+| Finance | `finance@farmmaster.test` | Reconciliation tiles | Full Order Reconciliation (incl. release), MoFA (incl. import), Reporting Dashboard | Account/role admin |
+
+Every login is `password123` (dev-only). Reach Control Centre at
+`/control-centre-flow`, User & Role Admin at `/user-admin-flow` (Super
+Admin only). Each boundary above was verified live, not just read from
+the code — logged in as each new/reused role and confirmed both the
+expected 200s and the expected 403s in the same session.
+
+## Responsive design
+
+Every flow page renders correctly at Desktop (≥1024px), Tablet
+(768-1023px), and Phone (<768px) automatically — real CSS reacting to
+the real browser viewport, no manual toggle or dev-tools requirement.
+**To verify:** open any `-flow` URL and resize the browser window. Above
+1024px the full rail sidebar shows; between 768-1023px it narrows but
+stays visible; below 768px it collapses behind a hamburger button
+(top-left) that opens as a sliding drawer over a dimmed backdrop, closing
+on a second tap or a tap on the backdrop. If you prefer dev tools: open
+them, toggle responsive/device-toolbar mode, and drag to any width or
+pick a device preset — there's nothing in the page itself to reset
+afterward.
+
+The Desktop/Tablet/Phone buttons that used to appear in the rail (a
+review convenience that simulated a frame width via JS rather than
+reading the real viewport) were removed 9 September 2026 — they were
+masking the real bug: the canvas's own CSS container queries were always
+correctly keyed to 767px/1023px, but the canvas's width was pinned by
+the toggle instead of tracking the actual window. See
+`Farm_Master_SDD_Stage6.docx` Section 30 for the full before/after and
+verification detail.
 
 ## Known limitations of this pass
 

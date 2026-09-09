@@ -96,7 +96,10 @@ def test_users_list_splits_internal_and_external_correctly(client, roles, rate_c
     listing = client.get("/admin/users", headers=auth_headers(token)).json()
     internal_roles = {u["role"] for u in listing["internal"]}
     external_roles = {u["role"] for u in listing["external"]}
-    assert internal_roles.issubset({"agronomist", "logistics", "finance", "super_admin"})
+    assert internal_roles.issubset({
+        "agronomist", "logistics", "finance", "super_admin",
+        "operations_coordinator", "compliance_officer",
+    })
     assert external_roles.issubset({"farmer", "buyer", "vendor"})
 
 

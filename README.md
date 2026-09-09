@@ -215,6 +215,46 @@ without changing any app behaviour; see TEST_PLAN.md for the full,
 honest account of each. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
 "Running the test suite" for how to run it yourself.
 
+**Internal Ops Staff roles (9 September 2026).** Before onboarding real
+pilot staff, Control Centre access was split into scoped roles instead of
+every internal user sharing the one Super Admin login. Worth noting: the
+premise that only Super Admin could reach Control Centre wasn't accurate
+even before this change — Agronomist, Logistics, and Finance have had
+their own role-scoped tiles there since the 8 September 2026 pass. Two
+genuinely new roles were added on top of the existing seven: **Pilot
+Operations Coordinator** (Matching Queue access — assigning farmers to
+buyer requirements — without Formula Builder, visit logs, messaging, or
+any account/role administration) and **Compliance/Reporting Officer**
+(MoFA compliance report generation plus read-only order/reconciliation
+visibility, without fee capture or settlement/payout release authority).
+**Logistics/Fleet Coordinator** reuses the existing Logistics role
+unchanged — its scope (dispatch, delivery status, fleet tracking, no
+farmer/buyer matching, no admin) already matched exactly, so no new role
+was needed, only a persona-named seed account. Full detail, including why
+farmer "onboarding approval" isn't a real gate in this codebase (farmer
+accounts activate automatically on OTP verification — only Buyer/Vendor
+registrations go through Super Admin review), is in
+[Farm_Master_SDD_Stage6.docx](Farm_Master_SDD_Stage6.docx) Section 29.
+
+**Real automatic responsive design (9 September 2026).** The manual
+Desktop/Tablet/Phone preview toggle every flow page shipped with since
+Stage 6 is gone. Layouts now respond to the browser's actual width, the
+same as any production site — no toggle, no dev-tools requirement, no
+approximation. The existing `@container` breakpoints (767px/1023px) were
+always correct; the bug was that the canvas's width was pinned by the
+toggle's JS-set class instead of tracking the real viewport, so it never
+saw those breakpoints on an actual device. Fixed by making the canvas
+fluid, and by replacing the old one-off 860px "flatten the sidebar" rule
+with a real hamburger-triggered off-canvas drawer for the rail navigation
+below 768px, matching this codebase's own breakpoint convention. Verified
+live (not just read from the CSS) across all 23 flow pages at 375/800/1280px
+real browser widths — see [Farm_Master_SDD_Stage6.docx](Farm_Master_SDD_Stage6.docx)
+Section 30 for the full account, including which single file needed an
+extra fix. **To check it yourself:** just drag the browser window
+narrower on any flow page — the rail sidebar should narrow, then (below
+roughly 768px) collapse behind a hamburger button that opens as a sliding
+drawer.
+
 ## Tech stack
 
 **Backend: Python 3.12 + FastAPI + SQLAlchemy + PostgreSQL 17.** Both
