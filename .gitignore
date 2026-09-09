@@ -5,3 +5,9 @@ Stage 6 Build/backend/app/__pycache__/
 Stage 6 Build/backend/app/routers/__pycache__/
 **/__pycache__/
 *.pyc
+
+# Stage 7 Testing — generated test artifacts, not source
+Stage 6 Build/backend/tests/e2e/_live_server.log
+Stage 6 Build/backend/.coverage
+Stage 6 Build/backend/htmlcov/
+Stage 6 Build/backend/.pytest_cache/

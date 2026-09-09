@@ -1,0 +1,9 @@
+# Stage 7 Testing -- dev/test-only dependencies, kept separate from
+# requirements.txt so production installs stay lean. See
+# "Stage 6 Build/TEST_PLAN.md" for what each layer covers.
+-r requirements.txt
+pytest
+pytest-cov
+httpx
+playwright
+pytest-playwright

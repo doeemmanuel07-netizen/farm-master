@@ -521,6 +521,86 @@ recovery path to dial back in.
 Or just open any of the `-flow` pages above and click through — every step
 is a real network call to the backend, not a simulation.
 
+## Running the test suite
+
+Stage 7 (9 September 2026) replaced the manual verification above with an
+automated suite: 575 tests, 88% statement coverage on `app/`. See
+[TEST_PLAN.md](TEST_PLAN.md) for the full layer breakdown and the
+PRD-Must-Have/screen-by-screen traceability matrix.
+
+### One-time setup: the test database
+
+Tests run against a second, real PostgreSQL database — `farm_master_test`
+— kept completely separate from the `farm_master` dev database above, so
+running tests never touches your local dev/demo data. Create it once, as
+the Postgres superuser, after granting the `farmmaster` role permission to
+create databases:
+
+```sql
+ALTER ROLE farmmaster WITH CREATEDB;
+CREATE DATABASE farm_master_test OWNER farmmaster;
+```
+
+Docker/CI wiring for this database is deliberately deferred — a real local
+Postgres instance is all the current suite needs or assumes.
+
+### Install the dev dependencies
+
+```bash
+cd "Stage 6 Build/backend"
+python -m pip install -r requirements-dev.txt
+python -m playwright install chromium
+```
+
+`requirements-dev.txt` layers `pytest`, `pytest-cov`, `httpx`, `playwright`,
+and `pytest-playwright` on top of `requirements.txt`. The Playwright
+browser install is a one-time step (downloads Chromium; only needed for
+the E2E layer).
+
+### Run it
+
+```bash
+# Unit tests -- shared computation modules in isolation, no database
+python -m pytest tests/unit
+
+# API/integration + RBAC matrix + simulated-integration tests -- real
+# Postgres (farm_master_test), one rolled-back transaction per test
+python -m pytest tests/api
+
+# End-to-end -- a real uvicorn server + Playwright/Chromium, all 24 screens
+python -m pytest tests/e2e
+
+# Everything, with coverage
+python -m pytest --cov=app --cov-report=term-missing --cov-report=html
+```
+
+`tests/e2e` starts and stops its own uvicorn subprocess per session and
+resets `farm_master_test`'s schema before running, so it's safe to run
+repeatedly without any manual cleanup. The E2E layer is the slowest
+(around 20-25 seconds for 46 tests plus browser startup); `tests/unit` and
+`tests/api` together (529 tests) typically finish in a few minutes.
+
+Coverage HTML lands in `htmlcov/index.html` (gitignored, local artifact
+only). Current result: **575 passed, 88% coverage** on `app/` — the two
+largest reported gaps, `app/seed.py` (8%) and a handful of `app/main.py`
+route-registration lines, are demo-data bootstrapping and framework wiring
+respectively, both exercised for real by the E2E layer running against a
+separate uvicorn subprocess whose execution coverage.py doesn't attribute
+back to the pytest process.
+
+### What testing found
+
+One real application defect, found and fixed, not merely flagged: the
+USSD phone emulator's input field and Send button were under the 44px
+touch-target minimum at 375px (missed by the manual responsive passes
+below, which checked the emulator for overflow but not independently for
+touch targets) — fixed in `frontend/ussd_sms_flow_live.html` by adding
+`min-height:44px` (and `min-width` on the button) to `.phone-keys input`/
+`.phone-keys button`. Every other issue found while building the suite was
+a test-infrastructure bug, fixed without changing any app behaviour — see
+TEST_PLAN.md, "Bugs found during Stage 7," for the full list and how each
+was diagnosed.
+
 ## Known limitations of this pass
 
 - Mobile money payment is simulated (marked successful immediately, no real

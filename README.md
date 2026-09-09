@@ -26,8 +26,9 @@ Following the 9-stage workflow in
 | 3 — Low-Fi Wireframes | ✅ All four portals + USSD/SMS flow |
 | 4 — Visual UI Design | ✅ Deep Green & Maize Gold system, all four portals |
 | 5 — Interactive Prototype | ✅ All three highest-stakes flows built and tested |
-| 6 — Build (Real Code) | 🔶 **In progress** — see below |
-| 7–9 | Not started |
+| 6 — Build (Real Code) | ✅ Complete — see below |
+| 7 — Testing | ✅ Complete — see below |
+| 8–9 | Not started |
 
 **Stage 6 so far:** a real backend (RBAC across 7 roles, audit logging,
 Finance/Super Admin segregation of duties, all foundational rather than
@@ -194,6 +195,26 @@ for the full writeup. This check is mandatory for every new screen going
 forward, not retrofitted after — and, per this pass, applies again
 whenever an existing screen is substantively re-touched.
 
+**Stage 7 — Testing (9 September 2026, complete).** Every claim above is
+now backed by an automated test suite rather than only narrative
+verification: 575 tests (pytest for unit/API/RBAC/simulated-integration,
+Playwright for end-to-end across all 24 Stage 6 screens), 88% statement
+coverage on the backend, run against a real PostgreSQL test database
+(`farm_master_test`), not mocks or SQLite. Full traceability — every PRD
+Must-Have and every one of the 24 screens mapped to its specific test — is
+in [Stage 6 Build/TEST_PLAN.md](Stage%206%20Build/TEST_PLAN.md). One real
+application defect was found and fixed during this pass: the USSD phone
+emulator's input field and Send button fell under the 44px touch-target
+minimum at 375px (missed by the manual responsive passes above, which
+checked the emulator for overflow but not independently for touch
+targets). Every other issue found while building the suite was a
+test-infrastructure bug (a blocked subprocess pipe, an async-render race
+in a test helper, a wrong row selector, a fabricated foreign key, a false
+positive in a source scan, a wrong file path, a blind timeout) — fixed
+without changing any app behaviour; see TEST_PLAN.md for the full,
+honest account of each. See [Stage 6 Build/README.md](Stage%206%20Build/README.md)
+"Running the test suite" for how to run it yourself.
+
 ## Tech stack
 
 **Backend: Python 3.12 + FastAPI + SQLAlchemy + PostgreSQL 17.** Both
@@ -276,8 +297,10 @@ Farm_Master_SDD_Stage6.docx                     Stage 6 deliverable
 Farm_Master_API_Documentation_Stage6.docx       Stage 6 deliverable
 Stage 6 Build/                                  Stage 6 deliverable — the actual app
   backend/    FastAPI app, models, routers
+  backend/tests/  Stage 7 automated test suite (unit, API, RBAC, e2e)
   frontend/   Live HTML pages calling the backend
   README.md   Setup, env vars, manual verification steps
+  TEST_PLAN.md  Stage 7 deliverable — test plan & traceability matrix
 ```
 
 ## Key documents
@@ -287,4 +310,5 @@ Stage 6 Build/                                  Stage 6 deliverable — the actu
 - [Style Guide (Stage 4)](Farm_Master_Style_Guide_Stage4.docx) — color/type/component system, and the running log of what's built
 - [Software/System Design Document (Stage 6)](Farm_Master_SDD_Stage6.docx) — architecture, database schema, RBAC, audit logging
 - [API Documentation (Stage 6)](Farm_Master_API_Documentation_Stage6.docx) — endpoint reference
-- [Stage 6 Build/README.md](Stage%206%20Build/README.md) — setup, environment variables, manual verification
+- [Stage 6 Build/TEST_PLAN.md](Stage%206%20Build/TEST_PLAN.md) — Stage 7 test plan & traceability matrix
+- [Stage 6 Build/README.md](Stage%206%20Build/README.md) — setup, environment variables, manual verification, running the test suite
