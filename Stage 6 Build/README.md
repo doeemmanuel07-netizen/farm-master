@@ -74,6 +74,44 @@ stay Super-Admin-provisioned and only see the OTP step at login. Delivery
 is SIMULATED (see "Known limitations") -- both codes come back in the API
 response instead of an actual SMS/email being sent.
 
+**Consolidated to email-only, 10 September 2026** (see "Session &
+inactivity logout" below for the other half of this pass): the phone
+channel is gone entirely -- `OtpChallenge.phone_code` was dropped via
+`ALTER TABLE`, not just left unused, and `VerifyOtpRequest`/
+`OtpChallengeResponse` no longer carry it. One code, one field, on every
+Verify OTP screen.
+
+## Session & inactivity logout (10 September 2026)
+
+Two related problems, both from testing: clicking a header nav link was
+signing the user out (each `-flow` page is its own static file with its
+own in-memory `state.token`, reset fresh on every page load -- real
+navigation to another file had never had anything to restore from), and
+there was no session timeout of any kind. Fixed together:
+
+- Login now persists in `localStorage` (`farmmaster_session`: the JWT
+  plus a `lastActivityAt` timestamp) across real page navigation, not
+  just in memory. The exact "what happens right after a successful OTP
+  verify" logic -- fetch whatever that screen fetches, land on the first
+  real step, render -- is the same `completeAuth()` function whether it
+  runs after a genuine OTP success or because a page load found a still-
+  valid session.
+- A real 10-minute inactivity timeout: `mousemove`/`keydown`/`click`/
+  `scroll`/`touchstart` all touch the session (throttled to once per 5s),
+  and a 15-second interval check logs out a user who never navigates
+  away at all, not just one who does.
+- The "Restart flow" button clears the persisted session too, not just
+  the in-memory `state` object -- otherwise a deliberate logout wouldn't
+  actually log out.
+- **Real bug found and fixed while testing this**: a session persisted
+  under one role, then loading a page gated to a *different* role, sent
+  `completeAuth()`'s API call into a real 403 with no `.catch` on the
+  session-restore path -- an unhandled promise rejection that left the
+  screen permanently blank (title/crumb never set) instead of falling
+  back to a fresh login. Every session-restore `completeAuth()` call now
+  has a `.catch` that clears the invalid session and shows the login
+  screen.
+
 A full responsive QA pass (5 September 2026) checked every flow at
 desktop/tablet/phone and found a systemic bug -- see "Known limitations."
 
@@ -305,10 +343,11 @@ Run the server, then:
 curl -s -X POST http://127.0.0.1:8000/auth/login -H "Content-Type: application/json" \
   -d '{"email":"buyer@farmmaster.test","password":"password123"}'
 
-# Verify with the dev_only_phone_code/dev_only_email_code from that response
-# to get the real access_token:
+# Verify with the dev_only_email_code from that response to get the real
+# access_token (email-only as of 10 Sep 2026 -- see "Session & inactivity
+# logout" above):
 curl -s -X POST http://127.0.0.1:8000/auth/login/verify-otp -H "Content-Type: application/json" \
-  -d '{"challenge_id":"<from above>","phone_code":"<from above>","email_code":"<from above>"}'
+  -d '{"challenge_id":"<from above>","email_code":"<from above>"}'
 
 # RBAC: a farmer token gets 403 on a buyer-only route
 # Segregation of duties: a finance token gets 403 on any /admin/* route

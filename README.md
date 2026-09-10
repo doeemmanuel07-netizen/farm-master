@@ -115,6 +115,19 @@ treatment as mobile money: no SMS/email provider is chosen yet, so both
 OTP codes are returned directly in the API response instead of actually
 being sent.
 
+**Consolidated to email-only 10 September 2026** for user-friendliness —
+one code to read and enter instead of two. The `phone_code` column,
+field, and request parameter are gone, not just unused; every OTP
+screen across all 23 live flow pages now shows a single Email OTP code
+field. Same session, also fixed: navigating the header nav no longer
+signs a user out (login now persists across page loads via
+`localStorage`, with a real 10-minute inactivity timeout replacing
+"logged out on every click"). See
+[Farm_Master_SDD_Stage6.docx](Farm_Master_SDD_Stage6.docx) Section 31
+for the full account, including one real bug found while building this
+(a stale cross-role session breaking a page blank instead of falling
+back to login, now fixed).
+
 **8 September 2026 — 24 items closed in one pass.** This session ran its
 own fresh completeness audit against the confirmed Stage 1-6 documents
 (rather than trusting prior session notes) and found the actual
