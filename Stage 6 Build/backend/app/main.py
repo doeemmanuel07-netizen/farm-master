@@ -20,6 +20,8 @@ from .routers import mofa as mofa_router
 from .routers import reporting as reporting_router
 from .routers import dashboard as dashboard_router
 from .routers import ussd as ussd_router
+from .routers import listings as listings_router
+from .uploads import UPLOADS_DIR
 
 app = FastAPI(
     title="Farm Master API",
@@ -49,6 +51,7 @@ app.include_router(mofa_router.router)
 app.include_router(reporting_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(ussd_router.router)
+app.include_router(listings_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
@@ -159,6 +162,18 @@ if FRONTEND_DIR.exists():
     @app.get("/ussd-sms-flow")
     def ussd_sms_flow_page():
         return _flow_page("ussd_sms_flow_live.html")
+
+    @app.get("/vendor-listings-flow")
+    def vendor_listings_flow_page():
+        return _flow_page("vendor_listings_flow_live.html")
+
+    @app.get("/listing-review-flow")
+    def listing_review_flow_page():
+        return _flow_page("listing_review_queue_flow_live.html")
+
+
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 @app.on_event("startup")

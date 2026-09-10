@@ -19,14 +19,17 @@ from ..database import get_db
 from ..models import (
     User, Role, UserStatus, AuditLog, RegistrationApproval, RateConfig,
     MechanisationRequest, MechanisationRequestStatus, SELF_REGISTER_ROLES, INTERNAL_ROLES,
+    Listing, ListingStatus, ListingCategory, Notification, NotificationType,
 )
 from ..auth import require_roles, hash_password
 from ..audit import log_audit
 from ..dispatch import create_dispatch_job
+from ..listings import listing_view
 from ..schemas import (
     RoleChangeRequest, AuditLogEntry, RateConfigResponse, RateConfigUpdate,
     MechanisationRequestResponse, RegistrationApprovalResponse,
     AdminUserResponse, AdminUsersResponse, InternalUserCreate,
+    ListingResponse, ListingRejectRequest, ListingCategoryResponse, ListingCategoryCreate,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin (Super Admin only)"])
@@ -312,3 +315,131 @@ def reactivate_user(
     db.commit()
     log_audit(db, admin, "account_reactivated", f"{user.full_name} ({user.email}): suspended -> active.")
     return _user_view(user, db)
+
+
+# ---------------------------------------------------------------------------
+# Vendor Product/Service Listing approval workflow -- added 10 Sep 2026.
+# Scoped to Super Admin only, the same precedent as Buyer/Vendor
+# RegistrationApproval above (the closest existing "external-party content
+# needs internal sign-off before it's live" workflow in this codebase) --
+# not opened to the two Internal Ops Staff roles, since neither's confirmed
+# scope (Matching Queue / MoFA compliance + read-only reconciliation)
+# covers vendor marketplace moderation.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/listings/pending", response_model=List[ListingResponse])
+def list_pending_listings(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    listings = (
+        db.query(Listing)
+        .filter(Listing.status == ListingStatus.PENDING_REVIEW)
+        .order_by(Listing.updated_at.asc())
+        .all()
+    )
+    return [listing_view(db, l) for l in listings]
+
+
+def _notify_vendor(db: Session, listing: Listing, approved: bool) -> None:
+    if approved:
+        note_type, message = NotificationType.LISTING_APPROVED, f'Your listing "{listing.title}" was approved and is now live.'
+    else:
+        message = f'Your listing "{listing.title}" was rejected: {listing.rejection_reason}'
+        note_type = NotificationType.LISTING_REJECTED
+    db.add(Notification(user_id=listing.vendor_id, type=note_type, message=message, listing_id=listing.id))
+
+
+@router.post("/listings/{listing_id}/approve", response_model=ListingResponse)
+def approve_listing(
+    listing_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    listing = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found.")
+    if listing.status != ListingStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=409, detail=f"Listing is '{listing.status.value}', not pending review.")
+
+    listing.status = ListingStatus.ACTIVE
+    listing.rejection_reason = None
+    listing.reviewed_by = admin.id
+    listing.reviewed_at = datetime.utcnow()
+    _notify_vendor(db, listing, approved=True)
+    db.commit()
+    db.refresh(listing)
+    log_audit(db, admin, "listing_approved", f'Listing "{listing.title}" ({listing.id}).')
+    return listing_view(db, listing)
+
+
+@router.post("/listings/{listing_id}/reject", response_model=ListingResponse)
+def reject_listing(
+    listing_id: str,
+    payload: ListingRejectRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    if not payload.rejection_reason.strip():
+        raise HTTPException(status_code=422, detail="rejection_reason is required.")
+    listing = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found.")
+    if listing.status != ListingStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=409, detail=f"Listing is '{listing.status.value}', not pending review.")
+
+    listing.status = ListingStatus.REJECTED
+    listing.rejection_reason = payload.rejection_reason
+    listing.reviewed_by = admin.id
+    listing.reviewed_at = datetime.utcnow()
+    _notify_vendor(db, listing, approved=False)
+    db.commit()
+    db.refresh(listing)
+    log_audit(db, admin, "listing_rejected", f'Listing "{listing.title}" ({listing.id}): {payload.rejection_reason}')
+    return listing_view(db, listing)
+
+
+@router.get("/listing-categories", response_model=List[ListingCategoryResponse])
+def list_listing_categories_admin(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    """Includes inactive categories, unlike GET /listings/categories (the public/vendor-facing picker)."""
+    return db.query(ListingCategory).order_by(ListingCategory.name.asc()).all()
+
+
+@router.post("/listing-categories", response_model=ListingCategoryResponse)
+def create_listing_category(
+    payload: ListingCategoryCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name is required.")
+    slug = name.lower().replace(" ", "-")
+    if db.query(ListingCategory).filter(ListingCategory.slug == slug).first():
+        raise HTTPException(status_code=409, detail="A category with this name already exists.")
+    category = ListingCategory(name=name, slug=slug)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    log_audit(db, admin, "listing_category_created", name)
+    return category
+
+
+@router.post("/listing-categories/{category_id}/deactivate", response_model=ListingCategoryResponse)
+def deactivate_listing_category(
+    category_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    category = db.query(ListingCategory).filter(ListingCategory.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found.")
+    category.active = False
+    db.commit()
+    db.refresh(category)
+    log_audit(db, admin, "listing_category_deactivated", category.name)
+    return category

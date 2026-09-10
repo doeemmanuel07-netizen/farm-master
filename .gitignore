@@ -6,6 +6,10 @@ Stage 6 Build/backend/app/routers/__pycache__/
 **/__pycache__/
 *.pyc
 
+# Vendor Listing uploaded images -- runtime-generated (seed placeholder +
+# real vendor uploads), not source. See app/uploads.py.
+Stage 6 Build/uploads/
+
 # Stage 7 Testing — generated test artifacts, not source
 Stage 6 Build/backend/tests/e2e/_live_server.log
 Stage 6 Build/backend/.coverage

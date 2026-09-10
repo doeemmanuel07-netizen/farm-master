@@ -831,6 +831,146 @@ class UssdSmsLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ListingCategory(Base):
+    """
+    Vendor Product/Service Listing category (e.g. "Seeds", "Fertilizer",
+    "Equipment", "Services", "Other") -- a real, admin-manageable table
+    rather than a hardcoded enum like ProductCategory above. The Vendor
+    Listing marketplace (this table + Listing/ListingImage below) is a
+    broader, Jiji-style "post an ad" surface than Product's fixed
+    four-category farm-input catalogue, and adding a new listing category
+    (e.g. "Irrigation services") shouldn't need a code deploy -- see
+    routers/admin.py's category management endpoints. `active` lets Super
+    Admin retire a category without breaking FK integrity on listings that
+    already reference it (soft-disable, same no-hard-delete philosophy as
+    AuditLog/Listing's own ARCHIVED status).
+    """
+    __tablename__ = "listing_categories"
+
+    id = Column(String, primary_key=True, default=uid)
+    name = Column(String, nullable=False, unique=True)
+    slug = Column(String, nullable=False, unique=True)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ListingType(str, enum.Enum):
+    PRODUCT = "product"
+    SERVICE = "service"
+
+
+class ListingStatus(str, enum.Enum):
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    ACTIVE = "active"
+    REJECTED = "rejected"
+    OUT_OF_STOCK = "out_of_stock"
+    ARCHIVED = "archived"
+
+
+class Listing(Base):
+    """
+    Vendor Product/Service Listing -- the vendor-facing equivalent of a
+    Jiji-style "post an ad" backend (Emmanuel's separate feature request,
+    10 Sep 2026), distinct from the existing Product catalogue above.
+    Product feeds the Farmer Order Inputs screen directly with zero
+    approval step (PRD Section 6 Must-Have #3's literal, narrower scope:
+    seed/fertiliser/crop-protection/tools only); Listing is the broader
+    vendor marketplace -- goods AND services, gated by a real admin
+    approval workflow before any farmer/buyer ever sees it. The two tables
+    are deliberately not merged: unifying them would force Product's
+    zero-approval, formula-linked rows to carry an approval workflow they
+    were never built for, and would force Listing's images/approval
+    fields onto rows that never need them.
+
+    Status lifecycle (Emmanuel's decision, 10 Sep 2026, on the re-review
+    question below): DRAFT (editable scratch, never shown to admin or
+    farmer/buyer) -> submit -> PENDING_REVIEW (needs all required fields,
+    price >= 0, and at least one image -- see routers/vendor.py's
+    submit_listing) -> admin approve -> ACTIVE (visible on the farmer/
+    buyer browse endpoint) or admin reject -> REJECTED (rejection_reason
+    required, stamps reviewed_by/reviewed_at; editable and resubmittable
+    by the vendor, which re-enters PENDING_REVIEW). OUT_OF_STOCK is a
+    vendor self-service toggle on an already-ACTIVE listing (and back) --
+    exempt from re-review, since availability isn't a content change.
+    Editing an ACTIVE or OUT_OF_STOCK listing's core fields (title,
+    description, category, price, unit, quantity, images) resets status to
+    PENDING_REVIEW -- it stops being publicly visible until re-approved,
+    since the farmer/buyer browse endpoint only ever returns ACTIVE rows.
+    ARCHIVED is a vendor-initiated soft delete (no hard delete anywhere in
+    this codebase's own conventions -- see AuditLog) reachable from any
+    non-archived status.
+    """
+    __tablename__ = "listings"
+
+    id = Column(String, primary_key=True, default=uid)
+    vendor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    category_id = Column(String, ForeignKey("listing_categories.id"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False, default="")
+    listing_type = Column(SAEnum(ListingType), nullable=False, default=ListingType.PRODUCT)
+    price = Column(Float, nullable=False)
+    unit = Column(String, nullable=False)  # e.g. "per bag", "per acre", "per hour"
+    quantity_available = Column(Float, nullable=True)  # nullable for services
+    region = Column(String, nullable=False)
+    status = Column(SAEnum(ListingStatus), nullable=False, default=ListingStatus.DRAFT)
+    rejection_reason = Column(Text, nullable=True)
+    reviewed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ListingImage(Base):
+    """
+    One image attached to a Listing. `display_order` controls gallery
+    ordering; exactly one row per listing should carry `is_primary` (the
+    thumbnail shown in list/grid views) -- application-enforced in
+    routers/vendor.py's upload/delete/reorder logic, not a DB constraint,
+    same style as DispatchJob's "exactly one FK set" invariant elsewhere in
+    this schema. `file_path` is a path relative to the backend's uploads
+    directory (see app/uploads.py), served back via the /uploads static
+    mount -- the first real file upload in this codebase (every other
+    "photo capture" flow, e.g. FulfilmentIntake/ProofOfDelivery, is a
+    boolean flag only); a real marketplace listing needs a real photo to
+    be usable at all, so that precedent doesn't extend here.
+    """
+    __tablename__ = "listing_images"
+
+    id = Column(String, primary_key=True, default=uid)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=False)
+    file_path = Column(String, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_primary = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class NotificationType(str, enum.Enum):
+    LISTING_APPROVED = "listing_approved"
+    LISTING_REJECTED = "listing_rejected"
+
+
+class Notification(Base):
+    """
+    In-app notification -- added alongside the Vendor Listing approval
+    workflow; no notification system of any kind existed in this codebase
+    before this. Delivery is REAL, not SIMULATED like OTP/SMS/mobile money:
+    an in-app row has no external gateway to fake, only a UI to build (see
+    routers/vendor.py's GET /vendor/notifications). Email notification was
+    explicitly scoped to "if the notification system already exists" --
+    it doesn't, so this stays in-app only for now.
+    """
+    __tablename__ = "notifications"
+
+    id = Column(String, primary_key=True, default=uid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    type = Column(SAEnum(NotificationType), nullable=False)
+    message = Column(Text, nullable=False)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=True)
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AuditLog(Base):
     """
     Every role/permission change and every financial action, attributable to

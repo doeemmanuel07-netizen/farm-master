@@ -19,9 +19,9 @@ the Stage 5 prototype, which simulated approval within one session.
 """
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -30,16 +30,20 @@ from ..models import (
     User, Role, RateConfig, MechanisationRequest, MechanisationRequestStatus,
     Product, InputOrder, InputOrderLine, InputOrderStatus, DispatchJob, DispatchJobStatus,
     VendorBilling, VendorBillingPayment, ProofOfDelivery,
+    Listing, ListingImage, ListingCategory, ListingStatus, Notification,
 )
 from ..auth import require_roles
 from ..audit import log_audit
 from ..dispatch import create_dispatch_job, create_input_order_dispatch_job
 from ..catalogue import product_view, order_view
 from ..payout import compute_vendor_payout_rows
+from ..listings import listing_view, apply_core_field_update, maybe_reset_to_pending_review
+from ..uploads import save_listing_image, delete_listing_image_file
 from ..schemas import (
     MechanisationRequestResponse, ConfirmRequestBody, ProductCreate, ProductResponse,
     InputOrderResponse, VendorDashboardResponse, VendorBillingResponse, VendorBillingPayRequest,
     PaymentResponse, VendorPayoutRow, VendorHandoffRow,
+    ListingCreate, ListingUpdate, ListingResponse, ListingStatusToggleRequest, NotificationResponse,
 )
 
 router = APIRouter(prefix="/vendor", tags=["vendor"])
@@ -380,3 +384,270 @@ def vendor_handoff_status(
             proof_captured=bool(proof),
         ))
     return rows
+
+
+# ---------------------------------------------------------------------------
+# Vendor Product/Service Listing -- added 10 Sep 2026 (Emmanuel's separate
+# feature request). See models.Listing for the full status-lifecycle design.
+# Every route below scopes to listing.vendor_id == caller.id, the same
+# "own only" pattern as MechanisationRequest/InputOrder above.
+# ---------------------------------------------------------------------------
+
+
+def _own_listing(db: Session, listing_id: str, user: User) -> Listing:
+    listing = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not listing or listing.vendor_id != user.id:
+        raise HTTPException(status_code=404, detail="Listing not found.")
+    return listing
+
+
+def _validate_listing_fields(payload) -> None:
+    if payload.price < 0:
+        raise HTTPException(status_code=422, detail="price must be >= 0.")
+    if not payload.title.strip():
+        raise HTTPException(status_code=422, detail="title is required.")
+    if not payload.region.strip():
+        raise HTTPException(status_code=422, detail="region is required.")
+    if not payload.unit.strip():
+        raise HTTPException(status_code=422, detail="unit is required.")
+
+
+@router.get("/listings", response_model=List[ListingResponse])
+def list_own_listings(
+    status: Optional[ListingStatus] = Query(None, description="Filter to one status, e.g. pending_review."),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    query = db.query(Listing).filter(Listing.vendor_id == user.id)
+    if status is not None:
+        query = query.filter(Listing.status == status)
+    listings = query.order_by(Listing.updated_at.desc()).all()
+    return [listing_view(db, l) for l in listings]
+
+
+@router.post("/listings", response_model=ListingResponse)
+def create_listing(
+    payload: ListingCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    """Creates a DRAFT -- never visible to admin or farmer/buyer until POST .../submit."""
+    _validate_listing_fields(payload)
+    if not db.query(ListingCategory).filter(ListingCategory.id == payload.category_id, ListingCategory.active.is_(True)).first():
+        raise HTTPException(status_code=422, detail="Unknown or inactive category_id.")
+    listing = Listing(
+        vendor_id=user.id, category_id=payload.category_id, title=payload.title,
+        description=payload.description, listing_type=payload.listing_type,
+        price=payload.price, unit=payload.unit, quantity_available=payload.quantity_available,
+        region=payload.region, status=ListingStatus.DRAFT,
+    )
+    db.add(listing)
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+@router.get("/listings/{listing_id}", response_model=ListingResponse)
+def get_own_listing(
+    listing_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    return listing_view(db, _own_listing(db, listing_id, user))
+
+
+@router.put("/listings/{listing_id}", response_model=ListingResponse)
+def update_listing(
+    listing_id: str,
+    payload: ListingUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    """
+    Edits a listing's core fields. On a DRAFT or PENDING_REVIEW listing the
+    content is simply updated in place (nothing to re-review yet, or it's
+    already queued). On an ACTIVE/OUT_OF_STOCK/REJECTED listing, a real
+    change to any core field resets status to PENDING_REVIEW -- see
+    listings.maybe_reset_to_pending_review. ARCHIVED listings cannot be
+    edited -- restore isn't supported, matching this codebase's own
+    no-undo-from-terminal-state precedent (e.g. suspended accounts require
+    a separate reactivate action, not an edit).
+    """
+    listing = _own_listing(db, listing_id, user)
+    if listing.status == ListingStatus.ARCHIVED:
+        raise HTTPException(status_code=409, detail="An archived listing cannot be edited.")
+    _validate_listing_fields(payload)
+    if not db.query(ListingCategory).filter(ListingCategory.id == payload.category_id, ListingCategory.active.is_(True)).first():
+        raise HTTPException(status_code=422, detail="Unknown or inactive category_id.")
+
+    changed = apply_core_field_update(listing, payload)
+    if changed:
+        maybe_reset_to_pending_review(listing)
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+@router.delete("/listings/{listing_id}", response_model=ListingResponse)
+def archive_listing(
+    listing_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    """Soft delete -- reachable from any status. No hard delete, matching this codebase's own conventions (see AuditLog)."""
+    listing = _own_listing(db, listing_id, user)
+    if listing.status == ListingStatus.ARCHIVED:
+        raise HTTPException(status_code=409, detail="This listing is already archived.")
+    listing.status = ListingStatus.ARCHIVED
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+@router.post("/listings/{listing_id}/images", response_model=ListingResponse)
+def upload_listing_image(
+    listing_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    listing = _own_listing(db, listing_id, user)
+    if listing.status == ListingStatus.ARCHIVED:
+        raise HTTPException(status_code=409, detail="An archived listing cannot be edited.")
+
+    existing_count = db.query(ListingImage).filter(ListingImage.listing_id == listing.id).count()
+    file_path = save_listing_image(listing.id, file)
+    db.add(ListingImage(
+        listing_id=listing.id, file_path=file_path,
+        display_order=existing_count, is_primary=(existing_count == 0),
+    ))
+    maybe_reset_to_pending_review(listing)
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+@router.delete("/listings/{listing_id}/images/{image_id}", response_model=ListingResponse)
+def delete_listing_image(
+    listing_id: str,
+    image_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    listing = _own_listing(db, listing_id, user)
+    image = db.query(ListingImage).filter(ListingImage.id == image_id, ListingImage.listing_id == listing.id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found on this listing.")
+    was_primary = image.is_primary
+    delete_listing_image_file(image.file_path)
+    db.delete(image)
+    db.commit()
+
+    if was_primary:
+        # Promote the next image (by display_order) so a listing with any
+        # images left always has exactly one primary -- see
+        # models.ListingImage's application-enforced invariant.
+        next_image = (
+            db.query(ListingImage)
+            .filter(ListingImage.listing_id == listing.id)
+            .order_by(ListingImage.display_order.asc())
+            .first()
+        )
+        if next_image:
+            next_image.is_primary = True
+    maybe_reset_to_pending_review(listing)
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+@router.post("/listings/{listing_id}/submit", response_model=ListingResponse)
+def submit_listing(
+    listing_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    """
+    Moves a DRAFT or REJECTED listing to PENDING_REVIEW -- it never goes
+    straight to ACTIVE (every listing must pass through this queue,
+    routers/admin.py's approve/reject). Requires all required fields
+    (already enforced at create/update time), price >= 0, and at least one
+    image.
+    """
+    listing = _own_listing(db, listing_id, user)
+    if listing.status not in (ListingStatus.DRAFT, ListingStatus.REJECTED):
+        raise HTTPException(status_code=409, detail=f"Listing is '{listing.status.value}', not submittable.")
+    if listing.price < 0:
+        raise HTTPException(status_code=422, detail="price must be >= 0.")
+    image_count = db.query(ListingImage).filter(ListingImage.listing_id == listing.id).count()
+    if image_count == 0:
+        raise HTTPException(status_code=422, detail="At least one image is required before submitting for review.")
+
+    listing.status = ListingStatus.PENDING_REVIEW
+    listing.rejection_reason = None
+    listing.reviewed_by = None
+    listing.reviewed_at = None
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+@router.post("/listings/{listing_id}/status", response_model=ListingResponse)
+def toggle_listing_status(
+    listing_id: str,
+    payload: ListingStatusToggleRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    """
+    Vendor self-service availability toggle on an already-approved listing
+    -- mark out of stock, or restore to active. Deliberately exempt from
+    re-review (Emmanuel's decision, 10 Sep 2026): availability isn't a
+    content change. Restricted to the two statuses that make sense as a
+    toggle target/source; use PUT for content edits and DELETE to archive.
+    """
+    if payload.status not in (ListingStatus.ACTIVE, ListingStatus.OUT_OF_STOCK):
+        raise HTTPException(status_code=422, detail="status must be 'active' or 'out_of_stock'.")
+    listing = _own_listing(db, listing_id, user)
+    if listing.status not in (ListingStatus.ACTIVE, ListingStatus.OUT_OF_STOCK):
+        raise HTTPException(status_code=409, detail=f"Listing is '{listing.status.value}' -- only an active or out-of-stock listing can be toggled.")
+    listing.status = payload.status
+    db.commit()
+    db.refresh(listing)
+    return listing_view(db, listing)
+
+
+# ---------------------------------------------------------------------------
+# In-app notifications -- vendor is notified on listing approval/rejection
+# (routers/admin.py). See models.Notification for why this is real (not
+# SIMULATED) despite the rest of this codebase's delivery precedent.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/notifications", response_model=List[NotificationResponse])
+def list_notifications(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    return (
+        db.query(Notification)
+        .filter(Notification.user_id == user.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+
+
+@router.post("/notifications/{notification_id}/read", response_model=NotificationResponse)
+def mark_notification_read(
+    notification_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.VENDOR)),
+):
+    note = db.query(Notification).filter(Notification.id == notification_id, Notification.user_id == user.id).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Notification not found.")
+    if note.read_at is None:
+        note.read_at = datetime.utcnow()
+        db.commit()
+        db.refresh(note)
+    return note

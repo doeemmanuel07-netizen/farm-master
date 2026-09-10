@@ -7,6 +7,7 @@ so the pilot can be exercised locally. This is not a production credential
 and must never be reused as one.
 """
 
+import base64
 from datetime import datetime
 
 from .database import Base, engine, SessionLocal
@@ -17,11 +18,35 @@ from .models import (
     CommitmentFeePayment, PaymentStatus, Product, ProductCategory, FormulaInputType,
     InputOrder, InputOrderLine, InputOrderStatus, ProductionFormula,
     FieldVisitLog, FieldVisitStatus, AgronomistMessage, MilestoneLogEntry,
-    VendorBilling,
+    VendorBilling, ListingCategory, Listing, ListingImage, ListingType, ListingStatus,
 )
 from .auth import hash_password
 from .dispatch import create_dispatch_job, create_inbound_dispatch_job, create_input_order_dispatch_job
 from .formula import compute_formula_inputs
+from .uploads import UPLOADS_DIR
+
+# A minimal valid 1x1 transparent PNG -- the real, on-disk placeholder image
+# for demo Listing rows below (see models.ListingImage: this is the first
+# real file upload in this codebase, so seed data needs a real file on disk,
+# not just a filename string, for the /uploads static mount to serve).
+SEED_PLACEHOLDER_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+)
+
+SEED_LISTING_CATEGORIES = ["Seeds", "Fertilizer", "Equipment", "Services", "Other"]
+
+# Vendor Product/Service Listing demo data -- one listing per status branch
+# (draft, pending_review, active, rejected) so every screen (My Listings,
+# the Admin Pending Review queue, the Farmer/Buyer browse endpoint) has real
+# data on first run, same treatment as every other feature in this file.
+SEED_LISTINGS = [
+    # title, category, listing_type, price, unit, quantity_available, region, status, rejection_reason
+    ("Improved Maize Seed — Bulk", "Seeds", ListingType.PRODUCT, 22.0, "per bag", 150.0, "Tema", ListingStatus.ACTIVE, None),
+    ("Tractor Ploughing Service", "Services", ListingType.SERVICE, 260.0, "per acre", None, "Tema", ListingStatus.PENDING_REVIEW, None),
+    ("Used Irrigation Pump", "Equipment", ListingType.PRODUCT, 850.0, "per unit", 1.0, "Tema", ListingStatus.REJECTED,
+     "Photos are unclear -- please add better-lit photos showing the pump's condition."),
+    ("NPK Fertiliser — Wholesale Lot", "Fertilizer", ListingType.PRODUCT, 305.0, "per bag", 200.0, "Tema", ListingStatus.DRAFT, None),
+]
 
 # Formula Builder demo data -- a requirement already past Matching Queue
 # assignment (status PRODUCTION, real Opportunity rows with
@@ -499,6 +524,54 @@ def seed():
                 print("Seeded 1 vendor billing subscription with 1 payment (Subscription & Billing demo data).")
         else:
             print("Vendor billing already exists, skipping seed.")
+
+        # Vendor Product/Service Listing demo data -- added 10 Sep 2026.
+        if db.query(ListingCategory).count() == 0:
+            for name in SEED_LISTING_CATEGORIES:
+                db.add(ListingCategory(name=name, slug=name.lower().replace(" ", "-")))
+            db.commit()
+            print(f"Seeded {len(SEED_LISTING_CATEGORIES)} listing categories.")
+        else:
+            print("Listing categories already exist, skipping seed.")
+
+        if db.query(Listing).count() == 0:
+            vendor = db.query(User).filter(User.role == Role.VENDOR).first()
+            admin = db.query(User).filter(User.role == Role.SUPER_ADMIN).first()
+            categories = {c.name: c for c in db.query(ListingCategory).all()}
+            if vendor and categories:
+                # A real file on disk (see SEED_PLACEHOLDER_PNG_B64 above) --
+                # every non-draft demo listing gets this as its one required
+                # image, since submit_listing (routers/vendor.py) requires
+                # at least one image and a DRAFT is never submitted.
+                placeholder_dir = UPLOADS_DIR / "listings" / "seed"
+                placeholder_dir.mkdir(parents=True, exist_ok=True)
+                placeholder_path = placeholder_dir / "placeholder.png"
+                if not placeholder_path.exists():
+                    placeholder_path.write_bytes(base64.b64decode(SEED_PLACEHOLDER_PNG_B64))
+                placeholder_rel_path = "listings/seed/placeholder.png"
+
+                for title, cat_name, listing_type, price, unit, qty, region, status, rejection_reason in SEED_LISTINGS:
+                    category = categories.get(cat_name)
+                    if not category:
+                        continue
+                    listing = Listing(
+                        vendor_id=vendor.id, category_id=category.id, title=title,
+                        description=f"{title} -- available in {region}.",
+                        listing_type=listing_type, price=price, unit=unit,
+                        quantity_available=qty, region=region, status=status,
+                        rejection_reason=rejection_reason,
+                        reviewed_by=admin.id if admin and status in (ListingStatus.ACTIVE, ListingStatus.REJECTED) else None,
+                        reviewed_at=datetime.utcnow() if status in (ListingStatus.ACTIVE, ListingStatus.REJECTED) else None,
+                    )
+                    db.add(listing)
+                    db.commit()
+                    db.refresh(listing)
+                    if status != ListingStatus.DRAFT:
+                        db.add(ListingImage(listing_id=listing.id, file_path=placeholder_rel_path, display_order=0, is_primary=True))
+                        db.commit()
+                print(f"Seeded {len(SEED_LISTINGS)} vendor listings, one per status branch (Vendor Listing demo data).")
+        else:
+            print("Vendor listings already exist, skipping seed.")
     finally:
         db.close()
 

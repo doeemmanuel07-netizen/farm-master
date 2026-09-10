@@ -8,6 +8,7 @@ from .models import (
     Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
     UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus, GradeResult,
     ProductCategory, FormulaInputType, InputOrderStatus, FieldVisitStatus, TrunkingStatus,
+    ListingType, ListingStatus, NotificationType,
 )
 
 
@@ -734,3 +735,91 @@ class UssdSmsLogEntry(BaseModel):
     purpose: str
     body: str
     created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Vendor Product/Service Listing -- added 10 Sep 2026. See models.Listing
+# for the full design rationale and status-lifecycle rules.
+# ---------------------------------------------------------------------------
+
+
+class ListingCategoryResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ListingCategoryCreate(BaseModel):
+    name: str
+
+
+class ListingImageResponse(BaseModel):
+    id: str
+    url: str
+    display_order: int
+    is_primary: bool
+
+
+class ListingCreate(BaseModel):
+    category_id: str
+    title: str
+    description: str = ""
+    listing_type: ListingType = ListingType.PRODUCT
+    price: float
+    unit: str
+    quantity_available: Optional[float] = None
+    region: str
+
+
+class ListingUpdate(ListingCreate):
+    pass
+
+
+class ListingResponse(BaseModel):
+    id: str
+    vendor_id: str
+    vendor_name: str
+    category_id: str
+    category_name: str
+    title: str
+    description: str
+    listing_type: ListingType
+    price: float
+    unit: str
+    quantity_available: Optional[float]
+    region: str
+    status: ListingStatus
+    rejection_reason: Optional[str]
+    reviewed_by: Optional[str]
+    reviewed_at: Optional[datetime]
+    images: List[ListingImageResponse]
+    created_at: datetime
+    updated_at: datetime
+
+
+class ListingRejectRequest(BaseModel):
+    rejection_reason: str
+
+
+class ListingStatusToggleRequest(BaseModel):
+    # Restricted server-side to {active, out_of_stock} -- see
+    # routers/vendor.py's toggle_listing_status. Archiving is its own
+    # DELETE endpoint, not a status-toggle value, since it's reachable from
+    # any status while this toggle only applies to an already-approved one.
+    status: ListingStatus
+
+
+class NotificationResponse(BaseModel):
+    id: str
+    type: NotificationType
+    message: str
+    listing_id: Optional[str]
+    read_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
