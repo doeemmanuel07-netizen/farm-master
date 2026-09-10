@@ -158,6 +158,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flo
     dispatch_jobs_open: "Dispatch jobs open", trunking_scheduled: "Trunking loads scheduled",
     reconciliation_orders: "Orders in reconciliation", mofa_import_records: "MoFA import records",
     pending_registrations: "Pending registrations", total_users: "Total user accounts",
+    active_farmer_candidates: "Active farmer candidates", compliance_report_rows: "Compliance report rows",
   };
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
   async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
