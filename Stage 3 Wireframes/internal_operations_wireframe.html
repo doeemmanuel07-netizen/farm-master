@@ -313,6 +313,10 @@
       <b>Split priority — confirmed.</b> Office roles (Agronomist, Admin/Finance: Dashboard, Matching, Formula Builder, Visit Logs, Intake, Finance, Reporting, MoFA, User Admin) are tablet/desktop-first. Field roles (Logistics: Dispatch, Proof of Pickup/Delivery, Trunking) are phone-first, since a rider is away from a desk — confirmed by Emmanuel, 3 September 2026. Breakpoints: Desktop &ge;1024px &middot; Tablet 768&ndash;1023px (iPad/Android tablet) &middot; Phone &lt;768px (iOS/Android) — also confirmed.
     </div>
 
+    <div class="rail-note">
+      <b>Internal Ops Staff split — added 9 September 2026, Stage 6.</b> Two scoped roles were added on top of the four above so real pilot staff aren't all sharing the Super Admin login: Pilot Operations Coordinator (Matching Queue only) and Compliance/Reporting Officer (MoFA compliance report + read-only reconciliation). Both reuse this same Dashboard screen with their own scoped tiles — no new screen was built for either, the same shared-screen-different-tiles pattern already shown here. A third requested role, Logistics/Fleet Coordinator, turned out to already match the existing Logistics role's scope exactly, so no new role was added for it. This wireframe intentionally isn't redrawn for the split — see Farm_Master_SDD_Stage6.docx Section 29 for the exact permissions each new role does and doesn't have.
+    </div>
+
     <div class="device-toggle" id="deviceToggle">
       <div class="device-btn" data-device="desktop">Desktop</div>
       <div class="device-btn" data-device="tablet">Tablet</div>
@@ -324,7 +328,7 @@
 
     <div class="rail-footer">
       Built on Stage 2 IA — Internal Operations sitemap (Fig. 6) &amp; cross-portal handoff table (Sec. 5).<br>
-      Roles: Agronomist · Logistics · Finance · Super Admin.
+      Roles: Agronomist · Logistics · Finance · Super Admin, plus (Stage 6, 9 Sep 2026) Pilot Operations Coordinator · Compliance/Reporting Officer.
     </div>
   </aside>
 
@@ -370,7 +374,7 @@
       title: "Control Centre Dashboard",
       desc: "Season-in-progress snapshot for the Tema pilot — one shared entry point, but the tiles that render depend on the logged-in role (PRD Section 3.2 / Section 5 RBAC).",
       body: function () {
-        return chrome("Dashboard", "Agronomist · Logistics · Finance · Super Admin (view scoped per login)",
+        return chrome("Dashboard", "Agronomist · Logistics · Finance · Super Admin · Pilot Operations Coordinator · Compliance/Reporting Officer (view scoped per login)",
           '<div class="section-title">Pilot at a glance — Tema, Maize, Season: Major 2026</div>' +
           '<div class="grid g4" style="margin-bottom:20px">' +
             stat("14", "Farmers active on formulas") +
