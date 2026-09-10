@@ -71,7 +71,7 @@ GET_ENDPOINTS = [
     ("/finance/reconciliation", {Role.FINANCE, Role.COMPLIANCE_OFFICER}),
     (f"/finance/reconciliation/{DUMMY_ID}", {Role.FINANCE, Role.COMPLIANCE_OFFICER}),
     ("/mofa/compliance-report", {Role.FINANCE, Role.COMPLIANCE_OFFICER}),
-    ("/mofa/import-records", {Role.FINANCE}),
+    ("/mofa/import-records", {Role.FINANCE, Role.COMPLIANCE_OFFICER}),
     ("/reporting/dashboard", {Role.FINANCE}),
     (
         "/dashboard/control-centre",

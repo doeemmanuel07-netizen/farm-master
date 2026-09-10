@@ -1,4 +1,4 @@
-# Farm Master — Test Accounts (10 roles)
+﻿# Farm Master — Test Accounts (10 roles)
 
 Reference copy for local testing. All passwords are dev-only — never
 reuse as a real credential. Every login is a real two-step flow
@@ -10,16 +10,16 @@ on 2026-09-10.
 
 | # | Role | URL | Email | Password |
 |---|---|---|---|---|
-| 1 | Farmer | http://127.0.0.1:8000/farmer-flow | farmer@farmmaster.test | password123 |
-| 2 | Buyer | http://127.0.0.1:8000/buyer-flow | buyer@farmmaster.test | password123 |
-| 3 | Vendor | http://127.0.0.1:8000/vendor-flow | vendor@farmmaster.test | password123 |
-| 4 | Agronomist | http://127.0.0.1:8000/matching-flow | agronomist@farmmaster.test | password123 |
-| 5 | Logistics | http://127.0.0.1:8000/dispatch-flow | logistics@farmmaster.test | password123 |
-| 6 | Finance | http://127.0.0.1:8000/reconciliation-flow | finance@farmmaster.test | password123 |
-| 7 | Super Admin | http://127.0.0.1:8000/user-admin-flow, http://127.0.0.1:8000/control-centre-flow | emmanuel@farmmaster.test | password123 |
-| 8 | Pilot Operations Coordinator | http://127.0.0.1:8000/control-centre-flow | ops.coordinator@farmmaster.test | password123 |
-| 9 | Logistics/Fleet Coordinator | http://127.0.0.1:8000/control-centre-flow | fleet.coordinator@farmmaster.test | password123 |
-| 10 | Compliance/Reporting Officer | http://127.0.0.1:8000/control-centre-flow | compliance.officer@farmmaster.test | password123 |
+| 1 | Farmer | http://127.0.0.1:8000/farmer-flow  | farmer@farmmaster.test | password123 |
+| 2 | Buyer | http://127.0.0.1:8000/buyer-flow  | buyer@farmmaster.test | password123 |
+| 3 | Vendor | http://127.0.0.1:8000/vendor-flow  | vendor@farmmaster.test | password123 |
+| 4 | Agronomist | http://127.0.0.1:8000/matching-flow  |  agronomist@farmmaster.test | password123 |
+| 5 | Logistics | http://127.0.0.1:8000/dispatch-flow  | logistics@farmmaster.test | password123 |
+| 6 | Finance | http://127.0.0.1:8000/reconciliation-flow  | finance@farmmaster.test | password123 |
+| 7 | Super Admin | http://127.0.0.1:8000/user-admin-flow,  http://127.0.0.1:8000/control-centre-flow  | emmanuel@farmmaster.test | password123 |
+| 8 | Pilot Operations Coordinator | http://127.0.0.1:8000/control-centre-flow  | ops.coordinator@farmmaster.test | password123 |
+| 9 | Logistics/Fleet Coordinator | http://127.0.0.1:8000/control-centre-flow | fleet.coordinator@farmmaster.test  | password123 |
+| 10 | Compliance/Reporting Officer | http://127.0.0.1:8000/control-centre-flow  | compliance.officer@farmmaster.test  | password123 |
 
 ## Notes
 
@@ -44,3 +44,4 @@ on 2026-09-10.
 cd "Stage 6 Build/backend"
 python -m uvicorn app.main:app --reload --port 8000
 ```
+

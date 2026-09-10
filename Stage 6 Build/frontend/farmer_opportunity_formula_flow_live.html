@@ -223,7 +223,12 @@
 
 <script>
 (function () {
-    var railToggleBtn = document.getElementById("railToggle");
+      document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-nav-href]");
+    if (!t || t.classList.contains("current")) return;
+    window.location.href = t.getAttribute("data-nav-href");
+  });
+var railToggleBtn = document.getElementById("railToggle");
   var railEl = document.getElementById("rail");
   var railBackdropEl = document.getElementById("railBackdrop");
   if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
@@ -234,6 +239,7 @@ var PORTAL_NAV = [
     { label: "My Formula", icon: "clipboard" },
     { label: "Wallet", icon: "wallet" }
   ];
+  var NAV_HREFS = { "Dashboard": "/farmer-dashboard-flow", "Opportunities": "/farmer-flow", "My Formula": "/farmer-flow", "Wallet": "/farmer-dashboard-flow" };
   var ICONS = {
     home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
     leaf: '<path d="M20 4C12 4 6 10 6 18c8 0 14-6 14-14z"/><path d="M6 18C10 14 14 10 20 4"/>',
@@ -294,8 +300,8 @@ var PORTAL_NAV = [
   }
 
   function chrome(currentIcon, bodyHtml) {
-    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l.icon === currentIcon ? "current" : "") + '">' + l.label + "</span>"; }).join("");
-    var bottomItems = PORTAL_NAV.map(function (l) { return '<div class="item ' + (l.icon === currentIcon ? "current" : "") + '">' + icon(l.icon) + "<span>" + l.label + "</span></div>"; }).join("");
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l.icon === currentIcon ? "current" : "") + '" data-nav-href="' + (NAV_HREFS[l.label] || "") + '">' + l.label + "</span>"; }).join("");
+    var bottomItems = PORTAL_NAV.map(function (l) { return '<div class="item ' + (l.icon === currentIcon ? "current" : "") + '" data-nav-href="' + (NAV_HREFS[l.label] || "") + '">' + icon(l.icon) + "<span>" + l.label + "</span></div>"; }).join("");
     return (
       '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master</div></div><div class="navlinks">' + links + '</div><div class="avatar"></div></div>' +
       '<div class="body-pad">' + bodyHtml + "</div>" +

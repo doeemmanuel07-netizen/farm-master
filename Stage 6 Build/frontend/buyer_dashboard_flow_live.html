@@ -111,19 +111,25 @@
 </div>
 <script>
 (function () {
-    var railToggleBtn = document.getElementById("railToggle");
+      document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-nav-href]");
+    if (!t || t.classList.contains("current")) return;
+    window.location.href = t.getAttribute("data-nav-href");
+  });
+var railToggleBtn = document.getElementById("railToggle");
   var railEl = document.getElementById("rail");
   var railBackdropEl = document.getElementById("railBackdrop");
   if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
   if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
 var PORTAL_NAV = ["Dashboard", "My Orders", "Documents", "Payment"];
+var NAV_HREFS = { "Dashboard": "/buyer-dashboard-flow", "My Orders": "/buyer-dashboard-flow", "Documents": "/buyer-dashboard-flow", "Payment": "/buyer-flow" };
   var API = "";
   var state = { token: null, email: "buyer@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", dashboard: null, selectedOrder: null, tab: "docs", docs: null, tracking: null, invoice: null, step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "dashboard", label: "Buyer Dashboard" }];
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
   async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
   function chrome(current, bodyHtml) {
-    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '" data-nav-href="' + (NAV_HREFS[l] || "") + '">' + l + "</span>"; }).join("");
     return '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Buyer</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div><div class="body-pad">' + bodyHtml + "</div>";
   }
   function field(id, cap, val, type) { return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val || "") + '"></div>'; }

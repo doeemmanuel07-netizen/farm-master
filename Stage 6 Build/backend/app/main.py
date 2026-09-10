@@ -54,97 +54,111 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
+    # FileResponse's default Last-Modified/ETag headers let browsers cache
+    # these pages heuristically with no explicit Cache-Control -- during
+    # active development a browser tab left open (or even a fresh load in
+    # some browsers' heuristic-caching window) can keep serving an edited-
+    # then-reverted-in-the-browser's-cache version of one of these files
+    # after a real on-disk fix, with no visible error. Every -flow route
+    # below goes through this helper so a hard refresh is never required
+    # to see the current file.
+    def _flow_page(filename: str) -> FileResponse:
+        return FileResponse(
+            str(FRONTEND_DIR / filename),
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+        )
+
     @app.get("/buyer-flow")
     def buyer_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "buyer_commitment_fee_flow_live.html"))
+        return _flow_page("buyer_commitment_fee_flow_live.html")
 
     @app.get("/farmer-flow")
     def farmer_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "farmer_opportunity_formula_flow_live.html"))
+        return _flow_page("farmer_opportunity_formula_flow_live.html")
 
     @app.get("/vendor-flow")
     def vendor_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "vendor_mechanisation_request_flow_live.html"))
+        return _flow_page("vendor_mechanisation_request_flow_live.html")
 
     @app.get("/matching-flow")
     def matching_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "agronomist_matching_queue_flow_live.html"))
+        return _flow_page("agronomist_matching_queue_flow_live.html")
 
     @app.get("/formula-builder-flow")
     def formula_builder_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "production_formula_builder_flow_live.html"))
+        return _flow_page("production_formula_builder_flow_live.html")
 
     @app.get("/register-flow")
     def register_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "registration_otp_flow_live.html"))
+        return _flow_page("registration_otp_flow_live.html")
 
     @app.get("/dispatch-flow")
     def dispatch_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "logistics_dispatch_flow_live.html"))
+        return _flow_page("logistics_dispatch_flow_live.html")
 
     @app.get("/harvest-pickup-flow")
     def harvest_pickup_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "farmer_harvest_pickup_flow_live.html"))
+        return _flow_page("farmer_harvest_pickup_flow_live.html")
 
     @app.get("/fulfilment-intake-flow")
     def fulfilment_intake_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "fulfilment_intake_flow_live.html"))
+        return _flow_page("fulfilment_intake_flow_live.html")
 
     @app.get("/reconciliation-flow")
     def reconciliation_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "finance_reconciliation_flow_live.html"))
+        return _flow_page("finance_reconciliation_flow_live.html")
 
     @app.get("/order-inputs-flow")
     def order_inputs_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "farmer_order_inputs_flow_live.html"))
+        return _flow_page("farmer_order_inputs_flow_live.html")
 
     @app.get("/vendor-catalogue-flow")
     def vendor_catalogue_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "vendor_product_catalogue_flow_live.html"))
+        return _flow_page("vendor_product_catalogue_flow_live.html")
 
     @app.get("/mofa-report-flow")
     def mofa_report_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "mofa_compliance_report_flow_live.html"))
+        return _flow_page("mofa_compliance_report_flow_live.html")
 
     @app.get("/user-admin-flow")
     def user_admin_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "useradmin_flow_live.html"))
+        return _flow_page("useradmin_flow_live.html")
 
     @app.get("/visit-logs-flow")
     def visit_logs_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "agronomist_visit_logs_flow_live.html"))
+        return _flow_page("agronomist_visit_logs_flow_live.html")
 
     @app.get("/proof-trunking-flow")
     def proof_trunking_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "logistics_proof_trunking_flow_live.html"))
+        return _flow_page("logistics_proof_trunking_flow_live.html")
 
     @app.get("/reporting-flow")
     def reporting_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "finance_reporting_flow_live.html"))
+        return _flow_page("finance_reporting_flow_live.html")
 
     @app.get("/approvals-flow")
     def approvals_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "approvals_flow_live.html"))
+        return _flow_page("approvals_flow_live.html")
 
     @app.get("/control-centre-flow")
     def control_centre_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "control_centre_dashboard_flow_live.html"))
+        return _flow_page("control_centre_dashboard_flow_live.html")
 
     @app.get("/buyer-dashboard-flow")
     def buyer_dashboard_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "buyer_dashboard_flow_live.html"))
+        return _flow_page("buyer_dashboard_flow_live.html")
 
     @app.get("/farmer-dashboard-flow")
     def farmer_dashboard_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "farmer_dashboard_flow_live.html"))
+        return _flow_page("farmer_dashboard_flow_live.html")
 
     @app.get("/vendor-dashboard-flow")
     def vendor_dashboard_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "vendor_dashboard_flow_live.html"))
+        return _flow_page("vendor_dashboard_flow_live.html")
 
     @app.get("/ussd-sms-flow")
     def ussd_sms_flow_page():
-        return FileResponse(str(FRONTEND_DIR / "ussd_sms_flow_live.html"))
+        return _flow_page("ussd_sms_flow_live.html")
 
 
 @app.on_event("startup")

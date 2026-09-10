@@ -15,9 +15,14 @@ export-rendering logic this router only wires up to real routes.
 The three compliance-report routes (list/CSV export/PDF export) are also
 open to Role.COMPLIANCE_OFFICER as of 9 Sep 2026 -- the new Compliance/
 Reporting Officer role's real job is exactly generating and reviewing this
-report. Import-records below stays Role.FINANCE-only: that's institutional
-buyer/accreditation data entry, not report generation, and the Compliance
-Officer role was scoped to reporting, not MoFA data-exchange authorship.
+report. GET /import-records is also open to Role.COMPLIANCE_OFFICER
+(fixed 10 Sep 2026): the shared frontend screen fetches both the report
+and the import records list on load, so Finance-only read access here
+was silently blocking that role out of its own primary screen entirely,
+not merely hiding one panel of it. POST /import-records (creating a new
+record) stays Role.FINANCE-only -- that's institutional buyer/
+accreditation data entry/authorship, a different function from either
+reading or reporting.
 
 Every other route is Role.FINANCE-gated, matching the wireframe and IA
 Section 10's confirmed ownership (Reporting/MoFA Data Exchange stay with
@@ -94,7 +99,7 @@ def _import_view(rec: MofaImportRecord, db: Session) -> MofaImportRecordResponse
 @router.get("/import-records", response_model=List[MofaImportRecordResponse])
 def list_import_records(
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(Role.FINANCE)),
+    user: User = Depends(require_roles(Role.FINANCE, Role.COMPLIANCE_OFFICER)),
 ):
     recs = db.query(MofaImportRecord).order_by(MofaImportRecord.synced_at.desc()).all()
     return [_import_view(r, db) for r in recs]

@@ -185,12 +185,18 @@
 
 <script>
 (function () {
-    var railToggleBtn = document.getElementById("railToggle");
+      document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-nav-href]");
+    if (!t || t.classList.contains("current")) return;
+    window.location.href = t.getAttribute("data-nav-href");
+  });
+var railToggleBtn = document.getElementById("railToggle");
   var railEl = document.getElementById("rail");
   var railBackdropEl = document.getElementById("railBackdrop");
   if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
   if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
 var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics"];
+var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-flow", "Fulfilment": "/fulfilment-intake-flow", "Logistics": "/dispatch-flow" };
   var API = "";
 
   var state = {
@@ -232,7 +238,7 @@ var PORTAL_NAV = ["Dashboard", "Agronomy", "Fulfilment", "Logistics"];
   }
 
   function chrome(current, bodyHtml) {
-    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '">' + l + "</span>"; }).join("");
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '" data-nav-href="' + (NAV_HREFS[l] || "") + '">' + l + "</span>"; }).join("");
     return (
       '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Internal Ops</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar"></div></div>' +
       '<div class="body-pad">' + bodyHtml + "</div>"
