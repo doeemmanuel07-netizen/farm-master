@@ -197,7 +197,7 @@ var NAV_HREFS = { "Dashboard": "/farmer-dashboard-flow", "Opportunities": "/farm
     }
     if (state.step === "otp") {
       document.getElementById("screen-title").textContent = "Verify OTP"; document.getElementById("screen-crumb").textContent = "Verify OTP";
-      document.getElementById("screen-desc").textContent = "SIMULATED delivery (PRD Section 12) -- both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("screen-desc").textContent = "SIMULATED delivery (PRD Section 12) -- the code is pre-filled here instead of actually being sent.";
       document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + '</div><button class="btn primary block" id="otpBtn" style="margin-top:16px;width:100%">Verify &amp; continue</button><div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div></div></div>';
       document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);

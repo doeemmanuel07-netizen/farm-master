@@ -141,7 +141,7 @@
     <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
 
     <div class="rail-note">
-      <b>Real-time OTP, both channels, added 5 Sep 2026 (PRD Section 12).</b> Phone and email codes are both required to finish registering. Delivery is SIMULATED -- no SMS/email gateway is chosen yet -- so both codes are shown here instead of actually being sent.
+      <b>Real-time OTP, added 5 Sep 2026, consolidated to email-only 10 Sep 2026 (PRD Section 12).</b> An email code is required to finish registering. Delivery is SIMULATED -- no email gateway is chosen yet -- so the code is shown here instead of actually being sent.
     </div>
 
     <div class="rail-group-label">Flow</div>
@@ -235,7 +235,7 @@ var API = "";
       var needsOrg = state.role !== "farmer";
       document.getElementById("screen-title").textContent = "Register — " + state.role.charAt(0).toUpperCase() + state.role.slice(1);
       document.getElementById("screen-crumb").textContent = "Register";
-      document.getElementById("screen-desc").textContent = "Posted to POST /auth/register. A phone number is required -- it's where the (simulated) phone OTP goes.";
+      document.getElementById("screen-desc").textContent = "Posted to POST /auth/register. A phone number is required as part of the account profile; OTP verification itself is email-only (consolidated 10 Sep 2026).";
       document.getElementById("canvas").innerHTML = (
         '<div class="card">' +
           field("fullName", state.role === "buyer" || state.role === "vendor" ? "Contact full name" : "Full name", state.fullName) +
