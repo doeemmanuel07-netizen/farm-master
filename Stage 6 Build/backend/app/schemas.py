@@ -39,13 +39,13 @@ class OtpChallengeResponse(BaseModel):
     message: str
     # SIMULATED delivery -- see models.OtpChallenge. Named dev_only_* so
     # nothing accidentally mistakes this for a real-provider response shape.
-    dev_only_phone_code: str
+    # Email-only as of 10 Sep 2026 -- dev_only_phone_code was removed, not
+    # just stopped being read; see models.OtpChallenge for the consolidation.
     dev_only_email_code: str
 
 
 class VerifyOtpRequest(BaseModel):
     challenge_id: str
-    phone_code: str
     email_code: str
 
 

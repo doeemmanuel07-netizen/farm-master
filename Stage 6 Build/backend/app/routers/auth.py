@@ -1,8 +1,10 @@
 """
-Registration and login, both gated by real-time OTP verification via phone
-and email -- added 5 Sep 2026 as a new confirmed requirement (PRD Section
-12), applying to all seven roles at both events. See models.OtpChallenge
-for why delivery is simulated rather than wired to a real SMS/email gateway.
+Registration and login, both gated by real-time OTP verification via
+email -- added 5 Sep 2026 as a new confirmed requirement (PRD Section 12),
+applying to every role at both events. Originally dual-channel (phone +
+email); consolidated to email-only 10 Sep 2026 for user-friendliness --
+see models.OtpChallenge. See the same docstring for why delivery is
+simulated rather than wired to a real email gateway.
 
 Self-registration (POST /register) is only offered for Farmer, Buyer, and
 Vendor -- Internal Operations accounts (Agronomist, Logistics, Finance,
@@ -29,8 +31,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 APPLICANT_TYPE = {Role.BUYER: "Private Buyer", Role.VENDOR: "Third-Party Vendor"}
 
 OTP_MESSAGE = (
-    "SIMULATED delivery -- no SMS/email gateway is integrated yet (PRD Section 1.1/12). "
-    "Both codes are echoed in this response for demo purposes; enter them both to continue."
+    "SIMULATED delivery -- no email gateway is integrated yet (PRD Section 1.1/12). "
+    "The code is echoed in this response for demo purposes; enter it to continue."
 )
 
 
@@ -65,14 +67,13 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         purpose=challenge.purpose,
         expires_at=challenge.expires_at,
         message=OTP_MESSAGE,
-        dev_only_phone_code=challenge.phone_code,
         dev_only_email_code=challenge.email_code,
     )
 
 
 @router.post("/register/verify-otp", response_model=RegisterVerifyResponse)
 def verify_registration_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
-    challenge = verify_challenge(db, payload.challenge_id, payload.phone_code, payload.email_code, OtpPurpose.REGISTRATION)
+    challenge = verify_challenge(db, payload.challenge_id, payload.email_code, OtpPurpose.REGISTRATION)
     user = db.query(User).filter(User.id == challenge.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Account not found.")
@@ -82,7 +83,7 @@ def verify_registration_otp(payload: VerifyOtpRequest, db: Session = Depends(get
         # is scoped to buyer|vendor -- PRD Section 3.2/IA Section 10), so
         # OTP verification is the whole gate for a Farmer account.
         user.status = UserStatus.ACTIVE
-        message = "Phone and email verified. Your account is active -- you can log in now."
+        message = "Email verified. Your account is active -- you can log in now."
     else:
         user.status = UserStatus.PENDING
         db.add(RegistrationApproval(
@@ -92,7 +93,7 @@ def verify_registration_otp(payload: VerifyOtpRequest, db: Session = Depends(get
             portal=user.role.value,
             status="pending_review",
         ))
-        message = "Phone and email verified. Your registration now awaits Super Admin approval before you can log in."
+        message = "Email verified. Your registration now awaits Super Admin approval before you can log in."
     db.commit()
 
     log_audit(db, user, "account_registered", f"{user.full_name} ({user.email}, {user.role.value}): OTP-verified, status -> {user.status.value}.")
@@ -117,14 +118,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         purpose=challenge.purpose,
         expires_at=challenge.expires_at,
         message=OTP_MESSAGE,
-        dev_only_phone_code=challenge.phone_code,
         dev_only_email_code=challenge.email_code,
     )
 
 
 @router.post("/login/verify-otp", response_model=LoginResponse)
 def verify_login_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
-    challenge = verify_challenge(db, payload.challenge_id, payload.phone_code, payload.email_code, OtpPurpose.LOGIN)
+    challenge = verify_challenge(db, payload.challenge_id, payload.email_code, OtpPurpose.LOGIN)
     user = db.query(User).filter(User.id == challenge.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Account not found.")

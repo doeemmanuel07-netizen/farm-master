@@ -204,7 +204,49 @@
 
 <script>
 (function () {
-      document.addEventListener("click", function (e) {
+        var SESSION_KEY = "farmmaster_session";
+  var INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+  function saveSession(token) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ token: token, lastActivityAt: Date.now() })); } catch (e) {}
+  }
+  function loadSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s.token || (Date.now() - s.lastActivityAt) > INACTIVITY_LIMIT_MS) { localStorage.removeItem(SESSION_KEY); return null; }
+      return s;
+    } catch (e) { return null; }
+  }
+  function touchSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      s.lastActivityAt = Date.now();
+      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    } catch (e) {}
+  }
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+  var _lastActivityTouch = 0;
+  function _onUserActivity() {
+    var now = Date.now();
+    if (now - _lastActivityTouch > 5000) { _lastActivityTouch = now; touchSession(); }
+  }
+  ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(function (evt) {
+    document.addEventListener(evt, _onUserActivity, { passive: true });
+  });
+  setInterval(function () {
+    if (state.token && !loadSession()) { state.token = null; state.step = "login"; render(); }
+  }, 15000);
+  async function completeAuth() {
+      state.requirements = await apiGet("/agronomist/requirements");
+      state.step = "queue";
+      render();
+    }
+document.addEventListener("click", function (e) {
     var t = e.target.closest("[data-nav-href]");
     if (!t || t.classList.contains("current")) return;
     window.location.href = t.getAttribute("data-nav-href");
@@ -223,7 +265,6 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
     email: "agronomist@farmmaster.test",
     password: "password123",
     challengeId: null,
-    otpPhone: "",
     otpEmail: "",
     requirements: [],
     req: null,
@@ -300,17 +341,15 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
     if (state.step === "otp") {
       document.getElementById("screen-title").textContent = "Verify OTP";
       document.getElementById("screen-crumb").textContent = "Verify OTP";
-      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your phone and email (PRD Section 12) -- SIMULATED delivery, no SMS/email gateway is wired up yet, so both codes are pre-filled here instead of actually being sent.";
+      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your email (PRD Section 12) -- SIMULATED delivery, no email gateway is wired up yet, so the code is pre-filled here instead of actually being sent.";
       document.getElementById("canvas").innerHTML = (
         '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
-          '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your phone and email instead of seeing these pre-filled.</div>' +
-          '<div class="field-group"><span class="cap">Phone OTP code</span><input id="otpPhone" type="text" value="' + state.otpPhone + '"></div>' +
-          '<div style="margin-top:12px"><div class="field-group"><span class="cap">Email OTP code</span><input id="otpEmail" type="text" value="' + state.otpEmail + '"></div></div>' +
+          '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your email instead of seeing this pre-filled.</div>' +
+          '<div class="field-group"><span class="cap">Email OTP code</span><input id="otpEmail" type="text" value="' + state.otpEmail + '"></div>' +
           '<button class="btn primary block" id="otpBtn" style="margin-top:16px">Verify &amp; continue</button>' +
           '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
         "</div></div>"
       );
-      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
       document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
@@ -430,7 +469,6 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Login failed");
       state.challengeId = data.challenge_id;
-      state.otpPhone = data.dev_only_phone_code;
       state.otpEmail = data.dev_only_email_code;
       state.step = "otp";
       render();
@@ -447,13 +485,12 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Verifying…';
     try {
-      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }) });
+      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, email_code: state.otpEmail }) });
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.requirements = await apiGet("/agronomist/requirements");
-      state.step = "queue";
-      render();
+      saveSession(state.token);
+      await completeAuth();
     } catch (e) {
       document.getElementById("otpAlertText").textContent = e.message;
       document.getElementById("otpAlert").classList.add("show");
@@ -509,11 +546,14 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
     });
   }
 
-  document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", requirements: [], req: null, builder: null, weeks: null, step: "login" };
+  document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
+    state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", requirements: [], req: null, builder: null, weeks: null, step: "login" };
     render();
   });
 
-  render();
+  var _existing = loadSession();
+
+
+  if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }
 })();
 </script>

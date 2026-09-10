@@ -99,7 +99,48 @@
 </div>
 <script>
 (function () {
-      document.addEventListener("click", function (e) {
+        var SESSION_KEY = "farmmaster_session";
+  var INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+  function saveSession(token) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ token: token, lastActivityAt: Date.now() })); } catch (e) {}
+  }
+  function loadSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s.token || (Date.now() - s.lastActivityAt) > INACTIVITY_LIMIT_MS) { localStorage.removeItem(SESSION_KEY); return null; }
+      return s;
+    } catch (e) { return null; }
+  }
+  function touchSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      s.lastActivityAt = Date.now();
+      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    } catch (e) {}
+  }
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+  var _lastActivityTouch = 0;
+  function _onUserActivity() {
+    var now = Date.now();
+    if (now - _lastActivityTouch > 5000) { _lastActivityTouch = now; touchSession(); }
+  }
+  ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(function (evt) {
+    document.addEventListener(evt, _onUserActivity, { passive: true });
+  });
+  setInterval(function () {
+    if (state.token && !loadSession()) { state.token = null; state.step = "login"; render(); }
+  }, 15000);
+  async function completeAuth() {
+      state.data = await apiGet("/reporting/dashboard");
+      state.step = "reporting"; render();
+    }
+document.addEventListener("click", function (e) {
     var t = e.target.closest("[data-nav-href]");
     if (!t || t.classList.contains("current")) return;
     window.location.href = t.getAttribute("data-nav-href");
@@ -112,7 +153,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var PORTAL_NAV = ["Dashboard", "Finance", "MoFA", "Reporting"];
 var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Finance": "/reconciliation-flow", "MoFA": "/mofa-report-flow", "Reporting": "/reporting-flow" };
   var API = "";
-  var state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", data: null, step: "login" };
+  var state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", data: null, step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "reporting", label: "Reporting" }];
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
   async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
@@ -139,8 +180,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Finance": "/reconciliati
     if (state.step === "otp") {
       document.getElementById("screen-title").textContent = "Verify OTP"; document.getElementById("screen-crumb").textContent = "Verify OTP";
       document.getElementById("screen-desc").textContent = "SIMULATED delivery (PRD Section 12) -- both codes are pre-filled here instead of actually being sent.";
-      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("otpPhone", "Phone OTP code", state.otpPhone) + '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + '</div><button class="btn primary block" id="otpBtn" style="margin-top:16px;width:100%">Verify &amp; continue</button><div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div></div></div>';
-      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
+      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + '</div><button class="btn primary block" id="otpBtn" style="margin-top:16px;width:100%">Verify &amp; continue</button><div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div></div></div>';
       document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
@@ -162,18 +202,18 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Finance": "/reconciliati
     try {
       var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
       var data = await res.json(); if (!res.ok) throw new Error(data.detail || "Login failed");
-      state.challengeId = data.challenge_id; state.otpPhone = data.dev_only_phone_code; state.otpEmail = data.dev_only_email_code;
+      state.challengeId = data.challenge_id; state.otpEmail = data.dev_only_email_code;
       state.step = "otp"; render();
     } catch (e) { document.getElementById("loginAlertText").textContent = e.message; document.getElementById("loginAlert").classList.add("show"); btn.disabled = false; btn.textContent = "Sign in"; }
   }
   async function onVerifyOtp() {
     var btn = document.getElementById("otpBtn"); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying…';
     try {
-      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }) });
+      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, email_code: state.otpEmail }) });
       var data = await res.json(); if (!res.ok) throw new Error(data.detail || "OTP verification failed");
       state.token = data.access_token;
-      state.data = await apiGet("/reporting/dashboard");
-      state.step = "reporting"; render();
+      saveSession(state.token);
+      await completeAuth();
     } catch (e) { document.getElementById("otpAlertText").textContent = e.message; document.getElementById("otpAlert").classList.add("show"); btn.disabled = false; btn.textContent = "Verify & continue"; }
   }
   function renderFlowRail(activeIdx) {
@@ -181,7 +221,10 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Finance": "/reconciliati
     el.innerHTML = STEPS.map(function (s, i) { var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked"; var mark = i < activeIdx ? "✓" : (i + 1); return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>"; }).join("");
     el.querySelectorAll(".flow-step.done").forEach(function (row) { row.addEventListener("click", function () { var target = STEPS[+row.dataset.idx].id; if (target === "login") state.token = null; state.step = target; render(); }); });
   }
-  document.getElementById("restartBtn").addEventListener("click", function () { state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpPhone: "", otpEmail: "", data: null, step: "login" }; render(); });
-  render();
+  document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
+    state = { token: null, email: "finance@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", data: null, step: "login" }; render(); });
+  var _existing = loadSession();
+
+  if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }
 })();
 </script>

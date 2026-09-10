@@ -23,11 +23,10 @@ def test_farmer_registration_activates_immediately_after_otp(client, rate_config
     })
     assert res.status_code == 200, res.text
     challenge = res.json()
-    assert "dev_only_phone_code" in challenge and "dev_only_email_code" in challenge
+    assert "dev_only_email_code" in challenge
 
     verify = client.post("/auth/register/verify-otp", json={
         "challenge_id": challenge["challenge_id"],
-        "phone_code": challenge["dev_only_phone_code"],
         "email_code": challenge["dev_only_email_code"],
     })
     assert verify.status_code == 200, verify.text
@@ -47,7 +46,6 @@ def test_buyer_registration_requires_approval_before_login_works(client, rate_co
     challenge = res.json()
     verify = client.post("/auth/register/verify-otp", json={
         "challenge_id": challenge["challenge_id"],
-        "phone_code": challenge["dev_only_phone_code"],
         "email_code": challenge["dev_only_email_code"],
     })
     assert verify.json()["status"] == "pending_review"
@@ -81,7 +79,6 @@ def test_vendor_registration_rejected_leaves_account_suspended(client, rate_conf
     challenge = res.json()
     client.post("/auth/register/verify-otp", json={
         "challenge_id": challenge["challenge_id"],
-        "phone_code": challenge["dev_only_phone_code"],
         "email_code": challenge["dev_only_email_code"],
     })
 
@@ -141,7 +138,7 @@ def test_login_verify_otp_wrong_code_returns_401(client, make_user):
     res = client.post("/auth/login", json={"email": user.email, "password": "password123"})
     challenge = res.json()
     verify = client.post("/auth/login/verify-otp", json={
-        "challenge_id": challenge["challenge_id"], "phone_code": "000000", "email_code": challenge["dev_only_email_code"],
+        "challenge_id": challenge["challenge_id"], "email_code": "000000",
     })
     assert verify.status_code == 401
 
@@ -152,7 +149,6 @@ def test_login_verify_otp_cannot_be_reused(client, make_user):
     challenge = res.json()
     body = {
         "challenge_id": challenge["challenge_id"],
-        "phone_code": challenge["dev_only_phone_code"],
         "email_code": challenge["dev_only_email_code"],
     }
     first = client.post("/auth/login/verify-otp", json=body)

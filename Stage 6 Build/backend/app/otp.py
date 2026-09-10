@@ -24,7 +24,6 @@ def create_challenge(db: Session, user: User, purpose: OtpPurpose) -> OtpChallen
     challenge = OtpChallenge(
         user_id=user.id,
         purpose=purpose,
-        phone_code=_generate_code(),
         email_code=_generate_code(),
         expires_at=datetime.utcnow() + timedelta(minutes=OTP_TTL_MINUTES),
     )
@@ -35,7 +34,7 @@ def create_challenge(db: Session, user: User, purpose: OtpPurpose) -> OtpChallen
 
 
 def verify_challenge(
-    db: Session, challenge_id: str, phone_code: str, email_code: str, purpose: OtpPurpose
+    db: Session, challenge_id: str, email_code: str, purpose: OtpPurpose
 ) -> OtpChallenge:
     challenge = db.query(OtpChallenge).filter(OtpChallenge.id == challenge_id).first()
     if not challenge or challenge.purpose != purpose:
@@ -44,8 +43,8 @@ def verify_challenge(
         raise HTTPException(status_code=409, detail="This OTP challenge has already been used.")
     if datetime.utcnow() > challenge.expires_at:
         raise HTTPException(status_code=410, detail="This OTP has expired. Please try again to get a new code.")
-    if challenge.phone_code != phone_code or challenge.email_code != email_code:
-        raise HTTPException(status_code=401, detail="One or both OTP codes are incorrect.")
+    if challenge.email_code != email_code:
+        raise HTTPException(status_code=401, detail="The OTP code is incorrect.")
 
     challenge.consumed_at = datetime.utcnow()
     db.commit()

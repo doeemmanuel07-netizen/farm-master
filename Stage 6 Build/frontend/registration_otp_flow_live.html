@@ -191,7 +191,6 @@ var API = "";
     password: "",
     organisationName: "",
     challengeId: null,
-    otpPhone: "",
     otpEmail: "",
     result: null,
     step: "role",
@@ -259,17 +258,15 @@ var API = "";
     if (state.step === "otp") {
       document.getElementById("screen-title").textContent = "Verify OTP";
       document.getElementById("screen-crumb").textContent = "Verify OTP";
-      document.getElementById("screen-desc").textContent = "Posted to POST /auth/register/verify-otp. SIMULATED delivery -- both codes are pre-filled instead of actually being sent to your phone/email.";
+      document.getElementById("screen-desc").textContent = "Posted to POST /auth/register/verify-otp. SIMULATED delivery -- the code is pre-filled instead of actually being sent to your email.";
       document.getElementById("canvas").innerHTML = (
         '<div class="card">' +
-          '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your phone and email instead of seeing these pre-filled.</div>' +
-          field("otpPhone", "Phone OTP code", state.otpPhone) +
+          '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your email instead of seeing this pre-filled.</div>' +
           field("otpEmail", "Email OTP code", state.otpEmail) +
           '<button class="btn primary block" id="otpBtn" style="margin-top:6px">Verify &amp; finish registration →</button>' +
           '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
         "</div>"
       );
-      document.getElementById("otpPhone").addEventListener("input", function (e) { state.otpPhone = e.target.value; });
       document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
       document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
     }
@@ -322,7 +319,6 @@ var API = "";
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Registration failed");
       state.challengeId = data.challenge_id;
-      state.otpPhone = data.dev_only_phone_code;
       state.otpEmail = data.dev_only_email_code;
       state.step = "otp";
       render();
@@ -342,7 +338,7 @@ var API = "";
       var res = await fetch(API + "/auth/register/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challenge_id: state.challengeId, phone_code: state.otpPhone, email_code: state.otpEmail }),
+        body: JSON.stringify({ challenge_id: state.challengeId, email_code: state.otpEmail }),
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || "OTP verification failed");
@@ -367,7 +363,7 @@ var API = "";
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () {
-    state = { role: "farmer", email: "", phone: "", fullName: "", password: "", organisationName: "", challengeId: null, otpPhone: "", otpEmail: "", result: null, step: "role" };
+    state = { role: "farmer", email: "", phone: "", fullName: "", password: "", organisationName: "", challengeId: null, otpEmail: "", result: null, step: "role" };
     render();
   });
 

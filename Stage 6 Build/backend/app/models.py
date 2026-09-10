@@ -596,20 +596,23 @@ class OtpPurpose(str, enum.Enum):
 
 class OtpChallenge(Base):
     """
-    Real-time OTP verification via both phone (SMS) and email, at both
-    registration and login, for all seven roles -- added 5 Sep 2026 as a new
-    confirmed requirement (PRD Section 12), not part of the original Stage
-    1-5 scope. Both codes must be supplied together in one verify call
-    (there is deliberately no separate phone_verified/email_verified partial
-    state -- Emmanuel confirmed both channels are required at once, not a
-    step-by-step wizard).
+    Real-time OTP verification via email, at both registration and login,
+    for all roles -- added 5 Sep 2026 as a new confirmed requirement (PRD
+    Section 12), not part of the original Stage 1-5 scope. Originally
+    dual-channel (phone + email, both required together); consolidated to
+    email-only 10 Sep 2026 for user-friendliness -- one code to read and
+    enter instead of two, email being the simpler channel to maintain given
+    delivery is already simulated either way. The `phone_code` column this
+    table used to carry is gone, not just unused -- see the SDD's Stage 7+
+    section for the migration note (existing databases need a real
+    ALTER TABLE, not just a model change).
 
     Delivery is SIMULATED, the same treatment as mobile money payment
     (routers/buyer.py) and for the same reason: no SMS or email gateway has
     been chosen yet (PRD Section 1.1 lists the payment gateway as an open
-    decision; the OTP gateway is equally open). The generated codes are
+    decision; the OTP gateway is equally open). The generated code is
     echoed back in the API response instead of actually being sent -- see
-    schemas.OtpChallengeResponse's dev_only_* fields, which are named to
+    schemas.OtpChallengeResponse's dev_only_email_code field, named to
     make that unmistakable in the API docs and never meant to ship
     unmodified to production.
     """
@@ -618,7 +621,6 @@ class OtpChallenge(Base):
     id = Column(String, primary_key=True, default=uid)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     purpose = Column(SAEnum(OtpPurpose), nullable=False)
-    phone_code = Column(String, nullable=False)
     email_code = Column(String, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     consumed_at = Column(DateTime, nullable=True)

@@ -21,17 +21,20 @@ APP_DIR = pathlib.Path(__file__).parent.parent.parent / "app"
 
 def test_otp_response_contract_still_carries_dev_only_naming(client, make_user):
     """
-    If a future PR wires a real SMS/email gateway without deliberately
-    updating this contract, it would likely still return something shaped
-    like an OtpChallengeResponse -- this test pins the field names
-    themselves (dev_only_phone_code / dev_only_email_code), which only a
-    deliberate, visible change should ever touch.
+    If a future PR wires a real email gateway without deliberately updating
+    this contract, it would likely still return something shaped like an
+    OtpChallengeResponse -- this test pins the field name itself
+    (dev_only_email_code), which only a deliberate, visible change should
+    ever touch. Also pins that dev_only_phone_code stays gone: OTP was
+    consolidated from phone+email to email-only on 10 Sep 2026, and a
+    reintroduced phone field would be exactly the kind of silent scope
+    creep this test exists to catch.
     """
     user = make_user(Role.FARMER)
     res = client.post("/auth/login", json={"email": user.email, "password": "password123"})
     body = res.json()
-    assert "dev_only_phone_code" in body
     assert "dev_only_email_code" in body
+    assert "dev_only_phone_code" not in body
     assert "SIMULATED" in body["message"]
 
 

@@ -117,7 +117,6 @@ def login(client, email, password="password123"):
         "/auth/login/verify-otp",
         json={
             "challenge_id": challenge["challenge_id"],
-            "phone_code": challenge["dev_only_phone_code"],
             "email_code": challenge["dev_only_email_code"],
         },
     )
