@@ -1,0 +1,926 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendor Product/Service Listings — Live Backend</title>
+<style>
+  :root {
+    --primary: #1F5E3D; --primary-dark: #143D28; --gold: #E8A83C; --gold-dark: #C98A22;
+    --ink: #1A1F1B; --muted: #5B6B5E; --faint: #8A9A8C; --bg: #F7F8F4; --surface: #FFFFFF;
+    --border: #DDE3D9; --success: #2F9E44; --danger: #C0392B; --info: #3B6E8F; --focus: #1F5E3D;
+    --rail-bg: #F0F2EC;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+      --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+      --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+      --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7FBF9E; --primary-dark: #9ED4B8; --gold: #F0BC63; --gold-dark: #F5CD8A;
+    --ink: #EAF0EA; --muted: #9BAA9D; --faint: #6C7A6E;
+    --bg: #12160F; --surface: #1B211A; --border: #2C342A; --rail-bg: #171C15;
+    --success: #4FBF6B; --danger: #E0685A; --info: #6FA3C2;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body { margin: 0; overflow-x: hidden; background: var(--bg); color: var(--ink); font-family: "Manrope", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .app { display: flex; min-height: 100vh; }
+  .rail { width: 272px; flex: 0 0 272px; background: var(--rail-bg); border-right: 1px solid var(--border); padding: 20px 16px 24px; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
+  .rail-brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .rail-brand .name { font-weight: 800; font-size: 15px; color: var(--primary); }
+  .rail-brand .stage { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; }
+  .rail-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .pilot-chip { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; margin-bottom: 16px; }
+  .pilot-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+  .rail-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 11px; margin-bottom: 14px; }
+  .rail-note b { color: var(--ink); }
+  .rail-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin: 4px 2px 6px; }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 3px; margin-bottom: 16px; }
+  .flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--faint); min-height: 44px; }
+  .flow-step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--faint); background: var(--surface); }
+  .flow-step.done { color: var(--ink); cursor: pointer; }
+  .flow-step.done .dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .flow-step.current { color: var(--ink); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  .flow-step.current .dot { border-color: var(--gold); color: var(--gold-dark); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); }
+  .flow-step.locked { opacity: 0.55; }
+
+  .rail-footer { font-size: 11px; color: var(--faint); line-height: 1.6; border-top: 1px solid var(--border); padding-top: 12px; }
+  .restart-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 9px; min-height: 44px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .restart-btn:hover { background: var(--surface); color: var(--ink); }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 80px; }
+  .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .topbar > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .topbar h1 { font-size: 21px; margin: 0 0 3px; font-weight: 800; letter-spacing: -0.01em; }
+  .topbar .crumb { font-size: 11.5px; color: var(--faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .desc { font-size: 13px; color: var(--muted); max-width: 62ch; margin-top: 6px; }
+  .screen-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; white-space: nowrap; height: fit-content; }
+  .canvas { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0; overflow: hidden; container-type: inline-size; width: 100%; max-width: 1080px; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--primary); color: #fff; }
+  .app-header .logo { display: flex; align-items: center; gap: 9px; }
+  .app-header .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary-dark); font-size: 12px; }
+  .app-header .logo .word { font-size: 13.5px; font-weight: 800; }
+  .app-header .navlinks { display: flex; gap: 18px; }
+  .app-header .navlinks span { font-size: 12px; color: rgba(255,255,255,0.72); font-weight: 600; cursor: pointer; }
+  .app-header .navlinks span.current { color: #fff; border-bottom: 2px solid var(--gold); padding-bottom: 3px; }
+  .app-header .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); position: relative; }
+  .app-header .avatar .badge-dot { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); border: 1.5px solid var(--primary); display: none; }
+  .app-header .avatar.has-unread .badge-dot { display: block; }
+  .app-header .hamburger { display: none; flex-direction: column; gap: 4px; width: 20px; cursor: pointer; }
+  .app-header .hamburger span { height: 2px; background: #fff; border-radius: 1px; }
+  @container (max-width: 767px) { .app-header .navlinks { display: none; } .app-header .hamburger { display: flex; } }
+
+  .body-pad { padding: 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .card-label { font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; display: block; }
+  .caption { font-size: 11.5px; color: var(--faint); margin-top: 6px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; font-size: 13.5px; font-weight: 700; padding: 11px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); cursor: pointer; min-height: 46px; font-family: inherit; }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--primary-dark); }
+  .btn.primary:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+  .btn.danger { color: var(--danger); }
+  .btn.block { width: 100%; }
+  .btn:hover { background: var(--bg); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn.small { min-height: 44px; padding: 7px 12px; font-size: 12.5px; }
+
+  .field-group { display: flex; flex-direction: column; gap: 5px; }
+  .field-group .cap { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field-group input, .field-group select, .field-group textarea { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); font-family: inherit; width: 100%; }
+  .field-group input, .field-group select { height: 44px; }
+  .field-group textarea { min-height: 84px; resize: vertical; }
+  .field-group input:focus, .field-group select:focus, .field-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+  .radio-row { display: flex; gap: 8px; }
+  .radio-pill { flex: 1; text-align: center; padding: 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted); min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .radio-pill.active { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: var(--primary); color: var(--primary-dark); }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px; white-space: nowrap; }
+  .badge.success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+  .badge.pending { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold-dark); }
+  .badge.muted { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  .badge.danger { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+  .badge.info { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+
+  .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filter-tab { padding: 8px 13px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; }
+  .filter-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  .listing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .listing-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
+  .listing-card:hover { border-color: var(--primary); }
+  .listing-card .thumb { width: 100%; aspect-ratio: 4/3; background: var(--bg); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .listing-card .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .listing-card .thumb .placeholder { color: var(--faint); font-size: 11px; font-weight: 700; }
+  .listing-card .body { padding: 11px 12px 13px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .listing-card .title { font-size: 13.5px; font-weight: 700; line-height: 1.3; }
+  .listing-card .meta { font-size: 11.5px; color: var(--muted); }
+  .listing-card .price { font-size: 13px; font-weight: 800; color: var(--primary-dark); font-family: "IBM Plex Mono", monospace; }
+  .listing-card .badges { margin-top: auto; padding-top: 4px; }
+  .listing-card .reject-note { font-size: 11px; color: var(--danger); margin-top: 2px; }
+
+  .empty-state { text-align: center; padding: 60px 20px; }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state h3 { margin: 0 0 6px; font-size: 16px; }
+  .empty-state p { color: var(--muted); font-size: 13px; max-width: 46ch; margin: 0 auto 18px; }
+
+  .dropzone { border: 2px dashed var(--border); border-radius: 10px; padding: 24px 16px; text-align: center; cursor: pointer; background: var(--bg); transition: border-color 0.15s, background 0.15s; }
+  .dropzone.dragover { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--bg)); }
+  .dropzone .icon { font-size: 26px; margin-bottom: 6px; }
+  .dropzone .main-text { font-size: 13px; font-weight: 700; }
+  .dropzone .sub-text { font-size: 11.5px; color: var(--faint); margin-top: 4px; }
+  .image-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .image-tile { position: relative; width: 84px; height: 84px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
+  .image-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .image-tile .primary-tag { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.55); color: #fff; font-size: 9px; font-weight: 700; text-align: center; padding: 2px 0; }
+  .image-tile .remove-btn { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .image-tile .uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+
+  .kv { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 8px 0; border-bottom: 1px dashed var(--border); gap: 10px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 700; color: var(--ink); text-align: right; }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @container (max-width: 767px) { .grid.g2, .grid.g3 { grid-template-columns: 1fr; } }
+
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(20,61,40,0.25); border-top-color: var(--primary-dark); animation: spin 0.7s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .inline-alert {
+    display: none; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  }
+  .inline-alert.show { display: flex; }
+  .inline-note {
+    display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+  }
+
+  .notif-panel { position: absolute; top: 52px; right: 22px; width: 300px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.18); z-index: 30; max-height: 360px; overflow-y: auto; }
+  .notif-item { padding: 10px 13px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--ink); }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item.unread { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+  .notif-item .when { font-size: 10.5px; color: var(--faint); margin-top: 3px; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+  .rail-toggle { display: none; position: fixed; top: 12px; left: 12px; z-index: 60; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 20px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.16); }
+  .rail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; }
+  @media (max-width: 1023px) {
+    .rail { width: 232px; flex: 0 0 232px; }
+  }
+  @media (max-width: 767px) {
+    .app { display: block; }
+    .rail-toggle { display: flex; }
+    .rail { position: fixed; top: 0; left: 0; width: 84vw; max-width: 300px; flex: none; height: 100vh; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 50; box-shadow: 4px 0 24px rgba(0,0,0,0.25); }
+    .rail.open { transform: translateX(0); }
+    .rail.open ~ .rail-backdrop { display: block; }
+    .main { padding: 64px 16px 60px; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="app">
+  <button class="rail-toggle" id="railToggle" aria-label="Menu">☰</button>
+  <aside class="rail" id="rail">
+    <div class="rail-brand">
+      <span class="name">FARM MASTER</span>
+      <span class="stage">Stage 6</span>
+    </div>
+    <div class="rail-sub">Vendor Product/Service Listings — Live Backend</div>
+    <div class="pilot-chip"><span class="dot"></span>PILOT: TEMA · MAIZE</div>
+
+    <div class="rail-note">
+      <b>Added 10 Sep 2026.</b> Distinct from the Product Catalogue (Order Inputs backend): a Listing is any good or service a vendor wants to advertise to farmers/buyers, gated by a real Super Admin approval queue before it's ever visible -- see <span class="mono">/listing-review-flow</span>.
+    </div>
+
+    <div class="rail-group-label">Flow</div>
+    <div class="flow-steps" id="flowSteps"></div>
+
+    <button class="restart-btn" id="restartBtn">↺ Restart flow (new login)</button>
+
+    <div class="rail-footer">
+      Backend: Stage 6 Build/backend (FastAPI + PostgreSQL).<br>
+      Docs: Farm_Master_SDD_Stage6.docx, Farm_Master_API_Documentation_Stage6.docx.
+    </div>
+  </aside>
+  <div class="rail-backdrop" id="railBackdrop"></div>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="screen-title">—</h1>
+        <div class="crumb">Vendor Portal / <span id="screen-crumb">—</span></div>
+        <div class="desc" id="screen-desc"></div>
+      </div>
+      <div class="screen-tag" id="screen-tag">STEP 1 / 5</div>
+    </div>
+    <div class="canvas" id="canvas" style="position:relative"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var SESSION_KEY = "farmmaster_session";
+  var INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+  function saveSession(token) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify({ token: token, lastActivityAt: Date.now() })); } catch (e) {}
+  }
+  function loadSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s.token || (Date.now() - s.lastActivityAt) > INACTIVITY_LIMIT_MS) { localStorage.removeItem(SESSION_KEY); return null; }
+      return s;
+    } catch (e) { return null; }
+  }
+  function touchSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      s.lastActivityAt = Date.now();
+      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    } catch (e) {}
+  }
+  function clearSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+  var _lastActivityTouch = 0;
+  function _onUserActivity() {
+    var now = Date.now();
+    if (now - _lastActivityTouch > 5000) { _lastActivityTouch = now; touchSession(); }
+  }
+  ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(function (evt) {
+    document.addEventListener(evt, _onUserActivity, { passive: true });
+  });
+  setInterval(function () {
+    if (state.token && !loadSession()) { state.token = null; state.step = "login"; render(); }
+  }, 15000);
+
+  async function completeAuth() {
+    state.categories = await apiGet("/listings/categories");
+    state.notifications = await apiGet("/vendor/notifications");
+    await refreshListings();
+    state.step = "listings";
+    render();
+  }
+
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-nav-href]");
+    if (!t || t.classList.contains("current")) return;
+    window.location.href = t.getAttribute("data-nav-href");
+  });
+  var railToggleBtn = document.getElementById("railToggle");
+  var railEl = document.getElementById("rail");
+  var railBackdropEl = document.getElementById("railBackdrop");
+  if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
+  if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
+  var PORTAL_NAV = ["Dashboard", "Catalogue", "Listings", "Orders", "Billing"];
+  var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-catalogue-flow", "Listings": "/vendor-listings-flow", "Orders": "/vendor-catalogue-flow", "Billing": "/vendor-dashboard-flow" };
+  var API = "";
+
+  var EMPTY_FORM = { category_id: "", title: "", description: "", listing_type: "product", price: "", unit: "", quantity_available: "", region: "" };
+
+  var state = {
+    token: null,
+    email: "vendor@farmmaster.test",
+    password: "password123",
+    challengeId: null,
+    otpEmail: "",
+    categories: [],
+    notifications: [],
+    listings: [],
+    statusFilter: "all",
+    editingId: null,      // null = creating new; else id of listing being edited
+    form: JSON.parse(JSON.stringify(EMPTY_FORM)),
+    stagedFiles: [],       // File objects staged before the listing exists yet
+    listingImages: [],     // images already saved on the listing being edited
+    listing: null,         // for the detail step
+    showNotifPanel: false,
+    step: "login",
+  };
+
+  var STEPS = [
+    { id: "login", label: "Sign in" },
+    { id: "otp", label: "Verify OTP" },
+    { id: "listings", label: "My Listings" },
+    { id: "form", label: "Add / Edit Listing" },
+    { id: "detail", label: "Listing Detail" },
+  ];
+
+  function authHeaders(extra) {
+    var h = extra || {};
+    if (state.token) h["Authorization"] = "Bearer " + state.token;
+    return h;
+  }
+  async function apiGet(path) {
+    var res = await fetch(API + path, { headers: authHeaders() });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+  async function apiSend(method, path, body) {
+    var res = await fetch(API + path, { method: method, headers: authHeaders(body ? { "Content-Type": "application/json" } : {}), body: body ? JSON.stringify(body) : undefined });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+  async function apiUpload(path, file) {
+    var fd = new FormData();
+    fd.append("file", file);
+    var res = await fetch(API + path, { method: "POST", headers: authHeaders(), body: fd });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; }
+    return data;
+  }
+
+  async function refreshListings() {
+    var q = state.statusFilter === "all" ? "" : ("?status=" + state.statusFilter);
+    state.listings = await apiGet("/vendor/listings" + q);
+  }
+
+  function chrome(current, bodyHtml) {
+    var unread = state.notifications.filter(function (n) { return !n.read_at; }).length;
+    var links = PORTAL_NAV.map(function (l) { return '<span class="' + (l === current ? "current" : "") + '" data-nav-href="' + (NAV_HREFS[l] || "") + '">' + l + "</span>"; }).join("");
+    return (
+      '<div class="app-header"><div class="logo"><div class="mark">FM</div><div class="word">Farm Master — Vendor</div></div><div class="navlinks">' + links + '</div><div class="hamburger"><span></span><span></span><span></span></div><div class="avatar' + (unread ? " has-unread" : "") + '" id="avatarBtn" style="cursor:pointer"><span class="badge-dot"></span></div></div>' +
+      (state.showNotifPanel ? notifPanelHtml() : "") +
+      '<div class="body-pad">' + bodyHtml + "</div>"
+    );
+  }
+
+  function notifPanelHtml() {
+    if (state.notifications.length === 0) {
+      return '<div class="notif-panel"><div class="notif-item">No notifications yet.</div></div>';
+    }
+    return '<div class="notif-panel" id="notifPanel">' + state.notifications.map(function (n) {
+      return '<div class="notif-item' + (n.read_at ? "" : " unread") + '" data-notif-id="' + n.id + '">' + n.message + '<div class="when">' + new Date(n.created_at).toLocaleString() + "</div></div>";
+    }).join("") + "</div>";
+  }
+
+  function wireNotifPanel() {
+    var btn = document.getElementById("avatarBtn");
+    if (btn) btn.addEventListener("click", function (e) { e.stopPropagation(); state.showNotifPanel = !state.showNotifPanel; render(); });
+    document.querySelectorAll("[data-notif-id]").forEach(function (el) {
+      el.addEventListener("click", async function () {
+        try { await apiSend("POST", "/vendor/notifications/" + el.dataset.notifId + "/read", null); } catch (e) {}
+        state.notifications = await apiGet("/vendor/notifications");
+        render();
+      });
+    });
+  }
+
+  function field(id, cap, val, type) {
+    return '<div class="field-group"><span class="cap">' + cap + '</span><input id="' + id + '" type="' + (type || "text") + '" value="' + (val === undefined || val === null ? "" : val) + '"></div>';
+  }
+  function ghs(n) { return "GHS " + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  function statusBadge(status) {
+    var map = {
+      draft: '<span class="badge muted">Draft</span>',
+      pending_review: '<span class="badge pending">Pending Review</span>',
+      active: '<span class="badge success">Active</span>',
+      rejected: '<span class="badge danger">Rejected</span>',
+      out_of_stock: '<span class="badge info">Out of Stock</span>',
+      archived: '<span class="badge muted">Archived</span>',
+    };
+    return map[status] || status;
+  }
+
+  var STATUS_TABS = [
+    ["all", "All"], ["draft", "Draft"], ["pending_review", "Pending Review"],
+    ["active", "Active"], ["out_of_stock", "Out of Stock"], ["rejected", "Rejected"], ["archived", "Archived"],
+  ];
+
+  function render() {
+    var idx = STEPS.findIndex(function (s) { return s.id === state.step; });
+    document.getElementById("screen-tag").textContent = "STEP " + (idx + 1) + " / " + STEPS.length;
+    renderFlowRail(idx);
+
+    if (state.step === "login") {
+      document.getElementById("screen-title").textContent = "Sign in";
+      document.getElementById("screen-crumb").textContent = "Sign in";
+      document.getElementById("screen-desc").textContent = "Real authentication -- a genuine JWT, not a local flag.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
+          field("email", "Email", state.email) +
+          '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + "</div>" +
+          '<button class="btn primary block" id="loginBtn" style="margin-top:16px">Sign in</button>' +
+          '<div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div>' +
+          '<div class="caption" style="margin-top:10px">Dev-only seed account (see README).</div>' +
+        "</div></div>"
+      );
+      document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
+      document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
+      document.getElementById("loginBtn").addEventListener("click", onLogin);
+    }
+
+    if (state.step === "otp") {
+      document.getElementById("screen-title").textContent = "Verify OTP";
+      document.getElementById("screen-crumb").textContent = "Verify OTP";
+      document.getElementById("screen-desc").textContent = "Real-time OTP sent to your email (PRD Section 12) -- SIMULATED delivery, so the code is pre-filled here instead of actually being sent.";
+      document.getElementById("canvas").innerHTML = (
+        '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' +
+          '<div class="caption" style="margin-bottom:10px">SIMULATED -- a real deployment would have you check your email instead of seeing this pre-filled.</div>' +
+          '<div style="margin-top:12px">' + field("otpEmail", "Email OTP code", state.otpEmail) + "</div>" +
+          '<button class="btn primary block" id="otpBtn" style="margin-top:16px">Verify &amp; continue</button>' +
+          '<div class="inline-alert" id="otpAlert"><span>⚠</span><span id="otpAlertText"></span></div>' +
+        "</div></div>"
+      );
+      document.getElementById("otpEmail").addEventListener("input", function (e) { state.otpEmail = e.target.value; });
+      document.getElementById("otpBtn").addEventListener("click", onVerifyOtp);
+    }
+
+    if (state.step === "listings") {
+      document.getElementById("screen-title").textContent = "My Listings";
+      document.getElementById("screen-crumb").textContent = "My Listings";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/listings -- every product or service you've posted, at every status.";
+      document.getElementById("canvas").innerHTML = chrome("Listings", renderListingsBody());
+      wireNotifPanel();
+      wireListingsBody();
+    }
+
+    if (state.step === "form") {
+      document.getElementById("screen-title").textContent = state.editingId ? "Edit Listing" : "Add New Listing";
+      document.getElementById("screen-crumb").textContent = state.editingId ? "Edit Listing" : "Add New Listing";
+      document.getElementById("screen-desc").textContent = "Submitting for review moves this listing to pending_review -- it never goes straight to active. At least one image is required before you can submit.";
+      document.getElementById("canvas").innerHTML = chrome("Listings", renderFormBody());
+      wireNotifPanel();
+      wireFormBody();
+    }
+
+    if (state.step === "detail") {
+      document.getElementById("screen-title").textContent = state.listing ? state.listing.title : "Listing";
+      document.getElementById("screen-crumb").textContent = "Listing Detail";
+      document.getElementById("screen-desc").textContent = "Live status and actions for this listing.";
+      document.getElementById("canvas").innerHTML = chrome("Listings", renderDetailBody());
+      wireNotifPanel();
+      wireDetailBody();
+    }
+  }
+
+  // ------------------------- My Listings -------------------------
+
+  function renderListingsBody() {
+    var tabs = STATUS_TABS.map(function (t) {
+      return '<div class="filter-tab' + (state.statusFilter === t[0] ? " active" : "") + '" data-filter="' + t[0] + '">' + t[1] + "</div>";
+    }).join("");
+
+    var addBtn = '<button class="btn primary" id="addListingBtn">+ Add New Listing</button>';
+
+    if (state.listings.length === 0) {
+      return (
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
+          '<div class="filter-tabs">' + tabs + "</div>" + addBtn +
+        "</div>" +
+        '<div class="empty-state"><div class="icon">🛒</div><h3>' + (state.statusFilter === "all" ? "No listings yet" : "Nothing in this status") + "</h3>" +
+        '<p>' + (state.statusFilter === "all" ? "Post your first product or service so farmers and buyers can find it -- it will go through a quick admin review before it goes live." : "Try a different status tab, or add a new listing.") + "</p>" +
+        addBtn + "</div>"
+      );
+    }
+
+    var cards = state.listings.map(function (l) {
+      var thumb = l.images.length
+        ? '<img src="' + (l.images.find(function (i) { return i.is_primary; }) || l.images[0]).url + '" alt="">'
+        : '<span class="placeholder">No image</span>';
+      return (
+        '<div class="listing-card" data-id="' + l.id + '">' +
+          '<div class="thumb">' + thumb + "</div>" +
+          '<div class="body">' +
+            '<div class="title">' + l.title + "</div>" +
+            '<div class="meta">' + l.category_name + " · " + (l.listing_type === "service" ? "Service" : "Product") + " · " + l.region + "</div>" +
+            '<div class="price">' + ghs(l.price) + " " + l.unit + "</div>" +
+            (l.status === "rejected" && l.rejection_reason ? '<div class="reject-note">✕ ' + l.rejection_reason + "</div>" : "") +
+            '<div class="badges">' + statusBadge(l.status) + "</div>" +
+          "</div>" +
+        "</div>"
+      );
+    }).join("");
+
+    return (
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
+        '<div class="filter-tabs">' + tabs + "</div>" + addBtn +
+      "</div>" +
+      '<div class="listing-grid">' + cards + "</div>"
+    );
+  }
+
+  function wireListingsBody() {
+    document.getElementById("addListingBtn").addEventListener("click", function () {
+      state.editingId = null;
+      state.form = JSON.parse(JSON.stringify(EMPTY_FORM));
+      state.stagedFiles = [];
+      state.listingImages = [];
+      state.step = "form";
+      render();
+    });
+    document.querySelectorAll("[data-filter]").forEach(function (el) {
+      el.addEventListener("click", async function () {
+        state.statusFilter = el.dataset.filter;
+        await refreshListings();
+        render();
+      });
+    });
+    document.querySelectorAll(".listing-card").forEach(function (el) {
+      el.addEventListener("click", function () {
+        state.listing = state.listings.find(function (l) { return l.id === el.dataset.id; });
+        state.step = "detail";
+        render();
+      });
+    });
+  }
+
+  // ------------------------- Add / Edit form -------------------------
+
+  function renderFormBody() {
+    var f = state.form;
+    var catOptions = state.categories.map(function (c) {
+      return '<option value="' + c.id + '"' + (f.category_id === c.id ? " selected" : "") + '>' + c.name + "</option>";
+    }).join("");
+
+    var imgTiles = state.listingImages.map(function (img) {
+      return (
+        '<div class="image-tile" data-existing-image-id="' + img.id + '">' +
+          '<img src="' + img.url + '" alt="">' +
+          (img.is_primary ? '<div class="primary-tag">Primary</div>' : "") +
+          '<button type="button" class="remove-btn" data-remove-existing="' + img.id + '">&times;</button>' +
+        "</div>"
+      );
+    }).join("");
+    var stagedTiles = state.stagedFiles.map(function (f2, i) {
+      return (
+        '<div class="image-tile">' +
+          '<img src="' + f2.previewUrl + '" alt="">' +
+          '<button type="button" class="remove-btn" data-remove-staged="' + i + '">&times;</button>' +
+        "</div>"
+      );
+    }).join("");
+
+    return (
+      '<div class="card">' +
+        '<div class="grid g2">' +
+          field("f_title", "Title", f.title) +
+          '<div class="field-group"><span class="cap">Category</span><select id="f_category">' + catOptions + "</select></div>" +
+        "</div>" +
+        '<div class="field-group" style="margin-top:12px"><span class="cap">Description</span><textarea id="f_description">' + (f.description || "") + "</textarea></div>" +
+        '<div style="margin-top:12px"><span class="cap" style="font-size:12px;color:var(--muted);font-weight:600">Listing type</span>' +
+          '<div class="radio-row" style="margin-top:5px">' +
+            '<div class="radio-pill' + (f.listing_type === "product" ? " active" : "") + '" data-type="product">Product</div>' +
+            '<div class="radio-pill' + (f.listing_type === "service" ? " active" : "") + '" data-type="service">Service</div>' +
+          "</div></div>" +
+        '<div class="grid g3" style="margin-top:12px">' +
+          field("f_price", "Price (GHS)", f.price, "number") +
+          field("f_unit", "Unit (e.g. per bag, per acre, per hour)", f.unit) +
+          field("f_quantity", "Quantity available" + (f.listing_type === "service" ? " (leave blank for services)" : ""), f.quantity_available, "number") +
+        "</div>" +
+        '<div style="margin-top:12px">' + field("f_region", "Region", f.region) + "</div>" +
+
+        '<div style="margin-top:16px"><span class="cap" style="font-size:12px;color:var(--muted);font-weight:600">Photos</span>' +
+          '<div class="dropzone" id="dropzone" style="margin-top:6px">' +
+            '<div class="icon">📷</div>' +
+            '<div class="main-text">Drag &amp; drop images here, or click to browse</div>' +
+            '<div class="sub-text">JPEG, PNG, or WEBP, up to 5 MB each. At least one is required before you can submit for review.</div>' +
+          "</div>" +
+          '<input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple style="display:none">' +
+          (imgTiles || stagedTiles ? '<div class="image-strip">' + imgTiles + stagedTiles + "</div>" : "") +
+        "</div>" +
+
+        '<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">' +
+          '<button class="btn" id="saveDraftBtn" style="flex:1;min-width:160px">Save as Draft</button>' +
+          '<button class="btn primary" id="submitReviewBtn" style="flex:1;min-width:160px">Submit for Review</button>' +
+        "</div>" +
+        '<button class="btn small" id="cancelFormBtn" style="margin-top:10px">&larr; Cancel</button>' +
+        '<div class="inline-alert" id="formAlert"><span>⚠</span><span id="formAlertText"></span></div>' +
+      "</div>"
+    );
+  }
+
+  function readFormInputs() {
+    state.form.title = document.getElementById("f_title").value;
+    state.form.category_id = document.getElementById("f_category").value;
+    state.form.description = document.getElementById("f_description").value;
+    state.form.price = document.getElementById("f_price").value;
+    state.form.unit = document.getElementById("f_unit").value;
+    state.form.quantity_available = document.getElementById("f_quantity").value;
+    state.form.region = document.getElementById("f_region").value;
+  }
+
+  function wireFormBody() {
+    document.getElementById("f_title").addEventListener("input", function (e) { state.form.title = e.target.value; });
+    document.getElementById("f_category").addEventListener("change", function (e) { state.form.category_id = e.target.value; });
+    document.getElementById("f_description").addEventListener("input", function (e) { state.form.description = e.target.value; });
+    document.getElementById("f_price").addEventListener("input", function (e) { state.form.price = e.target.value; });
+    document.getElementById("f_unit").addEventListener("input", function (e) { state.form.unit = e.target.value; });
+    document.getElementById("f_quantity").addEventListener("input", function (e) { state.form.quantity_available = e.target.value; });
+    document.getElementById("f_region").addEventListener("input", function (e) { state.form.region = e.target.value; });
+    document.querySelectorAll("[data-type]").forEach(function (el) {
+      el.addEventListener("click", function () { state.form.listing_type = el.dataset.type; render(); });
+    });
+    document.getElementById("cancelFormBtn").addEventListener("click", function () { state.step = state.editingId ? "detail" : "listings"; render(); });
+
+    var dz = document.getElementById("dropzone");
+    var fileInput = document.getElementById("fileInput");
+    dz.addEventListener("click", function () { fileInput.click(); });
+    dz.addEventListener("dragover", function (e) { e.preventDefault(); dz.classList.add("dragover"); });
+    dz.addEventListener("dragleave", function () { dz.classList.remove("dragover"); });
+    dz.addEventListener("drop", function (e) {
+      e.preventDefault();
+      dz.classList.remove("dragover");
+      handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener("change", function (e) { handleFiles(e.target.files); });
+
+    document.querySelectorAll("[data-remove-staged]").forEach(function (el) {
+      el.addEventListener("click", function (e) {
+        e.stopPropagation();
+        state.stagedFiles.splice(+el.dataset.removeStaged, 1);
+        render();
+      });
+    });
+    document.querySelectorAll("[data-remove-existing]").forEach(function (el) {
+      el.addEventListener("click", async function (e) {
+        e.stopPropagation();
+        try {
+          var updated = await apiSend("DELETE", "/vendor/listings/" + state.editingId + "/images/" + el.dataset.removeExisting, null);
+          state.listingImages = updated.images;
+          render();
+        } catch (err) {
+          document.getElementById("formAlertText").textContent = err.message;
+          document.getElementById("formAlert").classList.add("show");
+        }
+      });
+    });
+
+    document.getElementById("saveDraftBtn").addEventListener("click", function () { onSaveListing(false); });
+    document.getElementById("submitReviewBtn").addEventListener("click", function () { onSaveListing(true); });
+  }
+
+  function handleFiles(fileList) {
+    Array.prototype.forEach.call(fileList, function (file) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        state.stagedFiles.push({ file: file, previewUrl: e.target.result });
+        render();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function validateForm() {
+    var f = state.form;
+    if (!f.title.trim()) return "Title is required.";
+    if (!f.category_id) return "Choose a category.";
+    if (!f.region.trim()) return "Region is required.";
+    if (!f.unit.trim()) return "Unit is required.";
+    var price = parseFloat(f.price);
+    if (isNaN(price) || price < 0) return "Price must be a number >= 0.";
+    return null;
+  }
+
+  async function onSaveListing(submitForReview) {
+    readFormInputs();
+    var err = validateForm();
+    if (err) {
+      document.getElementById("formAlertText").textContent = err;
+      document.getElementById("formAlert").classList.add("show");
+      return;
+    }
+    var btn = document.getElementById(submitForReview ? "submitReviewBtn" : "saveDraftBtn");
+    var otherBtn = document.getElementById(submitForReview ? "saveDraftBtn" : "submitReviewBtn");
+    btn.disabled = true; otherBtn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving…';
+    try {
+      var payload = {
+        category_id: state.form.category_id, title: state.form.title, description: state.form.description,
+        listing_type: state.form.listing_type, price: parseFloat(state.form.price), unit: state.form.unit,
+        quantity_available: state.form.quantity_available === "" ? null : parseFloat(state.form.quantity_available),
+        region: state.form.region,
+      };
+      var listing;
+      if (state.editingId) {
+        listing = await apiSend("PUT", "/vendor/listings/" + state.editingId, payload);
+      } else {
+        listing = await apiSend("POST", "/vendor/listings", payload);
+        state.editingId = listing.id;
+      }
+      for (var i = 0; i < state.stagedFiles.length; i++) {
+        listing = await apiUpload("/vendor/listings/" + state.editingId + "/images", state.stagedFiles[i].file);
+      }
+      state.stagedFiles = [];
+      state.listingImages = listing.images;
+
+      if (submitForReview) {
+        listing = await apiSend("POST", "/vendor/listings/" + state.editingId + "/submit", null);
+      }
+      state.listing = listing;
+      await refreshListings();
+      state.step = "detail";
+      render();
+    } catch (e) {
+      document.getElementById("formAlertText").textContent = e.message;
+      document.getElementById("formAlert").classList.add("show");
+      btn.disabled = false; otherBtn.disabled = false;
+      btn.textContent = submitForReview ? "Submit for Review" : "Save as Draft";
+    }
+  }
+
+  // ------------------------- Detail -------------------------
+
+  function renderDetailBody() {
+    var l = state.listing;
+    var gallery = l.images.length
+      ? '<div class="image-strip">' + l.images.map(function (img) { return '<div class="image-tile"><img src="' + img.url + '" alt=""></div>'; }).join("") + "</div>"
+      : '<div class="caption">No images yet.</div>';
+
+    var actions = "";
+    if (l.status === "draft" || l.status === "rejected") {
+      actions += '<button class="btn primary block" id="submitBtn" style="margin-top:10px">Submit for Review</button>';
+    }
+    if (l.status === "active" || l.status === "out_of_stock") {
+      var toggleTo = l.status === "active" ? "out_of_stock" : "active";
+      actions += '<button class="btn block" id="toggleStockBtn" data-to="' + toggleTo + '" style="margin-top:10px">' + (l.status === "active" ? "Mark Out of Stock" : "Mark Active") + "</button>";
+    }
+    if (l.status !== "archived") {
+      actions += '<button class="btn danger block" id="archiveBtn" style="margin-top:10px">Archive Listing</button>';
+    }
+
+    return (
+      '<button class="btn small" id="backBtn" style="margin-bottom:14px">&larr; All listings</button>' +
+      (l.status === "rejected" && l.rejection_reason ? '<div class="inline-note"><span>⚠</span><span><b>Rejected:</b> ' + l.rejection_reason + "</span></div>" : "") +
+      '<div class="grid g2">' +
+        '<div class="card"><span class="card-label">Details</span>' +
+          '<div class="kv"><span class="k">Title</span><span class="v">' + l.title + "</span></div>" +
+          '<div class="kv"><span class="k">Category</span><span class="v">' + l.category_name + "</span></div>" +
+          '<div class="kv"><span class="k">Type</span><span class="v">' + (l.listing_type === "service" ? "Service" : "Product") + "</span></div>" +
+          '<div class="kv"><span class="k">Price</span><span class="v">' + ghs(l.price) + " " + l.unit + "</span></div>" +
+          '<div class="kv"><span class="k">Quantity available</span><span class="v">' + (l.quantity_available === null ? "N/A" : l.quantity_available) + "</span></div>" +
+          '<div class="kv"><span class="k">Region</span><span class="v">' + l.region + "</span></div>" +
+          '<div class="kv"><span class="k">Status</span><span class="v">' + statusBadge(l.status) + "</span></div>" +
+          '<div class="caption" style="margin-top:8px">' + (l.description || "No description.") + "</div>" +
+          '<span class="card-label" style="margin-top:14px">Photos</span>' + gallery +
+        "</div>" +
+        '<div class="card"><span class="card-label">Actions</span>' +
+          (l.status !== "archived" ? '<button class="btn block" id="editBtn">Edit Listing</button>' : "") +
+          actions +
+          '<div class="inline-alert" id="detailAlert"><span>⚠</span><span id="detailAlertText"></span></div>' +
+        "</div>" +
+      "</div>"
+    );
+  }
+
+  function wireDetailBody() {
+    document.getElementById("backBtn").addEventListener("click", function () { state.step = "listings"; render(); });
+    var editBtn = document.getElementById("editBtn");
+    if (editBtn) editBtn.addEventListener("click", function () {
+      var l = state.listing;
+      state.editingId = l.id;
+      state.form = {
+        category_id: l.category_id, title: l.title, description: l.description,
+        listing_type: l.listing_type, price: l.price, unit: l.unit,
+        quantity_available: l.quantity_available === null ? "" : l.quantity_available, region: l.region,
+      };
+      state.listingImages = l.images;
+      state.stagedFiles = [];
+      state.step = "form";
+      render();
+    });
+    var submitBtn = document.getElementById("submitBtn");
+    if (submitBtn) submitBtn.addEventListener("click", async function () {
+      submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner"></span> Submitting…';
+      try {
+        state.listing = await apiSend("POST", "/vendor/listings/" + state.listing.id + "/submit", null);
+        await refreshListings();
+        render();
+      } catch (e) {
+        document.getElementById("detailAlertText").textContent = e.message;
+        document.getElementById("detailAlert").classList.add("show");
+        submitBtn.disabled = false; submitBtn.textContent = "Submit for Review";
+      }
+    });
+    var toggleBtn = document.getElementById("toggleStockBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", async function () {
+      toggleBtn.disabled = true; toggleBtn.innerHTML = '<span class="spinner"></span> Updating…';
+      try {
+        state.listing = await apiSend("POST", "/vendor/listings/" + state.listing.id + "/status", { status: toggleBtn.dataset.to });
+        await refreshListings();
+        render();
+      } catch (e) {
+        document.getElementById("detailAlertText").textContent = e.message;
+        document.getElementById("detailAlert").classList.add("show");
+        toggleBtn.disabled = false;
+      }
+    });
+    var archiveBtn = document.getElementById("archiveBtn");
+    if (archiveBtn) archiveBtn.addEventListener("click", async function () {
+      archiveBtn.disabled = true; archiveBtn.innerHTML = '<span class="spinner"></span> Archiving…';
+      try {
+        state.listing = await apiSend("DELETE", "/vendor/listings/" + state.listing.id, null);
+        await refreshListings();
+        render();
+      } catch (e) {
+        document.getElementById("detailAlertText").textContent = e.message;
+        document.getElementById("detailAlert").classList.add("show");
+        archiveBtn.disabled = false; archiveBtn.textContent = "Archive Listing";
+      }
+    });
+  }
+
+  // ------------------------- Auth -------------------------
+
+  async function onLogin() {
+    var btn = document.getElementById("loginBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try {
+      var res = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: state.email, password: state.password }) });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      state.challengeId = data.challenge_id;
+      state.otpEmail = data.dev_only_email_code;
+      state.step = "otp";
+      render();
+    } catch (e) {
+      document.getElementById("loginAlertText").textContent = e.message;
+      document.getElementById("loginAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Sign in";
+    }
+  }
+
+  async function onVerifyOtp() {
+    var btn = document.getElementById("otpBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Verifying…';
+    try {
+      var res = await fetch(API + "/auth/login/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challenge_id: state.challengeId, email_code: state.otpEmail }) });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "OTP verification failed");
+      state.token = data.access_token;
+      saveSession(state.token);
+      await completeAuth();
+    } catch (e) {
+      document.getElementById("otpAlertText").textContent = e.message;
+      document.getElementById("otpAlert").classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Verify & continue";
+    }
+  }
+
+  // "listings" is the only post-login destination reachable from the rail
+  // directly -- "form"/"detail" are reached by an in-page action (Add New
+  // Listing / clicking a card), same precedent as the Vendor Product
+  // Catalogue flow's own "detail" step.
+  var NAV_STEP_IDS = ["listings"];
+
+  function renderFlowRail(activeIdx) {
+    var el = document.getElementById("flowSteps");
+    el.innerHTML = STEPS.map(function (s, i) {
+      var cls = i < activeIdx ? "done" : i === activeIdx ? "current" : "locked";
+      var mark = i < activeIdx ? "✓" : (i + 1);
+      return '<div class="flow-step ' + cls + '" data-idx="' + i + '"><div class="dot">' + mark + "</div><span>" + s.label + "</span></div>";
+    }).join("");
+    el.querySelectorAll(".flow-step").forEach(function (row) {
+      var target = STEPS[+row.dataset.idx].id;
+      var clickable = row.classList.contains("done") || (state.token && NAV_STEP_IDS.indexOf(target) !== -1);
+      if (!clickable) return;
+      row.classList.add("done");
+      row.addEventListener("click", function () {
+        if (target === "login") state.token = null;
+        state.step = target;
+        render();
+      });
+    });
+  }
+
+  document.getElementById("restartBtn").addEventListener("click", function () {
+    clearSession();
+    state = {
+      token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpEmail: "",
+      categories: [], notifications: [], listings: [], statusFilter: "all", editingId: null,
+      form: JSON.parse(JSON.stringify(EMPTY_FORM)), stagedFiles: [], listingImages: [], listing: null,
+      showNotifPanel: false, step: "login",
+    };
+    render();
+  });
+
+  var _existing = loadSession();
+  if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }
+})();
+</script>

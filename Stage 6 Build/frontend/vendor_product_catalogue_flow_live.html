@@ -244,8 +244,8 @@ var railToggleBtn = document.getElementById("railToggle");
   var railBackdropEl = document.getElementById("railBackdrop");
   if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
   if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
-var PORTAL_NAV = ["Dashboard", "Catalogue", "Orders", "Billing"];
-var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-catalogue-flow", "Orders": "/vendor-catalogue-flow", "Billing": "/vendor-dashboard-flow" };
+var PORTAL_NAV = ["Dashboard", "Catalogue", "Listings", "Orders", "Billing"];
+var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-catalogue-flow", "Listings": "/vendor-listings-flow", "Orders": "/vendor-catalogue-flow", "Billing": "/vendor-dashboard-flow" };
   var API = "";
 
   var state = {

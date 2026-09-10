@@ -148,8 +148,8 @@ var railToggleBtn = document.getElementById("railToggle");
   var railBackdropEl = document.getElementById("railBackdrop");
   if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
   if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
-var PORTAL_NAV = ["Dashboard", "Admin", "Reporting"];
-var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flow", "Reporting": "/reporting-flow" };
+var PORTAL_NAV = ["Dashboard", "Admin", "Listings", "Reporting"];
+var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flow", "Listings": "/listing-review-flow", "Reporting": "/reporting-flow" };
   var API = "";
   var state = { token: null, email: "emmanuel@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", data: null, step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "dashboard", label: "Control Centre" }];

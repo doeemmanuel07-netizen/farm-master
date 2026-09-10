@@ -241,8 +241,8 @@ var railToggleBtn = document.getElementById("railToggle");
   var railBackdropEl = document.getElementById("railBackdrop");
   if (railToggleBtn && railEl) { railToggleBtn.addEventListener("click", function () { railEl.classList.toggle("open"); }); }
   if (railBackdropEl && railEl) { railBackdropEl.addEventListener("click", function () { railEl.classList.remove("open"); }); }
-var PORTAL_NAV = ["Dashboard", "Admin", "Audit Log", "Rates"];
-var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flow", "Audit Log": "/approvals-flow", "Rates": "/user-admin-flow" };
+var PORTAL_NAV = ["Dashboard", "Admin", "Listings", "Audit Log", "Rates"];
+var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flow", "Listings": "/listing-review-flow", "Audit Log": "/approvals-flow", "Rates": "/user-admin-flow" };
   var API = "";
   var ROLE_OPTIONS = [
     ["agronomist", "Agronomist"], ["logistics", "Logistics"], ["finance", "Finance"], ["super_admin", "Super Admin"],
