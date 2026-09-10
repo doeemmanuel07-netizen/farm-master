@@ -81,6 +81,101 @@ channel is gone entirely -- `OtpChallenge.phone_code` was dropped via
 `OtpChallengeResponse` no longer carry it. One code, one field, on every
 Verify OTP screen.
 
+## Vendor Product/Service Listing (10 September 2026)
+
+A new, separate feature request from Emmanuel, distinct from the existing
+Product Catalogue (Order Inputs backend, PRD Section 6 Must-Have #3's
+literal scope): a Jiji-style "post an ad" backend so a vendor can list any
+good or service they offer -- seeds, fertiliser, equipment, or a service
+like ploughing -- for farmers and buyers to browse, gated by a real Super
+Admin approval workflow before anything goes live. `models.Listing` /
+`ListingImage` / `ListingCategory` / `Notification` are new tables; the
+existing `Product`/`InputOrder` tables are untouched and keep serving Order
+Inputs exactly as before -- the two marketplaces are deliberately not
+merged (see `models.Listing`'s own docstring for why).
+
+**Status lifecycle:** `draft` (never shown to admin or farmer/buyer) ->
+`POST /vendor/listings/{id}/submit` -> `pending_review` (requires all
+required fields, `price >= 0`, and at least one image) -> Super Admin
+`approve` -> `active` (now visible on the farmer/buyer browse endpoint) or
+`reject` -> `rejected` (a `rejection_reason` is required and shown back to
+the vendor; a rejected listing is editable and resubmittable). `active`
+listings get a self-service `out_of_stock`/`active` toggle
+(`POST .../status`) that does **not** require re-review -- Emmanuel's
+explicit decision: availability isn't a content change. Editing a core
+field (title, description, category, price, unit, quantity, images) on an
+`active`, `out_of_stock`, or `rejected` listing resets it to
+`pending_review` -- it stops being publicly visible until re-approved.
+`archived` is a vendor-initiated soft delete, reachable from any
+non-archived status (no hard delete anywhere in this codebase's own
+conventions).
+
+**Images are a real file upload** -- the first one in this codebase (every
+earlier "photo capture" flow, e.g. Fulfilment Intake/Proof of Delivery,
+stayed a boolean flag; see `models.ListingImage` for why that precedent
+doesn't extend here). `POST /vendor/listings/{id}/images` validates
+content-type (JPEG/PNG/WEBP only) and a 5 MB size cap, stores the file
+under `Stage 6 Build/uploads/listings/<listing_id>/` (gitignored, runtime-
+generated), and serves it back through a new `/uploads` static mount
+(`app/uploads.py`). No cloud object storage is wired up -- same "gateway
+TBD" status as payments/OTP/SMS elsewhere.
+
+**Categories are a real, admin-manageable table** (`ListingCategory`), not
+a hardcoded enum like `Product`'s own `ProductCategory` -- seeded with
+Seeds/Fertilizer/Equipment/Services/Other, and Super Admin can add more
+(`POST /admin/listing-categories`) or retire one (`.../deactivate`,
+a soft-disable so existing listings referencing it don't break) without a
+code deploy.
+
+**In-app notifications are real, not simulated** -- `models.Notification`
+is a new table (no notification system of any kind existed before this).
+Unlike OTP/SMS/mobile money, an in-app row has no external gateway to
+fake, only a UI to build, so `GET /vendor/notifications` returns real rows
+the moment an admin approves or rejects a listing. Email notification was
+explicitly scoped to "if the notification system already exists" -- it
+doesn't, so this stays in-app only for now (see "Known limitations").
+
+**No caching anywhere, by design** -- same as every other endpoint in this
+codebase, `GET /listings` (the farmer/buyer browse-and-search endpoint,
+with `category_id`/`region`/`vendor_id`/`min_price`/`max_price`/`q`
+filters) queries the database directly on every call. An admin approval,
+rejection, or a vendor's own status toggle is reflected on that endpoint's
+very next request, with nothing to invalidate -- verified live: approving
+a listing through `/listing-review-flow` made it appear on a farmer's
+`GET /listings` call immediately, and editing that listing's price made it
+disappear again just as immediately (both confirmed via a scripted
+end-to-end run, not just read from the code).
+
+**Frontend:** `/vendor-listings-flow` ("My Listings" -- status-filter tabs,
+a responsive card grid with status badges and the rejection reason shown
+inline, edit/delete/status-toggle actions, an empty state with a
+"+ Add New Listing" CTA -- plus a single Add/Edit form with a real
+drag-and-drop image dropzone, a Product/Service toggle, and Save-as-Draft
+vs Submit-for-Review actions) and `/listing-review-flow` (the Super Admin
+Pending Review queue -- a table of waiting listings, a full preview with
+the vendor's photos, and Approve / Reject-with-reason actions). Both
+follow this codebase's own shared chrome/responsive/session conventions
+exactly (see "Responsive design" below) and were added to every existing
+Vendor and Internal Operations flow page's header nav (a "Listings" link)
+so they're reachable from anywhere in either portal, not just by URL.
+
+Verified end to end via a scripted run (create draft -> reject-with-no-
+image 422 -> upload image -> submit -> confirm hidden from farmer browse
+-> appears in the admin queue -> approve -> vendor notification appears ->
+now visible to farmer immediately -> edit price on the now-active listing
+re-routes it to `pending_review` -> hidden from farmer browse again
+immediately -> reject with a reason -> stock-toggle on an unrelated active
+listing does *not* re-trigger review -> RBAC 403 for a vendor token on the
+farmer/buyer browse endpoint -> archive -> a second archive attempt
+409s) and by clicking through both new flow pages in the browser --
+including the Reject-without-a-reason client-side validation and a real
+approve/reject round trip from the queue. A responsive/touch-target sweep
+at 375px (this codebase's own QA method: `scrollWidth` vs `clientWidth`
+for overflow, `getBoundingClientRect()` on every interactive element) found
+and fixed one real issue: My Listings' status filter pills were 40px tall,
+under the 44px minimum -- fixed to `min-height: 44px`, matching every
+other pill/button in this codebase.
+
 ## Session & inactivity logout (10 September 2026)
 
 Two related problems, both from testing: clicking a header nav link was
@@ -290,6 +385,14 @@ The first run creates the tables in `farm_master` and seeds:
   Reconciliation vendor payout (now correctly including this order's real
   cost, not just the mechanisation request's) all have real data on first
   run.
+- Five Vendor Listing categories (Seeds, Fertilizer, Equipment, Services,
+  Other) and four demo listings for the seeded vendor, one per status
+  branch -- `active` (Improved Maize Seed), `pending_review` (Tractor
+  Ploughing Service), `rejected` (Used Irrigation Pump, with a real
+  rejection reason), and `draft` (NPK Fertiliser Wholesale Lot) -- each
+  non-draft one carrying a real placeholder image on disk, so My Listings,
+  the Admin Pending Review queue, and the Farmer/Buyer browse endpoint all
+  have real data on first run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
 
@@ -320,6 +423,8 @@ Re-running the seed is safe; it skips seeding if data already exists.
 - Live Farmer Dashboard, Milestones, Messaging & Wallet: <http://127.0.0.1:8000/farmer-dashboard-flow>
 - Live Vendor Dashboard, Billing, Payout & Handoff: <http://127.0.0.1:8000/vendor-dashboard-flow>
 - Live USSD/SMS Channel (session emulator): <http://127.0.0.1:8000/ussd-sms-flow>
+- Live Vendor Product/Service Listings (My Listings, Add/Edit, images): <http://127.0.0.1:8000/vendor-listings-flow>
+- Live Vendor Listing Review Queue (Super Admin approve/reject): <http://127.0.0.1:8000/listing-review-flow>
 - Interactive API docs (Swagger UI): <http://127.0.0.1:8000/docs>
 - Health check: <http://127.0.0.1:8000/health>
 
@@ -692,6 +797,22 @@ verification detail.
 
 ## Known limitations of this pass
 
+- **Vendor Listing approval is scoped to Super Admin only** (10 September
+  2026), the same precedent as Buyer/Vendor `RegistrationApproval` -- not
+  opened to the two Internal Ops Staff roles, since neither's confirmed
+  scope (Matching Queue / MoFA compliance + read-only reconciliation)
+  covers vendor marketplace moderation. Revisit if a dedicated marketplace-
+  moderator role is ever introduced.
+- **Vendor Listing notifications are in-app only, no email.** Email was
+  explicitly scoped to "if the notification system already exists" -- it
+  didn't (no notification system of any kind existed before this pass), so
+  this stays in-app-only, same "gateway TBD" status as every other
+  simulated channel in this codebase.
+- **Listing images have no cloud storage.** Uploaded files live on local
+  disk under `Stage 6 Build/uploads/` (gitignored), served via a `/uploads`
+  static mount -- fine for the pilot, but a real multi-instance deployment
+  would need S3/GCS or equivalent (no provider chosen, same status as
+  payments/OTP/SMS).
 - Mobile money payment is simulated (marked successful immediately, no real
   gateway call) — no provider is chosen yet (PRD Section 1.1).
 - Card payment deliberately returns `501` rather than pretending to work.
