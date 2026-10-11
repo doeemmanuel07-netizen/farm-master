@@ -73,46 +73,55 @@ def test_confirm_already_confirmed_request_returns_409(client, roles, rate_confi
     assert second.status_code == 409
 
 
-def test_add_catalogue_item_rejects_non_positive_price(client, roles, rate_config):
+def test_add_catalogue_item_is_retired(client, roles, rate_config):
     token = login(client, roles[Role.VENDOR].email)
     res = client.post("/vendor/catalogue", json={
-        "name": "Bad item", "category": "seed", "unit": "kg", "unit_price": 0, "stock_qty": 10,
+        "name": "Any item", "category": "seed", "unit": "kg", "unit_price": 10, "stock_qty": 10,
     }, headers=auth_headers(token))
-    assert res.status_code == 422
+    assert res.status_code == 410 and "/vendor/listings" in res.json()["detail"]
+
+
+def _marketplace_order(client, farmer, listing, qty):
+    res = client.post("/farmer/marketplace/orders", json={"lines": [{"listing_id": listing.id, "quantity": qty}]},
+                      headers=auth_headers(login(client, farmer.email)))
+    assert res.status_code == 200, res.text
+    return res.json()["orders"][0]
 
 
 def test_decline_input_order_restores_stock(client, roles, rate_config, db_session, make_user):
+    from tests.factories import make_listing
     vendor = roles[Role.VENDOR]
-    farmer = make_user(Role.FARMER)
-    product = make_product(db_session, vendor, stock_qty=10.0, unit_price=20.0)
-
-    farmer_token = login(client, farmer.email)
-    order = client.post("/farmer/input-orders", json={
-        "vendor_id": vendor.id, "lines": [{"product_id": product.id, "quantity": 4.0}],
-    }, headers=auth_headers(farmer_token)).json()
-    db_session.refresh(product)
-    assert product.stock_qty == 6.0
+    listing = make_listing(db_session, vendor, quantity_available=10.0, price=20.0)
+    order = _marketplace_order(client, make_user(Role.FARMER), listing, 4.0)
+    db_session.refresh(listing)
+    assert listing.quantity_available == 6.0
 
     vendor_token = login(client, vendor.email)
     decline = client.post(f"/vendor/input-orders/{order['id']}/decline", headers=auth_headers(vendor_token))
     assert decline.status_code == 200
-    db_session.refresh(product)
-    assert product.stock_qty == 10.0
+    db_session.refresh(listing)
+    assert listing.quantity_available == 10.0
 
 
 def test_confirm_input_order_creates_dispatch_job(client, roles, rate_config, db_session, make_user):
+    from tests.factories import make_listing
     vendor = roles[Role.VENDOR]
-    farmer = make_user(Role.FARMER)
-    product = make_product(db_session, vendor, stock_qty=10.0, unit_price=15.0)
-    farmer_token = login(client, farmer.email)
-    order = client.post("/farmer/input-orders", json={
-        "vendor_id": vendor.id, "lines": [{"product_id": product.id, "quantity": 2.0}],
-    }, headers=auth_headers(farmer_token)).json()
+    listing = make_listing(db_session, vendor, quantity_available=10.0, price=15.0)
+    order = _marketplace_order(client, make_user(Role.FARMER), listing, 2.0)
 
     vendor_token = login(client, vendor.email)
     confirm = client.post(f"/vendor/input-orders/{order['id']}/confirm", headers=auth_headers(vendor_token))
     assert confirm.status_code == 200
     assert confirm.json()["dispatch_status"] == "assigned"
+
+
+def test_dashboard_counts_listings_not_retired_products(client, roles, rate_config, db_session):
+    from tests.factories import make_listing
+    vendor = roles[Role.VENDOR]
+    make_listing(db_session, vendor, quantity_available=5.0)
+    make_listing(db_session, vendor, title="Pump hire", quantity_available=None)
+    dash = client.get("/vendor/dashboard", headers=auth_headers(login(client, vendor.email))).json()
+    assert dash["catalogue_item_count"] == 2 and dash["catalogue_low_stock_count"] == 1
 
 
 def test_dashboard_billing_payout_handoff_are_real(client, roles, rate_config, db_session, make_user):

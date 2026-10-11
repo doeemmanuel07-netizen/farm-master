@@ -31,7 +31,7 @@ from ..wallet import compute_farmer_wallet, wallet_summary, sync_farmer_ledger
 from ..matching import visible_opportunities_query, matched_opportunities, opportunity_view, on_opportunity_accepted
 from ..state import transition
 from ..models import Notification, Crop, ListingKind
-from ..marketplace import catalogue as marketplace_catalogue, item_view, place_order, delivery_sla_days, KIND_LABEL
+from ..marketplace import catalogue as marketplace_catalogue, item_view, place_order, delivery_sla_days, KIND_LABEL, formula_prefill
 from ..schemas import (
     OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
     HarvestPickupRequestCreate, HarvestPickupRequestResponse, FarmerOrderOption,
@@ -41,6 +41,7 @@ from ..schemas import (
     FarmerWalletResponse, FarmerDashboardResponse,
     MatchedOpportunityResponse, FarmerWalletSummaryResponse, WalletEntryResponse, FarmerNotificationResponse,
     MarketplaceCatalogueResponse, MarketplaceTab, MarketplaceOrderCreate, MarketplaceOrderResult,
+    FormulaPrefillResponse, FormulaPrefillLine,
 )
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
@@ -227,17 +228,19 @@ def my_harvest_pickups(
 # ---------------------------------------------------------------------------
 
 
+RETIRED_PRODUCTS = (
+    "The product catalogue was retired on 11 Oct 2026 (decision D1). Browse GET /farmer/marketplace and "
+    "order with POST /farmer/marketplace/orders; GET /farmer/marketplace/formula-prefill replaces the "
+    "Order Inputs pre-fill."
+)
+
+
 @router.get("/catalogue", response_model=List[ProductResponse])
 def browse_catalogue(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.FARMER)),
 ):
-    products = db.query(Product).all()
-    views = []
-    for p in products:
-        vendor = db.query(User).filter(User.id == p.vendor_id).first()
-        views.append(product_view(p, vendor.organisation_name or vendor.full_name))
-    return views
+    raise HTTPException(status_code=410, detail=RETIRED_PRODUCTS)
 
 
 @router.post("/input-orders", response_model=InputOrderResponse)
@@ -246,55 +249,7 @@ def place_input_order(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.FARMER)),
 ):
-    if not payload.lines:
-        raise HTTPException(status_code=422, detail="An input order needs at least one line item.")
-
-    if payload.production_formula_id:
-        formula = (
-            db.query(ProductionFormula)
-            .filter(ProductionFormula.id == payload.production_formula_id, ProductionFormula.farmer_id == user.id)
-            .first()
-        )
-        if not formula:
-            raise HTTPException(status_code=422, detail="That production formula isn't one of your own.")
-
-    products_by_id = {}
-    total_cost = 0.0
-    for line in payload.lines:
-        if line.quantity <= 0:
-            raise HTTPException(status_code=422, detail="Every line's quantity must be greater than zero.")
-        product = db.query(Product).filter(Product.id == line.product_id).first()
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {line.product_id} not found.")
-        if product.vendor_id != payload.vendor_id:
-            raise HTTPException(status_code=422, detail="All line items must belong to the same vendor as vendor_id.")
-        if line.quantity > product.stock_qty:
-            raise HTTPException(status_code=409, detail=f"'{product.name}' only has {product.stock_qty} {product.unit} in stock.")
-        products_by_id[line.product_id] = product
-        total_cost += line.quantity * product.unit_price
-
-    order = InputOrder(
-        farmer_id=user.id,
-        vendor_id=payload.vendor_id,
-        production_formula_id=payload.production_formula_id,
-        total_cost=round(total_cost, 2),
-    )
-    db.add(order)
-    db.commit()
-    db.refresh(order)
-
-    for line in payload.lines:
-        product = products_by_id[line.product_id]
-        db.add(InputOrderLine(
-            input_order_id=order.id, product_id=product.id,
-            quantity=line.quantity, unit_price=product.unit_price,
-        ))
-        # Reserve the stock immediately -- restored if the vendor later
-        # declines (routers/vendor.py's decline_input_order).
-        product.stock_qty -= line.quantity
-    db.commit()
-
-    return order_view(order, db)
+    raise HTTPException(status_code=410, detail=RETIRED_PRODUCTS)
 
 
 @router.get("/input-orders/mine", response_model=List[InputOrderResponse])
@@ -499,11 +454,26 @@ def place_marketplace_order(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.FARMER)),
 ):
-    orders = place_order(db, user, payload.lines)
+    orders = place_order(db, user, payload.lines, payload.production_formula_id)
     sync_farmer_ledger(db, user.id)
     sla = delivery_sla_days(db)
     return MarketplaceOrderResult(
         checkout_ref=orders[0].checkout_ref, orders=[order_view(o, db) for o in orders],
         total=round(sum(o.total_cost for o in orders), 2), delivery_sla_days=sla,
         message=f"Order routed to Farm Master logistics — estimated farm-gate delivery in {sla} days.",
+    )
+
+
+
+@router.get("/marketplace/formula-prefill", response_model=FormulaPrefillResponse)
+def marketplace_formula_prefill(
+    production_formula_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    """Order Inputs' pre-fill, moved onto the marketplace: cart lines from the farmer's production formula."""
+    formula, label, lines = formula_prefill(db, user, production_formula_id)
+    return FormulaPrefillResponse(
+        production_formula_id=formula.id if formula else None, label=label,
+        lines=[FormulaPrefillLine(**l) for l in lines],
     )

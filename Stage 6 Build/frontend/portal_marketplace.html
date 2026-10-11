@@ -10,7 +10,7 @@
   .product-icon { color: var(--clay); }
   .stock { font-size: 11.5px; color: var(--ink-soft); }
   .vendor-note { font-size: 12.5px; color: var(--ink-soft); margin-top: 14px; }
-  .vendor-note a { color: var(--forest-deep); font-weight: 700; }
+  .vendor-note a { color: var(--forest-deep); font-weight: 700; display: inline-flex; align-items: center; min-height: 44px; }
   .cart-line { flex-wrap: wrap; }
   .cart-line .qty-wrap { display: inline-flex; align-items: center; gap: 4px; }
   .cart-line .qty { min-width: 22px; text-align: center; font-weight: 600; }
@@ -27,6 +27,7 @@
 
   <div class="grid-2">
     <div>
+      <div id="prefill"></div>
       <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Catalogue categories"></div>
       <div class="product-grid" id="product-grid" role="tabpanel"><div class="empty">Loading catalogue…</div></div>
       <p class="vendor-note">Selling on Farm Master? <a href="/vendor-dashboard-flow">Open the vendor back-office</a> to manage listings, incoming orders and payouts.</p>
@@ -47,23 +48,46 @@
 (function () {
   "use strict";
   var $ = FM.$, esc = FM.esc;
-  var state = { tabs: [], items: [], active: null, cart: [], sla: 2 };
+  var state = { tabs: [], items: [], active: null, cart: [], sla: 2, formulaId: null };
   var CART_KEY = "farmmaster_marketplace_cart";
 
   FM.portal({
     active: "vendor", role: "farmer", portalName: "Marketplace", demoEmail: "kojo.mensah@farmmaster.test",
     signInHint: "The marketplace is where farmers order inputs, equipment and services. Sign in with your farmer account.",
-    onReady: function () { restoreCart(); load(); }
+    onReady: function () { restoreCart(); $("#place-order").addEventListener("click", placeOrder); load().then(loadPrefill); }
   });
 
   function load() {
-    FM.get("/farmer/marketplace").then(function (cat) {
+    return FM.get("/farmer/marketplace").then(function (cat) {
       state.tabs = cat.tabs; state.items = cat.items; state.sla = cat.delivery_sla_days;
       state.active = state.active || cat.tabs[0].kind;
       // Drop cart lines whose listing is no longer on sale.
       state.cart = state.cart.filter(function (c) { return cat.items.some(function (i) { return i.id === c.id; }); });
       renderTabs(); renderProducts(); renderCart();
     }).catch(function (e) { $("#product-grid").innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; });
+  }
+
+  /* Order Inputs' production-formula pre-fill (moved here with decision D1). */
+  function loadPrefill() {
+    FM.get("/farmer/marketplace/formula-prefill").then(function (pf) {
+      var box = $("#prefill");
+      if (!pf.lines.length) { box.innerHTML = ""; return; }
+      box.innerHTML = '<div class="notice" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+        "<span>Your production formula (" + esc(pf.label) + ") needs " + pf.lines.map(function (l) { return fmt(l.quantity) + " × " + esc(l.title); }).join(", ") + ".</span>" +
+        '<button class="btn btn-ghost btn-sm" type="button" id="apply-prefill">Add to order</button></div>';
+      var apply = function () {
+        pf.lines.forEach(function (l) {
+          var existing = state.cart.filter(function (c) { return c.id === l.listing_id; })[0];
+          if (existing) existing.qty = Math.max(existing.qty, l.quantity);
+          else state.cart.push({ id: l.listing_id, qty: l.quantity, date: null });
+        });
+        state.formulaId = pf.production_formula_id;
+        renderCart();
+        FM.toast("Formula inputs added to your order.");
+      };
+      $("#apply-prefill").addEventListener("click", apply);
+      if (/[?&]prefill=formula/.test(location.search)) { apply(); history.replaceState(null, "", "/marketplace"); }
+    }).catch(function () {});
   }
 
   function renderTabs() {
@@ -158,16 +182,18 @@
     $("#cart-total").textContent = FM.money(total);
   }
 
-  $("#place-order").addEventListener("click", function () {
+  function placeOrder() {
     var missing = state.cart.filter(function (c) { var p = item(c.id); return p && p.needs_date && !c.date; })[0];
     if (missing) { FM.toast("Choose a date for " + item(missing.id).title + ".", { error: true }); return; }
     var btn = $("#place-order");
     btn.disabled = true;
     FM.post("/farmer/marketplace/orders", {
-      lines: state.cart.map(function (c) { return { listing_id: c.id, quantity: c.qty, requested_date: c.date || null }; })
+      lines: state.cart.map(function (c) { return { listing_id: c.id, quantity: c.qty, requested_date: c.date || null }; }),
+      production_formula_id: state.formulaId
     }).then(function (res) {
       FM.toast(res.message);
       state.cart = [];
+      state.formulaId = null;
       renderCart();
       load();
     }).catch(function (err) {
@@ -175,7 +201,7 @@
       FM.toast(err.message, { error: true });
       load();
     });
-  });
+  }
 
   // The open cart survives a reload in this browser only (a per-viewer
   // convenience); nothing is ordered until Place order.

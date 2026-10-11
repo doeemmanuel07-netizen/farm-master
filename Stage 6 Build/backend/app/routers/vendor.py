@@ -169,17 +169,10 @@ def add_catalogue_item(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.VENDOR)),
 ):
-    if payload.unit_price <= 0 or payload.stock_qty < 0:
-        raise HTTPException(status_code=422, detail="unit_price must be positive and stock_qty cannot be negative.")
-    product = Product(
-        vendor_id=user.id, name=payload.name, category=payload.category,
-        formula_input_type=payload.formula_input_type, unit=payload.unit,
-        unit_price=payload.unit_price, stock_qty=payload.stock_qty,
+    raise HTTPException(
+        status_code=410,
+        detail="The product catalogue was retired on 11 Oct 2026 (decision D1). Add items as listings: POST /vendor/listings.",
     )
-    db.add(product)
-    db.commit()
-    db.refresh(product)
-    return product_view(product, user.organisation_name or user.full_name)
 
 
 @router.get("/input-orders", response_model=List[InputOrderResponse])
@@ -265,12 +258,17 @@ def vendor_dashboard(
         .filter(InputOrder.vendor_id == user.id, InputOrder.status == InputOrderStatus.PENDING)
         .count()
     )
-    catalogue = db.query(Product).filter(Product.vendor_id == user.id).all()
+    # Counts marketplace listings since products were retired (decision D1).
+    catalogue = (
+        db.query(Listing)
+        .filter(Listing.vendor_id == user.id, Listing.status.in_([ListingStatus.ACTIVE, ListingStatus.OUT_OF_STOCK]))
+        .all()
+    )
     return VendorDashboardResponse(
         pending_mechanisation_requests=pending_mech,
         pending_input_orders=pending_orders,
         catalogue_item_count=len(catalogue),
-        catalogue_low_stock_count=sum(1 for p in catalogue if p.stock_qty < 10),
+        catalogue_low_stock_count=sum(1 for l in catalogue if l.quantity_available is not None and l.quantity_available < 10),
     )
 
 

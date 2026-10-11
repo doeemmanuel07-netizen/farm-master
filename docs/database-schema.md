@@ -74,6 +74,7 @@ erDiagram
     users ||--o{ otp_challenges : "user_id"
     users ||--o{ production_formulas : "farmer_id"
     opportunities ||--o{ production_formulas : "opportunity_id"
+    listings ||--o{ products : "listing_id"
     users ||--o{ products : "vendor_id"
     users ||--o{ proof_of_deliveries : "confirmed_by"
     dispatch_jobs ||--o{ proof_of_deliveries : "dispatch_job_id"
@@ -422,6 +423,7 @@ erDiagram
         string unit
         float unit_price
         float stock_qty
+        string listing_id FK
         datetime created_at
     }
     proof_of_deliveries {
@@ -977,6 +979,7 @@ erDiagram
 | `unit` | string | no |  |
 | `unit_price` | float | no |  |
 | `stock_qty` | float | no |  |
+| `listing_id` | string | yes | FK → `listings.id` |
 | `created_at` | datetime | yes |  |
 
 ### `proof_of_deliveries`

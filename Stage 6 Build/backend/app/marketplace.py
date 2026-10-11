@@ -83,7 +83,13 @@ def delivery_sla_days(db: Session) -> int:
     return int(row.value) if row else 2
 
 
-def place_order(db: Session, farmer: User, lines) -> List[InputOrder]:
+def place_order(db: Session, farmer: User, lines, production_formula_id: Optional[str] = None) -> List[InputOrder]:
+    from .models import ProductionFormula
+    if production_formula_id and not (
+        db.query(ProductionFormula)
+        .filter(ProductionFormula.id == production_formula_id, ProductionFormula.farmer_id == farmer.id).first()
+    ):
+        raise HTTPException(status_code=422, detail="That production formula isn't one of your own.")
     if not lines:
         raise HTTPException(status_code=422, detail="Your order is empty.")
     merged = OrderedDict()
@@ -120,6 +126,7 @@ def place_order(db: Session, farmer: User, lines) -> List[InputOrder]:
     for vendor_id, items in by_vendor.items():
         order = InputOrder(
             farmer_id=farmer.id, vendor_id=vendor_id, checkout_ref=checkout_ref,
+            production_formula_id=production_formula_id,
             total_cost=round(sum(l.price * q for l, q, _ in items), 2),
         )
         db.add(order)
@@ -183,7 +190,7 @@ OWNED_VENDOR = ("services@farmmaster.test", "Farm Master Services", "+2332410000
 THIRD_PARTY_VENDOR_EMAIL = "vendor@farmmaster.test"
 # title, category, kind, basis, price, unit, qty available, icon, formula input, service code, owned?
 SEED_MARKETPLACE = [
-    ("Improved Maize Seed (Obatanpa)", "Seeds", ListingKind.INPUT, PricingBasis.PER_UNIT, 180.0, "per 10kg bag", 120.0, "seed", None, None, False),
+    ("Improved Maize Seed (Obatanpa)", "Seeds", ListingKind.INPUT, PricingBasis.PER_UNIT, 180.0, "per 10kg bag", 120.0, "seed", "seed", None, False),
     ("NPK 15-15-15 Fertiliser", "Fertilizer", ListingKind.INPUT, PricingBasis.PER_UNIT, 265.0, "per 50kg bag", 200.0, "fertiliser", "npk", None, False),
     ("Crop Protection — Fungicide", "Crop Protection", ListingKind.INPUT, PricingBasis.PER_UNIT, 95.0, "per litre", 80.0, "bottle", None, None, False),
     ("Tractor with plough — day rate", "Equipment", ListingKind.EQUIPMENT, PricingBasis.PER_DAY, 650.0, "per day", None, "tractor", None, None, True),
@@ -244,3 +251,86 @@ def seed_marketplace(db: Session) -> None:
         added += 1
     db.commit()
     print(f"Seeded {added} marketplace listings from the CEO demo catalogue.")
+
+
+
+# ---------------------------------------------------------------------------
+# Decision D1, part 2: products retired into listings; Order Inputs'
+# formula pre-fill becomes a marketplace feature.
+# ---------------------------------------------------------------------------
+
+PRODUCT_CATEGORY_TO_LISTING = {"seed": "Seeds", "fertiliser": "Fertilizer", "crop_protection": "Crop Protection", "tools": "Other"}
+PRODUCT_CATEGORY_ICON = {"seed": "seed", "fertiliser": "fertiliser", "crop_protection": "bottle", "tools": "box"}
+
+
+def migrate_products_to_listings(db: Session) -> None:
+    """Idempotent: copies each not-yet-migrated product into an ACTIVE listing and moves its stock."""
+    pending = db.query(Product).filter(Product.listing_id.is_(None)).all()
+    if not pending:
+        return
+    cats = {c.name: c for c in db.query(ListingCategory).all()}
+    for p in pending:
+        cat = cats.get(PRODUCT_CATEGORY_TO_LISTING[p.category.value]) or cats.get("Other")
+        if cat is None:
+            return  # categories not seeded yet; try again next start
+        listing = Listing(
+            vendor_id=p.vendor_id, category_id=cat.id, title=p.name,
+            description=f"{p.name} (moved from the Stage 6 product catalogue).",
+            price=p.unit_price, unit=f"per {p.unit}", quantity_available=p.stock_qty, region="Tema",
+            status=ListingStatus.ACTIVE if p.stock_qty > 0 else ListingStatus.OUT_OF_STOCK,
+            kind=ListingKind.INPUT, pricing_basis=PricingBasis.PER_UNIT,
+            formula_input_type=p.formula_input_type, icon=PRODUCT_CATEGORY_ICON.get(p.category.value, "box"),
+            reviewed_at=datetime.utcnow(),
+        )
+        db.add(listing)
+        db.flush()
+        p.listing_id = listing.id
+        p.stock_qty = 0
+    db.commit()
+    print(f"Moved {len(pending)} retired product(s) into marketplace listings (decision D1).")
+
+
+def _qty_for(listing: Listing, kg_or_bags: float, is_kg: bool) -> float:
+    import math
+    import re
+    if is_kg:
+        m = re.search(r"(\d+(?:\.\d+)?)\s*kg", listing.unit or "", re.I)
+        size = float(m.group(1)) if m else 1.0
+        return float(math.ceil(kg_or_bags / size))
+    return float(kg_or_bags)
+
+
+def formula_prefill(db: Session, farmer: User, production_formula_id: Optional[str] = None):
+    """
+    Suggested cart lines from one of the farmer's production formulas: the
+    cheapest active listing for each formula input type, quantity converted
+    to the listing's unit (e.g. 6.4 kg seed -> 1 x 10kg bag).
+    """
+    from .models import ProductionFormula, Opportunity, FormulaInputType
+
+    q = db.query(ProductionFormula).filter(ProductionFormula.farmer_id == farmer.id)
+    if production_formula_id:
+        q = q.filter(ProductionFormula.id == production_formula_id)
+    formula = q.order_by(ProductionFormula.created_at.desc()).first()
+    if formula is None:
+        return None, None, []
+    opp = db.query(Opportunity).filter(Opportunity.id == formula.opportunity_id).first()
+    wants = [
+        (FormulaInputType.SEED, formula.seed_kg, True, f"{formula.seed_kg:g} kg seed"),
+        (FormulaInputType.NPK, formula.npk_bags, False, f"{formula.npk_bags} NPK bag(s)"),
+        (FormulaInputType.TOPDRESS, formula.topdress_bags, False, f"{formula.topdress_bags} top-dress bag(s)"),
+    ]
+    lines = []
+    for ftype, amount, is_kg, reason in wants:
+        if not amount:
+            continue
+        listing = (
+            db.query(Listing)
+            .filter(Listing.status == ListingStatus.ACTIVE, Listing.formula_input_type == ftype)
+            .order_by(Listing.price).first()
+        )
+        if listing:
+            lines.append({"listing_id": listing.id, "title": listing.title,
+                          "quantity": _qty_for(listing, amount, is_kg), "reason": f"Formula: {reason}"})
+    label = f"{opp.quantity_tonnes:g} t for {opp.buyer_name}" if opp else "your production formula"
+    return formula, label, lines

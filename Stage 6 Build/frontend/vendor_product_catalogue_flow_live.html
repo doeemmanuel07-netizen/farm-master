@@ -229,7 +229,7 @@
     if (state.token && !loadSession()) { state.token = null; state.step = "login"; render(); }
   }, 15000);
   async function completeAuth() {
-      state.catalogue = await apiGet("/vendor/catalogue");
+      state.catalogue = await apiGet("/vendor/listings");
       state.orders = await apiGet("/vendor/input-orders");
       state.step = "catalogue";
       render();
@@ -257,8 +257,6 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
     catalogue: [],
     orders: [],
     order: null,
-    showAddForm: false,
-    newItem: { name: "", category: "seed", formula_input_type: "other", unit: "kg", unit_price: "", stock_qty: "" },
     step: "login",
   };
 
@@ -354,24 +352,21 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
     if (state.step === "catalogue") {
       document.getElementById("screen-title").textContent = "Product Catalogue";
       document.getElementById("screen-crumb").textContent = "Catalogue";
-      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/catalogue -- feeds the Farmer Portal's Order Inputs screen.";
+      document.getElementById("screen-desc").textContent = "Fetched live from GET /vendor/listings -- your marketplace listings. The old product catalogue was retired on 11 Oct 2026 (decision D1); add and edit items on the Listings screen.";
       document.getElementById("canvas").innerHTML = chrome("Catalogue",
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">' +
-          '<div style="font-weight:700;font-size:13px">' + state.catalogue.length + ' items listed</div>' +
-          '<button class="btn primary small" id="toggleAddBtn">' + (state.showAddForm ? "Cancel" : "+ Add item") + '</button>' +
+          '<div style="font-weight:700;font-size:13px">' + state.catalogue.length + ' listings</div>' +
+          '<a class="btn primary small" href="/vendor-listings-flow">Manage listings</a>' +
         "</div>" +
-        (state.showAddForm ? addItemForm() : "") +
         '<div class="table-scroll"><table class="data-table"><thead><tr>' +
-          "<th>Item</th><th>Category</th><th>Unit price</th><th>Stock</th>" +
+          "<th>Listing</th><th>Category</th><th>Price</th><th>Available</th><th>Status</th>" +
         "</tr></thead><tbody>" +
-          state.catalogue.map(function (p) {
-            return '<tr><td>' + p.name + '</td><td>' + p.category.replace("_", " ") + '</td><td class="num">' + ghs(p.unit_price) + " / " + p.unit + '</td><td class="num">' + p.stock_qty + " " + p.unit + "</td></tr>";
+          state.catalogue.map(function (l) {
+            var avail = l.quantity_available === null || l.quantity_available === undefined ? "—" : l.quantity_available;
+            return '<tr><td>' + l.title + '</td><td>' + l.category_name + '</td><td class="num">' + ghs(l.price) + " " + l.unit + '</td><td class="num">' + avail + '</td><td>' + l.status.replace(/_/g, " ") + "</td></tr>";
           }).join("") +
         "</tbody></table></div>"
       );
-      var toggleBtn = document.getElementById("toggleAddBtn");
-      toggleBtn.addEventListener("click", function () { state.showAddForm = !state.showAddForm; render(); });
-      if (state.showAddForm) wireAddItemForm();
     }
 
     if (state.step === "orders") {
@@ -428,45 +423,6 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
     }
   }
 
-  function addItemForm() {
-    return (
-      '<div class="card" style="margin-bottom:14px">' +
-        '<div class="grid g2">' +
-          field("newName", "Item name", state.newItem.name) +
-          '<div class="field-group"><span class="cap">Category</span><select id="newCategory">' +
-            ["seed", "fertiliser", "crop_protection", "tools"].map(function (c) {
-              return '<option value="' + c + '"' + (state.newItem.category === c ? " selected" : "") + '>' + c.replace("_", " ") + "</option>";
-            }).join("") +
-          "</select></div>" +
-        "</div>" +
-        '<div class="grid g2" style="margin-top:12px">' +
-          field("newUnit", "Unit (e.g. kg, bag, litre, set)", state.newItem.unit) +
-          field("newPrice", "Unit price (GHS)", state.newItem.unit_price, "number") +
-        "</div>" +
-        '<div class="grid g2" style="margin-top:12px">' +
-          field("newStock", "Stock quantity", state.newItem.stock_qty, "number") +
-          '<div class="field-group"><span class="cap">Formula input type (optional)</span><select id="newFormulaType">' +
-            [["other", "Other"], ["seed", "Seed"], ["npk", "NPK fertiliser"], ["topdress", "Top-dress fertiliser"]].map(function (pair) {
-              return '<option value="' + pair[0] + '"' + (state.newItem.formula_input_type === pair[0] ? " selected" : "") + '>' + pair[1] + "</option>";
-            }).join("") +
-          "</select></div>" +
-        "</div>" +
-        '<button class="btn primary block" id="submitNewItemBtn" style="margin-top:14px">Add to catalogue</button>' +
-        '<div class="inline-alert" id="newItemAlert"><span>⚠</span><span id="newItemAlertText"></span></div>' +
-      "</div>"
-    );
-  }
-
-  function wireAddItemForm() {
-    document.getElementById("newName").addEventListener("input", function (e) { state.newItem.name = e.target.value; });
-    document.getElementById("newCategory").addEventListener("change", function (e) { state.newItem.category = e.target.value; });
-    document.getElementById("newUnit").addEventListener("input", function (e) { state.newItem.unit = e.target.value; });
-    document.getElementById("newPrice").addEventListener("input", function (e) { state.newItem.unit_price = e.target.value; });
-    document.getElementById("newStock").addEventListener("input", function (e) { state.newItem.stock_qty = e.target.value; });
-    document.getElementById("newFormulaType").addEventListener("change", function (e) { state.newItem.formula_input_type = e.target.value; });
-    document.getElementById("submitNewItemBtn").addEventListener("click", onAddItem);
-  }
-
   async function onLogin() {
     var btn = document.getElementById("loginBtn");
     btn.disabled = true;
@@ -503,35 +459,6 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
       document.getElementById("otpAlert").classList.add("show");
       btn.disabled = false;
       btn.textContent = "Verify & continue";
-    }
-  }
-
-  async function onAddItem() {
-    var price = parseFloat(state.newItem.unit_price);
-    var stock = parseFloat(state.newItem.stock_qty);
-    if (!state.newItem.name || !state.newItem.unit || !price || price <= 0 || isNaN(stock) || stock < 0) {
-      document.getElementById("newItemAlertText").textContent = "Enter a name, unit, positive unit price, and non-negative stock quantity.";
-      document.getElementById("newItemAlert").classList.add("show");
-      return;
-    }
-    var btn = document.getElementById("submitNewItemBtn");
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Adding…';
-    try {
-      await apiPost("/vendor/catalogue", {
-        name: state.newItem.name, category: state.newItem.category,
-        formula_input_type: state.newItem.formula_input_type, unit: state.newItem.unit,
-        unit_price: price, stock_qty: stock,
-      });
-      state.catalogue = await apiGet("/vendor/catalogue");
-      state.showAddForm = false;
-      state.newItem = { name: "", category: "seed", formula_input_type: "other", unit: "kg", unit_price: "", stock_qty: "" };
-      render();
-    } catch (e) {
-      document.getElementById("newItemAlertText").textContent = e.message;
-      document.getElementById("newItemAlert").classList.add("show");
-      btn.disabled = false;
-      btn.textContent = "Add to catalogue";
     }
   }
 
@@ -582,7 +509,7 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", catalogue: [], orders: [], order: null, showAddForm: false, newItem: { name: "", category: "seed", formula_input_type: "other", unit: "kg", unit_price: "", stock_qty: "" }, step: "login" };
+    state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", catalogue: [], orders: [], order: null, step: "login" };
     render();
   });
 

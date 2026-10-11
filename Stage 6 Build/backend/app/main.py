@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from .migrate import upgrade_to_head
 from .seed import seed
@@ -119,7 +119,9 @@ if FRONTEND_DIR.exists():
 
     @app.get("/order-inputs-flow")
     def order_inputs_flow_page():
-        return _flow_page("farmer_order_inputs_flow_live.html")
+        # Order Inputs moved onto the marketplace when products were retired
+        # (decision D1); its formula pre-fill lives there now.
+        return RedirectResponse("/marketplace?prefill=formula")
 
     @app.get("/vendor-catalogue-flow")
     def vendor_catalogue_flow_page():

@@ -1155,6 +1155,7 @@ class MarketplaceLineCreate(BaseModel):
 
 class MarketplaceOrderCreate(BaseModel):
     lines: List[MarketplaceLineCreate]
+    production_formula_id: Optional[str] = None  # links the orders to a buyer order for reconciliation
 
 
 class MarketplaceOrderResult(BaseModel):
@@ -1163,3 +1164,17 @@ class MarketplaceOrderResult(BaseModel):
     total: float
     delivery_sla_days: int
     message: str
+
+
+
+class FormulaPrefillLine(BaseModel):
+    listing_id: str
+    title: str
+    quantity: float
+    reason: str
+
+
+class FormulaPrefillResponse(BaseModel):
+    production_formula_id: Optional[str]
+    label: Optional[str]
+    lines: List[FormulaPrefillLine]

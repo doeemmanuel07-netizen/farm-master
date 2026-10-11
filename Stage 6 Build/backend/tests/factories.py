@@ -140,3 +140,23 @@ def make_confirmed_input_order(db, farmer, vendor, product, quantity=5.0, produc
     db.commit()
     create_input_order_dispatch_job(db, order)
     return order
+
+
+def make_listing(db, vendor, title="Maize seed (10kg bag)", price=180.0, unit="per 10kg bag", quantity_available=100.0,
+                 kind=None, input_type=None, category_name="Seeds"):
+    """An ACTIVE marketplace listing (decision D1 -- listings replaced products)."""
+    from app.models import Listing, ListingCategory, ListingKind, ListingStatus
+    cat = db.query(ListingCategory).filter(ListingCategory.name == category_name).first()
+    if cat is None:
+        cat = ListingCategory(name=category_name, slug=category_name.lower().replace(" ", "-"))
+        db.add(cat)
+        db.commit()
+    listing = Listing(
+        vendor_id=vendor.id, category_id=cat.id, title=title, description=title, price=price, unit=unit,
+        quantity_available=quantity_available, region="Tema", status=ListingStatus.ACTIVE,
+        kind=kind or ListingKind.INPUT, formula_input_type=input_type,
+    )
+    db.add(listing)
+    db.commit()
+    db.refresh(listing)
+    return listing

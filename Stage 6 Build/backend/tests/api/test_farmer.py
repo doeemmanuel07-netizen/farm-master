@@ -82,36 +82,45 @@ def test_harvest_pickup_rejects_order_farmer_never_accepted(client, roles, rate_
     assert res.status_code == 422
 
 
-def test_order_inputs_rejects_line_from_a_different_vendor(client, roles, rate_config, db_session, make_user):
-    vendor_a = make_user(Role.VENDOR)
-    vendor_b = make_user(Role.VENDOR)
-    product_b = make_product(db_session, vendor_b)
-
+def test_product_catalogue_and_product_orders_are_retired(client, roles, rate_config, db_session, make_user):
+    """Decision D1: products were retired into marketplace listings -- the old routes answer 410 with a pointer."""
+    product = make_product(db_session, make_user(Role.VENDOR))
     token = login(client, roles[Role.FARMER].email)
+    assert client.get("/farmer/catalogue", headers=auth_headers(token)).status_code == 410
     res = client.post("/farmer/input-orders", json={
-        "vendor_id": vendor_a.id,
-        "lines": [{"product_id": product_b.id, "quantity": 1.0}],
+        "vendor_id": product.vendor_id, "lines": [{"product_id": product.id, "quantity": 1.0}],
     }, headers=auth_headers(token))
-    assert res.status_code == 422
+    assert res.status_code == 410 and "/farmer/marketplace/orders" in res.json()["detail"]
 
 
-def test_order_inputs_rejects_quantity_beyond_stock_and_reserves_on_success(client, roles, rate_config, db_session, make_user):
+def test_formula_prefill_converts_formula_inputs_to_listing_units(client, roles, rate_config, db_session, make_user):
+    from app.models import FormulaInputType
+    from tests.factories import make_listing, make_accepted_opportunity, make_formula
+    farmer = roles[Role.FARMER]
     vendor = make_user(Role.VENDOR)
-    product = make_product(db_session, vendor, stock_qty=5.0, unit_price=10.0)
-    token = login(client, roles[Role.FARMER].email)
+    seed = make_listing(db_session, vendor, title="Obatanpa seed", unit="per 10kg bag", input_type=FormulaInputType.SEED)
+    npk = make_listing(db_session, vendor, title="NPK", unit="per 50kg bag", price=265.0, input_type=FormulaInputType.NPK,
+                       category_name="Fertilizer")
+    formula = make_formula(db_session, make_accepted_opportunity(db_session, farmer, quantity_tonnes=4.0), farmer)
+    token = login(client, farmer.email)
+    pf = client.get("/farmer/marketplace/formula-prefill", headers=auth_headers(token)).json()
+    assert pf["production_formula_id"] == formula.id
+    by_id = {l["listing_id"]: l for l in pf["lines"]}
+    assert by_id[seed.id]["quantity"] == 1.0          # 6.4 kg seed -> one 10kg bag
+    assert by_id[npk.id]["quantity"] == float(formula.npk_bags)
 
-    too_much = client.post("/farmer/input-orders", json={
-        "vendor_id": vendor.id, "lines": [{"product_id": product.id, "quantity": 999.0}],
+    order = client.post("/farmer/marketplace/orders", json={
+        "lines": [{"listing_id": l["listing_id"], "quantity": l["quantity"]} for l in pf["lines"]],
+        "production_formula_id": formula.id,
     }, headers=auth_headers(token))
-    assert too_much.status_code == 409
+    assert order.status_code == 200, order.text
+    from app.models import InputOrder
+    assert db_session.query(InputOrder).filter(InputOrder.id == order.json()["orders"][0]["id"]).first().production_formula_id == formula.id
 
-    ok = client.post("/farmer/input-orders", json={
-        "vendor_id": vendor.id, "lines": [{"product_id": product.id, "quantity": 3.0}],
-    }, headers=auth_headers(token))
-    assert ok.status_code == 200
-    assert ok.json()["total_cost"] == 30.0
-    db_session.refresh(product)
-    assert product.stock_qty == 2.0
+    other = make_user(Role.FARMER)
+    bad = client.post("/farmer/marketplace/orders", json={"lines": [{"listing_id": seed.id, "quantity": 1}], "production_formula_id": formula.id},
+                      headers=auth_headers(login(client, other.email)))
+    assert bad.status_code == 422
 
 
 def test_milestone_log_round_trip(client, roles, rate_config):

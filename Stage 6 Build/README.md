@@ -450,7 +450,7 @@ fails if any model differs from what the migrations produce.
 - Live Farmer Harvest Pickup Request: <http://127.0.0.1:8000/harvest-pickup-flow>
 - Live Fulfilment Centre Intake & Grading: <http://127.0.0.1:8000/fulfilment-intake-flow>
 - Live Finance & Reconciliation: <http://127.0.0.1:8000/reconciliation-flow>
-- Live Farmer Order Inputs: <http://127.0.0.1:8000/order-inputs-flow>
+- Farmer Order Inputs: <http://127.0.0.1:8000/order-inputs-flow> now redirects to the marketplace with the production-formula pre-fill (products retired, decision D1)
 - Live Vendor Product Catalogue: <http://127.0.0.1:8000/vendor-catalogue-flow>
 - Live MoFA Compliance Report: <http://127.0.0.1:8000/mofa-report-flow>
 - Live User & Role Admin: <http://127.0.0.1:8000/user-admin-flow>

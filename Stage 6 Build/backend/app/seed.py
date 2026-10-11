@@ -29,7 +29,7 @@ from .fees import seed_fee_rule, quote_commitment_fee
 from .orders import next_reference, backfill_requirements, maize_variety_id
 from .fleet import seed_vehicles
 from .matching import backfill_opportunities
-from .marketplace import seed_marketplace
+from .marketplace import seed_marketplace, migrate_products_to_listings
 
 # A minimal valid 1x1 transparent PNG -- the real, on-disk placeholder image
 # for demo Listing rows below (see models.ListingImage: this is the first
@@ -595,6 +595,7 @@ def seed():
             print("Vendor listings already exist, skipping seed.")
         backfill_opportunities(db)
         seed_marketplace(db)
+        migrate_products_to_listings(db)
     finally:
         db.close()
 

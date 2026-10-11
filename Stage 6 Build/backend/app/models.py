@@ -528,6 +528,10 @@ class Product(Base):
     unit = Column(String, nullable=False)  # e.g. "kg", "bag", "litre", "set"
     unit_price = Column(Float, nullable=False)
     stock_qty = Column(Float, nullable=False)
+    # Retired 11 Oct 2026 (decision D1): every product was copied into a
+    # marketplace Listing, recorded here, and its stock moved there. Old
+    # order lines still point at their product for history.
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
