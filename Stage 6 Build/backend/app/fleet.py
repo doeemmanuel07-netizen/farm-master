@@ -17,7 +17,8 @@ from sqlalchemy.orm import Session
 
 from .models import (
     Vehicle, VehicleType, VehicleStatus, LogisticsEvent, LogisticsEventKind, FulfilmentCentre, Crop,
-    DispatchJob, MechanisationRequest, HarvestPickupRequest, InputOrder, InputOrderLine, Product,
+    DispatchJob, MechanisationRequest, HarvestPickupRequest, InputOrder, InputOrderLine, Product, Listing,
+    ListingCategory, ListingKind,
     BuyerRequirement, User, TrunkingJob, FulfilmentIntake, FarmerCrop, GradeResult,
 )
 
@@ -128,11 +129,8 @@ def _job_context(db: Session, job: DispatchJob):
     if job.input_order_id:
         order = db.query(InputOrder).filter(InputOrder.id == job.input_order_id).first()
         farmer = db.query(User).filter(User.id == order.farmer_id).first()
-        names = sorted({
-            (p.category.value.replace("_", " ") if p else "inputs")
-            for line in db.query(InputOrderLine).filter(InputOrderLine.input_order_id == order.id).all()
-            for p in [db.query(Product).filter(Product.id == line.product_id).first()]
-        })
+        names = sorted({_line_kind_label(db, line)
+                        for line in db.query(InputOrderLine).filter(InputOrderLine.input_order_id == order.id).all()})
         what = " and ".join(names) if names else "farm inputs"
         return "input", farmer, what, None
     if job.mechanisation_request_id:
@@ -141,6 +139,22 @@ def _job_context(db: Session, job: DispatchJob):
     pickup = db.query(HarvestPickupRequest).filter(HarvestPickupRequest.id == job.harvest_pickup_request_id).first()
     farmer = db.query(User).filter(User.id == pickup.farmer_id).first()
     return "pickup", farmer, pickup, pickup.buyer_requirement_id
+
+
+def _line_kind_label(db: Session, line: InputOrderLine) -> str:
+    """Anonymised, generic description of what a line delivers."""
+    if line.listing_id:
+        listing = db.query(Listing).filter(Listing.id == line.listing_id).first()
+        if listing is None:
+            return "farm inputs"
+        if listing.kind == ListingKind.EQUIPMENT:
+            return "rented equipment"
+        if listing.kind == ListingKind.SERVICE:
+            return "a service crew"
+        cat = db.query(ListingCategory).filter(ListingCategory.id == listing.category_id).first()
+        return cat.name.lower() if cat else "farm inputs"
+    p = db.query(Product).filter(Product.id == line.product_id).first() if line.product_id else None
+    return p.category.value.replace("_", " ") if p else "farm inputs"
 
 
 def emit_dispatch_en_route(db: Session, job: DispatchJob) -> LogisticsEvent:

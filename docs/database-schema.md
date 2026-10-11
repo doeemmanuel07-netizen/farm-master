@@ -40,6 +40,7 @@ erDiagram
     buyer_requirements ||--o{ harvest_pickup_requests : "buyer_requirement_id"
     users ||--o{ harvest_pickup_requests : "farmer_id"
     input_orders ||--o{ input_order_lines : "input_order_id"
+    listings ||--o{ input_order_lines : "listing_id"
     products ||--o{ input_order_lines : "product_id"
     users ||--o{ input_orders : "farmer_id"
     production_formulas ||--o{ input_orders : "production_formula_id"
@@ -256,8 +257,10 @@ erDiagram
         string id PK
         string input_order_id FK
         string product_id FK
+        string listing_id FK
         float quantity
         float unit_price
+        date requested_date
     }
     input_orders {
         string id PK
@@ -266,6 +269,7 @@ erDiagram
         string production_formula_id FK
         enum status
         float total_cost
+        string checkout_ref
         datetime created_at
     }
     listing_categories {
@@ -298,6 +302,11 @@ erDiagram
         text rejection_reason
         string reviewed_by FK
         datetime reviewed_at
+        enum kind
+        enum pricing_basis
+        enum formula_input_type
+        string service_code
+        string icon
         datetime created_at
         datetime updated_at
     }
@@ -760,9 +769,11 @@ erDiagram
 |---|---|---|---|
 | `id` | string | no | PK |
 | `input_order_id` | string | no | FK → `input_orders.id` |
-| `product_id` | string | no | FK → `products.id` |
+| `product_id` | string | yes | FK → `products.id` |
+| `listing_id` | string | yes | FK → `listings.id` |
 | `quantity` | float | no |  |
 | `unit_price` | float | no |  |
+| `requested_date` | date | yes |  |
 
 ### `input_orders`
 
@@ -774,6 +785,7 @@ erDiagram
 | `production_formula_id` | string | yes | FK → `production_formulas.id` |
 | `status` | enum(pending, confirmed, declined) | no |  |
 | `total_cost` | float | no |  |
+| `checkout_ref` | string | yes |  |
 | `created_at` | datetime | yes |  |
 
 ### `listing_categories`
@@ -815,6 +827,11 @@ erDiagram
 | `rejection_reason` | text | yes |  |
 | `reviewed_by` | string | yes | FK → `users.id` |
 | `reviewed_at` | datetime | yes |  |
+| `kind` | enum(input, equipment, service) | no | server default `INPUT` |
+| `pricing_basis` | enum(per_unit, per_day, per_acre, per_visit) | no | server default `PER_UNIT` |
+| `formula_input_type` | enum(seed, npk, topdress, other) | yes |  |
+| `service_code` | string | yes |  |
+| `icon` | string | yes |  |
 | `created_at` | datetime | yes |  |
 | `updated_at` | datetime | yes |  |
 

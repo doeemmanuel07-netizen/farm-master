@@ -572,6 +572,8 @@ class InputOrder(Base):
     production_formula_id = Column(String, ForeignKey("production_formulas.id"), nullable=True)
     status = Column(SAEnum(InputOrderStatus), nullable=False, default=InputOrderStatus.PENDING)
     total_cost = Column(Float, nullable=False)
+    # One marketplace cart split into one order per vendor shares a checkout_ref (brief §6.1).
+    checkout_ref = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -586,9 +588,13 @@ class InputOrderLine(Base):
 
     id = Column(String, primary_key=True, default=uid)
     input_order_id = Column(String, ForeignKey("input_orders.id"), nullable=False)
-    product_id = Column(String, ForeignKey("products.id"), nullable=False)
-    quantity = Column(Float, nullable=False)
+    # Exactly one of product_id (legacy Product catalogue) or listing_id
+    # (marketplace, decision D1) is set.
+    product_id = Column(String, ForeignKey("products.id"), nullable=True)
+    listing_id = Column(String, ForeignKey("listings.id"), nullable=True)
+    quantity = Column(Float, nullable=False)  # units, days, acres or visits per the listing's pricing basis
     unit_price = Column(Float, nullable=False)
+    requested_date = Column(Date, nullable=True)  # equipment/service lines: when it's needed
 
 
 class DispatchDirection(str, enum.Enum):
@@ -1038,6 +1044,20 @@ class ListingType(str, enum.Enum):
     SERVICE = "service"
 
 
+class ListingKind(str, enum.Enum):
+    """Marketplace tab a listing appears under (CEO demo brief §6.1, decision D1)."""
+    INPUT = "input"  # Seeds & Inputs
+    EQUIPMENT = "equipment"  # Equipment Rental
+    SERVICE = "service"  # Mechanisation Services
+
+
+class PricingBasis(str, enum.Enum):
+    PER_UNIT = "per_unit"
+    PER_DAY = "per_day"
+    PER_ACRE = "per_acre"
+    PER_VISIT = "per_visit"
+
+
 class ListingStatus(str, enum.Enum):
     DRAFT = "draft"
     PENDING_REVIEW = "pending_review"
@@ -1096,6 +1116,18 @@ class Listing(Base):
     rejection_reason = Column(Text, nullable=True)
     reviewed_by = Column(String, ForeignKey("users.id"), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
+    # Marketplace fields, added 11 Oct 2026 (decision D1: listings are the
+    # one marketplace catalogue). kind picks the tab; pricing_basis says what
+    # an order quantity counts (units, days, acres, visits); formula_input_type
+    # lets Order Inputs pre-fill from a production formula; service_code marks
+    # a listing with a platform side effect ("agronomist_visit" creates an
+    # agronomist task when ordered); icon names an FM.icon() glyph for cards
+    # without a photo.
+    kind = Column(SAEnum(ListingKind), nullable=False, default=ListingKind.INPUT, server_default="INPUT")
+    pricing_basis = Column(SAEnum(PricingBasis), nullable=False, default=PricingBasis.PER_UNIT, server_default="PER_UNIT")
+    formula_input_type = Column(SAEnum(FormulaInputType), nullable=True)
+    service_code = Column(String, nullable=True)
+    icon = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -29,6 +29,7 @@ from .fees import seed_fee_rule, quote_commitment_fee
 from .orders import next_reference, backfill_requirements, maize_variety_id
 from .fleet import seed_vehicles
 from .matching import backfill_opportunities
+from .marketplace import seed_marketplace
 
 # A minimal valid 1x1 transparent PNG -- the real, on-disk placeholder image
 # for demo Listing rows below (see models.ListingImage: this is the first
@@ -157,6 +158,9 @@ SEED_RATES = [
     ("vendor_subscription_fee_monthly", 150.0, "GHS/month",
      "Farm Master-owned vendor storefront subscription fee (PRD Section 6 revenue stream). "
      "BUSINESS-UNCONFIRMED, added 8 Sep 2026 alongside Subscription & Billing."),
+    ("marketplace_delivery_sla_days", 2.0, "days",
+     "Estimated farm-gate delivery time quoted when a marketplace order is placed (CEO demo brief "
+     "6.1). PROVISIONAL, added 11 Oct 2026."),
     ("agronomist_task_sla_hours", 48.0, "hours",
      "SLA for the agronomist follow-up created when a farmer accepts an opportunity (CEO demo brief "
      "4.2). Added 11 Oct 2026."),
@@ -590,6 +594,7 @@ def seed():
         else:
             print("Vendor listings already exist, skipping seed.")
         backfill_opportunities(db)
+        seed_marketplace(db)
     finally:
         db.close()
 

@@ -8,7 +8,7 @@ from .models import (
     Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
     UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus, GradeResult,
     ProductCategory, FormulaInputType, InputOrderStatus, FieldVisitStatus, TrunkingStatus,
-    ListingType, ListingStatus, NotificationType, PaymentNetwork, FeeBasis,
+    ListingType, ListingStatus, NotificationType, PaymentNetwork, FeeBasis, ListingKind, PricingBasis,
 )
 
 
@@ -496,12 +496,15 @@ class InputOrderCreate(BaseModel):
 
 
 class InputOrderLineResponse(BaseModel):
-    product_id: str
-    product_name: str
+    product_id: Optional[str]  # legacy catalogue line
+    product_name: str  # display name from whichever catalogue the line came from
     quantity: float
     unit: str
     unit_price: float
     line_total: float
+    listing_id: Optional[str] = None  # marketplace line (decision D1)
+    kind: Optional[ListingKind] = None
+    requested_date: Optional[date] = None
 
 
 class InputOrderResponse(BaseModel):
@@ -514,6 +517,7 @@ class InputOrderResponse(BaseModel):
     lines: List[InputOrderLineResponse]
     dispatch_status: Optional[DispatchJobStatus] = None
     created_at: datetime
+    checkout_ref: Optional[str] = None
 
 
 class ComplianceReportRowResponse(BaseModel):
@@ -1109,3 +1113,53 @@ class AgronomistTaskResponse(BaseModel):
 
 class AgronomistTaskComplete(BaseModel):
     notes: Optional[str] = None
+
+
+
+class MarketplaceItemResponse(BaseModel):
+    id: str
+    kind: ListingKind
+    title: str
+    description: str
+    vendor_id: str
+    vendor_name: str
+    vendor_owned: bool
+    price: float
+    unit: str
+    pricing_basis: PricingBasis
+    quantity_noun: str
+    needs_date: bool
+    icon: str
+    image_url: Optional[str] = None
+    quantity_available: Optional[float] = None
+    formula_input_type: Optional[FormulaInputType] = None
+    category: Optional[str] = None
+
+
+class MarketplaceTab(BaseModel):
+    kind: ListingKind
+    label: str
+
+
+class MarketplaceCatalogueResponse(BaseModel):
+    tabs: List[MarketplaceTab]
+    items: List[MarketplaceItemResponse]
+    delivery_sla_days: int
+
+
+class MarketplaceLineCreate(BaseModel):
+    listing_id: str
+    quantity: float
+    requested_date: Optional[date] = None
+
+
+class MarketplaceOrderCreate(BaseModel):
+    lines: List[MarketplaceLineCreate]
+
+
+class MarketplaceOrderResult(BaseModel):
+    checkout_ref: str
+    orders: List[InputOrderResponse]
+    total: float
+    delivery_sla_days: int
+    message: str

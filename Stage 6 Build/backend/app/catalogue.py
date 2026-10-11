@@ -9,6 +9,7 @@ reconciliation.py.
 from sqlalchemy.orm import Session
 
 from .models import User, Product, InputOrder, InputOrderLine, DispatchJob
+from .marketplace import line_label
 from .schemas import ProductResponse, InputOrderResponse, InputOrderLineResponse
 
 
@@ -26,14 +27,15 @@ def order_view(order: InputOrder, db: Session) -> InputOrderResponse:
     lines = db.query(InputOrderLine).filter(InputOrderLine.input_order_id == order.id).all()
     line_views = []
     for line in lines:
-        product = db.query(Product).filter(Product.id == line.product_id).first()
+        name, unit, kind = line_label(db, line)
         line_views.append(InputOrderLineResponse(
             product_id=line.product_id,
-            product_name=product.name if product else "(product removed)",
+            product_name=name,
             quantity=line.quantity,
-            unit=product.unit if product else "",
+            unit=unit,
             unit_price=line.unit_price,
             line_total=round(line.quantity * line.unit_price, 2),
+            listing_id=line.listing_id, kind=kind, requested_date=line.requested_date,
         ))
     job = db.query(DispatchJob).filter(DispatchJob.input_order_id == order.id).first()
     return InputOrderResponse(
@@ -46,4 +48,5 @@ def order_view(order: InputOrder, db: Session) -> InputOrderResponse:
         lines=line_views,
         dispatch_status=job.status if job else None,
         created_at=order.created_at,
+        checkout_ref=order.checkout_ref,
     )

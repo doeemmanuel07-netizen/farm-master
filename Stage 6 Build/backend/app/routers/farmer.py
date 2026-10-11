@@ -12,9 +12,9 @@ server). This backend does -- see accept_opportunity's status check, which
 is a real 409 for a second acceptance attempt, not just a documented intent.
 """
 
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -30,7 +30,8 @@ from ..catalogue import product_view, order_view
 from ..wallet import compute_farmer_wallet, wallet_summary, sync_farmer_ledger
 from ..matching import visible_opportunities_query, matched_opportunities, opportunity_view, on_opportunity_accepted
 from ..state import transition
-from ..models import Notification, Crop
+from ..models import Notification, Crop, ListingKind
+from ..marketplace import catalogue as marketplace_catalogue, item_view, place_order, delivery_sla_days, KIND_LABEL
 from ..schemas import (
     OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
     HarvestPickupRequestCreate, HarvestPickupRequestResponse, FarmerOrderOption,
@@ -39,6 +40,7 @@ from ..schemas import (
     AgronomistMessageCreate, AgronomistMessageResponse,
     FarmerWalletResponse, FarmerDashboardResponse,
     MatchedOpportunityResponse, FarmerWalletSummaryResponse, WalletEntryResponse, FarmerNotificationResponse,
+    MarketplaceCatalogueResponse, MarketplaceTab, MarketplaceOrderCreate, MarketplaceOrderResult,
 )
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
@@ -469,4 +471,39 @@ def my_notifications(
     return (
         db.query(Notification).filter(Notification.user_id == user.id)
         .order_by(Notification.created_at.desc()).limit(50).all()
+    )
+
+
+
+# ---------------------------------------------------------------------------
+# Marketplace (CEO demo brief §6.1, decision D1)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/marketplace", response_model=MarketplaceCatalogueResponse)
+def marketplace(
+    kind: Optional[ListingKind] = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    return MarketplaceCatalogueResponse(
+        tabs=[MarketplaceTab(kind=k, label=KIND_LABEL[k]) for k in ListingKind],
+        items=[item_view(db, l) for l in marketplace_catalogue(db, kind)],
+        delivery_sla_days=delivery_sla_days(db),
+    )
+
+
+@router.post("/marketplace/orders", response_model=MarketplaceOrderResult)
+def place_marketplace_order(
+    payload: MarketplaceOrderCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    orders = place_order(db, user, payload.lines)
+    sync_farmer_ledger(db, user.id)
+    sla = delivery_sla_days(db)
+    return MarketplaceOrderResult(
+        checkout_ref=orders[0].checkout_ref, orders=[order_view(o, db) for o in orders],
+        total=round(sum(o.total_cost for o in orders), 2), delivery_sla_days=sla,
+        message=f"Order routed to Farm Master logistics — estimated farm-gate delivery in {sla} days.",
     )

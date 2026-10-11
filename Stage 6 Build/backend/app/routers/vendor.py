@@ -32,6 +32,9 @@ from ..models import (
     VendorBilling, VendorBillingPayment, ProofOfDelivery,
     Listing, ListingImage, ListingCategory, ListingStatus, Notification,
 )
+from ..state import transition
+from ..marketplace import restore_listing_stock
+from ..wallet import sync_farmer_ledger
 from ..auth import require_roles
 from ..audit import log_audit
 from ..dispatch import create_dispatch_job, create_input_order_dispatch_job
@@ -209,7 +212,7 @@ def confirm_input_order(
     order = _own_input_order(db, order_id, user)
     if order.status != InputOrderStatus.PENDING:
         raise HTTPException(status_code=409, detail=f"Order is '{order.status.value}', not confirmable.")
-    order.status = InputOrderStatus.CONFIRMED
+    transition(order, InputOrderStatus.CONFIRMED)
     db.commit()
     db.refresh(order)
     create_input_order_dispatch_job(db, order)
@@ -225,15 +228,17 @@ def decline_input_order(
     order = _own_input_order(db, order_id, user)
     if order.status != InputOrderStatus.PENDING:
         raise HTTPException(status_code=409, detail=f"Order is '{order.status.value}', not declinable.")
-    order.status = InputOrderStatus.DECLINED
+    transition(order, InputOrderStatus.DECLINED)
     # Restore the reservation made at order time -- see farmer.py's
-    # place_input_order, which decrements stock_qty on creation.
+    # place_input_order (products) and marketplace.place_order (listings).
     lines = db.query(InputOrderLine).filter(InputOrderLine.input_order_id == order.id).all()
     for line in lines:
-        product = db.query(Product).filter(Product.id == line.product_id).first()
+        product = db.query(Product).filter(Product.id == line.product_id).first() if line.product_id else None
         if product:
             product.stock_qty += line.quantity
+    restore_listing_stock(db, order)
     db.commit()
+    sync_farmer_ledger(db, order.farmer_id)
     db.refresh(order)
     return order_view(order, db)
 
