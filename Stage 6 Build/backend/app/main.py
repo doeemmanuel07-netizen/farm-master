@@ -184,6 +184,10 @@ if FRONTEND_DIR.exists():
     # Portal pages built to the CEO platform demo (docs/reference/), on the
     # shared design system in frontend/assets/. The *-flow pages above stay
     # as the step-by-step flows they link out to.
+    @app.get("/")
+    def overview_page():
+        return _flow_page("portal_overview.html")
+
     @app.get("/buyer")
     def buyer_portal_page():
         return _flow_page("portal_buyer.html")

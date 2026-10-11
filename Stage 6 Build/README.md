@@ -434,6 +434,7 @@ fails if any model differs from what the migrations produce.
 ## Running it
 
 - API root: <http://127.0.0.1:8000>
+- **Landing page / Overview (CEO demo design):** <http://127.0.0.1:8000/>
 - **Buyer Portal (CEO demo design):** <http://127.0.0.1:8000/buyer>. Sign in as `gsfp@farmmaster.test`. Submitting opens the commitment-fee modal; with the sandbox provider, use "Approve on phone" to simulate the payer.
 - Design system gallery: <http://127.0.0.1:8000/design-system>
 - Live Registration + OTP flow: <http://127.0.0.1:8000/register-flow>

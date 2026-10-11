@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farm Master — Farm-gate to market</title>
+<meta name="description" content="Farm Master connects Ghana's growers, buyers and input vendors in one farm-gate to market platform.">
+<link rel="stylesheet" href="/static/assets/tokens.css">
+<link rel="stylesheet" href="/static/assets/components.css">
+<style>
+  .hero { padding: 56px 0 40px; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 40px; align-items: center; border-bottom: 1px solid var(--line); }
+  .hero > * { min-width: 0; }
+  .hero h1 { font-size: 44px; line-height: 1.08; }
+  .hero .lede { font-size: 17px; color: var(--ink-soft); max-width: 46ch; margin-top: 16px; }
+  .hero-actions { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+  .hero-panel { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 22px; box-shadow: var(--shadow-1); }
+  .hero-panel h2 { font-size: 15px; font-family: var(--font-body); font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .flow-row { list-style: none; margin: 0; padding: 0; }
+  .flow-step { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; }
+  .flow-step + .flow-step { border-top: 1px dashed var(--line); }
+  .flow-num { width: 26px; height: 26px; border-radius: 50%; background: var(--cream); border: 1px solid var(--line); color: var(--forest-deep); font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .flow-step p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .flow-step strong { color: var(--ink); font-size: 14.5px; }
+
+  .ledger { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; margin: 34px 0; background: var(--paper); }
+  .ledger-item { padding: 22px 20px; min-width: 0; }
+  .ledger-item + .ledger-item { border-left: 1px solid var(--line); }
+  .ledger-num { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--forest-deep); display: block; }
+  .ledger-label { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; display: block; }
+
+  .portal-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 8px 0 18px; }
+  .portal-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 22px; transition: border-color .15s ease, box-shadow .15s ease; border-top: 3px solid var(--role-farmer); display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: inherit; min-width: 0; }
+  .portal-card.buyer { border-top-color: var(--role-buyer); }
+  .portal-card.vendor { border-top-color: var(--role-vendor); }
+  .portal-card:hover, .portal-card:focus-visible { box-shadow: var(--shadow-2); }
+  .portal-card h3 { font-size: 19px; }
+  .portal-card p { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+  .portal-card .go { font-size: 13px; font-weight: 700; color: var(--forest-deep); margin-top: auto; padding-top: 6px; }
+  .side-links { font-size: 13px; color: var(--ink-soft); display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
+  .side-links a { color: var(--forest-deep); font-weight: 600; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; padding-top: 34px; }
+    .hero h1 { font-size: 34px; }
+    .ledger { grid-template-columns: 1fr 1fr; }
+    .ledger-item:nth-child(3) { border-left: none; }
+    .ledger-item:nth-child(n+3) { border-top: 1px solid var(--line); }
+    .portal-preview-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) { .hero h1 { font-size: 29px; } .ledger-num { font-size: 26px; } }
+</style>
+</head>
+<body>
+<header id="topbar"></header>
+<main class="fm-app fm-screen">
+  <section class="hero">
+    <div>
+      <h1>One farm-gate to market platform for Ghana's growers, buyers, and input vendors.</h1>
+      <p class="lede">Farm Master connects three sides of the agricultural value chain in a single ecosystem — matching buyer demand to farmer production, and farmer needs to trusted vendors, all coordinated through regional fulfilment centres.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/farmer">Open Farmer Portal</a>
+        <a class="btn btn-ghost" href="/buyer">Open Buyer Portal</a>
+      </div>
+    </div>
+    <aside class="hero-panel" aria-labelledby="how-title">
+      <h2 id="how-title">How it works</h2>
+      <ol class="flow-row">
+        <li class="flow-step"><div class="flow-num">1</div><p><strong>Buyer submits demand.</strong> Crop, grade, quantity, and delivery window, with a commitment fee.</p></li>
+        <li class="flow-step"><div class="flow-num">2</div><p><strong>Farm Master matches &amp; guides.</strong> Agronomists issue a production formula to registered farmers.</p></li>
+        <li class="flow-step"><div class="flow-num">3</div><p><strong>Vendors supply inputs.</strong> Seeds, fertiliser and machine rentals delivered to the farm gate.</p></li>
+        <li class="flow-step"><div class="flow-num">4</div><p><strong>Logistics moves the harvest.</strong> Fulfilment centres aggregate crops and trunk them to <span data-hq>head office</span>.</p></li>
+      </ol>
+    </aside>
+  </section>
+
+  <section class="ledger" aria-label="Farm Master at a glance">
+    <div class="ledger-item"><span class="ledger-num" id="s-portals">—</span><span class="ledger-label">Coordinated portals</span></div>
+    <div class="ledger-item"><span class="ledger-num" id="s-centres">—</span><span class="ledger-label">Regional fulfilment centres</span></div>
+    <div class="ledger-item"><span class="ledger-num" id="s-streams">—</span><span class="ledger-label">Revenue streams</span></div>
+    <div class="ledger-item"><span class="ledger-num">1</span><span class="ledger-label">Head office — <span data-hq>…</span></span></div>
+  </section>
+
+  <div class="section-head">
+    <h2>Explore each portal</h2>
+    <p>Every screen below is part of the working platform — select a portal to sign in or register as a farmer, buyer, or vendor.</p>
+  </div>
+  <div class="portal-preview-grid">
+    <a class="portal-card farmer" href="/farmer">
+      <h3>Farmer Portal</h3>
+      <p>Accept buyer-matched opportunities, follow a production formula, and track settlement.</p>
+      <span class="go">Try the farmer flow →</span>
+    </a>
+    <a class="portal-card buyer" href="/buyer">
+      <h3>Buyer Portal</h3>
+      <p>Submit a crop requirement, pay the commitment fee, and track fulfilment to delivery.</p>
+      <span class="go">Try the buyer flow →</span>
+    </a>
+    <a class="portal-card vendor" href="/marketplace">
+      <h3>Vendor Portal</h3>
+      <p>Browse inputs and equipment, book mechanisation, and route orders to logistics.</p>
+      <span class="go">Try the vendor flow →</span>
+    </a>
+  </div>
+  <div class="side-links">
+    <span>New here? <a href="/register-flow">Register as a farmer, buyer or vendor</a></span>
+    <span>Selling on Farm Master? <a href="/vendor-dashboard-flow">Vendor back-office</a></span>
+    <span>Staff? <a href="/ops">Operations</a></span>
+  </div>
+
+  <div class="ticker" id="ticker" aria-live="polite">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="1" y="7" width="13" height="8" rx="1.5"/><path d="M14 10H17.5L21 13.5V15H14V10Z"/><circle cx="5.5" cy="17" r="1.6"/><circle cx="17.5" cy="17" r="1.6"/></svg>
+    <span class="txt">Live activity from the logistics fleet appears here as the pilot runs.</span>
+  </div>
+</main>
+<script src="/static/assets/components.js"></script>
+<script>
+(function () {
+  "use strict";
+  FM.topbar(document.getElementById("topbar"), { active: "overview" });
+  FM.get("/api/public/stats").then(function (s) {
+    document.getElementById("s-portals").textContent = s.coordinated_portals;
+    document.getElementById("s-centres").textContent = s.fulfilment_centres;
+    document.getElementById("s-streams").textContent = s.revenue_streams;
+    FM.$$("[data-hq]").forEach(function (el) { el.textContent = s.head_office; });
+  }).catch(function () {});
+  FM.ticker(document.getElementById("ticker"), function () {
+    return FM.get("/api/public/activity?limit=10").then(function (items) { return items.map(function (i) { return i.text; }); });
+  });
+})();
+</script>
+</body>
+</html>
