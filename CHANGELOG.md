@@ -19,3 +19,4 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 
 ### Changed
 - `POST /buyer/requirements/{id}/pay` returns `pending` instead of `success`; card no longer returns 501. The `/buyer-flow` page waits for the webhook (sandbox phone approval).
+- **Buyer Portal** at `/buyer`, built to the CEO demo: a requirement form generated from `/buyer/order-form` (active crops/varieties, earliest delivery date, reference price, live fee quote), the choose → pending → confirmed payment modal (with a sandbox phone simulator and a retry on failure), and an orders table with expandable stepper rows and a Pay action for unpaid orders. Copy matches the demo.

@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyer Portal — Farm Master</title>
+<link rel="stylesheet" href="/static/assets/tokens.css">
+<link rel="stylesheet" href="/static/assets/components.css">
+<style>
+  .fee-line { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 12px 14px; background: var(--cream); border: 1px solid var(--line-soft); border-radius: 9px; margin-bottom: 14px; font-size: 13.5px; }
+  .fee-line strong { font-size: 15px; color: var(--forest-deep); white-space: nowrap; }
+  .fee-line .why { font-size: 12px; color: var(--ink-soft); }
+  .order-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 14px; font-size: 12.5px; color: var(--ink-soft); margin-top: 12px; }
+  .order-meta b { color: var(--ink); font-weight: 600; }
+  .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  td.qty, th.qty { white-space: nowrap; }
+  @media (max-width: 480px) { table.data th.hide-sm, table.data td.hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<header id="topbar"></header>
+<main class="fm-app fm-screen" id="portal-main">
+  <div class="portal-head">
+    <div><h2>Buyer Portal</h2><div class="sub" id="who">Loading…</div></div>
+    <span class="role-chip buyer">Buyer view</span>
+  </div>
+
+  <div class="grid-2">
+    <section class="card" aria-labelledby="req-title">
+      <h3 id="req-title">Submit a crop requirement</h3>
+      <div class="hint">Specify what you need — Farm Master matches farmers and issues the production formula.</div>
+      <div id="form-notice"></div>
+      <form id="req-form" novalidate>
+        <div class="field">
+          <label for="b-crop">Crop &amp; variety</label>
+          <select id="b-crop" required></select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="b-qty">Quantity (tonnes)</label>
+            <input type="number" id="b-qty" value="120" min="1" step="0.5" required>
+          </div>
+          <div class="field">
+            <label for="b-date">Delivery by</label>
+            <input type="date" id="b-date" required>
+            <div class="fhint" id="b-date-hint"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="b-price">Target price per tonne (GH₵)</label>
+          <input type="number" id="b-price" min="1" step="1" required>
+          <div class="fhint" id="b-price-hint"></div>
+        </div>
+        <div class="field">
+          <label for="b-spec">Grading / specification notes</label>
+          <textarea id="b-spec">Grade A, moisture content below 13%, bagged in 50kg sacks.</textarea>
+          <div class="fhint">This becomes the production formula your matched farmers follow.</div>
+        </div>
+        <div class="fee-line" aria-live="polite"><div>Commitment fee<div class="why" id="fee-why">—</div></div><strong id="fee-amt">—</strong></div>
+        <button class="btn btn-primary btn-block" type="submit" id="b-submit">Submit request &amp; pay commitment fee</button>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="orders-title">
+      <h3 id="orders-title">Your orders</h3>
+      <div class="hint">Track fulfilment from farmer match through to delivery. Select an order for its progress.</div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Order</th><th>Crop</th><th class="qty">Qty</th><th>Status</th><th class="hide-sm"><span class="visually-hidden">Progress</span></th></tr></thead>
+          <tbody id="orders-body"><tr><td colspan="5" class="empty">Loading orders…</td></tr></tbody>
+        </table>
+      </div>
+      <a class="card-link" href="/buyer-dashboard-flow">Compliance documents, tracking &amp; invoices →</a>
+    </section>
+  </div>
+</main>
+
+<script src="/static/assets/components.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = FM.$, esc = FM.esc;
+  var state = { form: null, orders: [], open: null, me: null };
+
+  FM.portal({
+    active: "buyer", role: "buyer", portalName: "Buyer Portal", demoEmail: "gsfp@farmmaster.test",
+    onReady: function (me) { state.me = me; init(); }
+  });
+
+  function init() {
+    $("#who").textContent = "Signed in as " + state.me.profile_line;
+    FM.get("/buyer/order-form").then(function (form) {
+      state.form = form;
+      renderForm();
+    }).catch(function (e) { $("#form-notice").innerHTML = '<div class="notice error">' + esc(e.message) + "</div>"; });
+    loadOrders();
+    $("#req-form").addEventListener("submit", onSubmit);
+    ["b-qty", "b-price"].forEach(function (id) { $("#" + id).addEventListener("input", quoteSoon); });
+    $("#b-crop").addEventListener("change", function () { setReferencePrice(); quoteSoon(); });
+  }
+
+  /* ---------- Form ---------- */
+  function varieties() {
+    var out = [];
+    state.form.crops.forEach(function (c) {
+      c.varieties.forEach(function (v) { out.push({ crop: c, variety: v }); });
+    });
+    return out;
+  }
+  function renderForm() {
+    var opts = varieties();
+    if (!opts.length) {
+      $("#form-notice").innerHTML = '<div class="notice">No crops are open for ordering right now.</div>';
+      $("#b-submit").disabled = true;
+      return;
+    }
+    $("#b-crop").innerHTML = opts.map(function (o, i) {
+      var label = o.crop.name + " — " + o.variety.name + (o.variety.description ? " (" + o.variety.description + ")" : "");
+      return '<option value="' + i + '">' + esc(label) + "</option>";
+    }).join("");
+    var earliest = state.form.earliest_delivery_by;
+    var d = $("#b-date");
+    d.min = earliest;
+    var suggested = new Date(earliest + "T00:00:00");
+    suggested.setDate(suggested.getDate() + 35);
+    d.value = suggested.toISOString().slice(0, 10);
+    $("#b-date-hint").textContent = "Earliest: " + fmtDate(earliest);
+    setReferencePrice();
+    quote();
+  }
+  function selected() { return varieties()[Number($("#b-crop").value) || 0]; }
+  function setReferencePrice() {
+    var c = selected().crop;
+    $("#b-price").value = Math.round(c.reference_price_per_tonne);
+    $("#b-price-hint").textContent = "Farm Master reference price for " + c.name + ": " + FM.money(c.reference_price_per_tonne) + " per tonne.";
+  }
+  var quoteTimer;
+  function quoteSoon() { clearTimeout(quoteTimer); quoteTimer = setTimeout(quote, 250); }
+  function quote() {
+    var q = parseFloat($("#b-qty").value), p = parseFloat($("#b-price").value);
+    if (!(q > 0) || !(p > 0)) { $("#fee-amt").textContent = "—"; $("#fee-why").textContent = "Enter a quantity and price."; return; }
+    FM.get("/buyer/fee-quote?quantity_tonnes=" + q + "&price_per_tonne=" + p).then(function (r) {
+      $("#fee-amt").textContent = FM.money(r.amount);
+      $("#fee-why").textContent = r.explanation;
+    }).catch(function () {});
+  }
+  function fieldError(id, msg) {
+    var f = $("#" + id).closest(".field");
+    f.classList.toggle("invalid", !!msg);
+    var old = f.querySelector(".ferror");
+    if (old) old.remove();
+    if (msg) f.insertAdjacentHTML("beforeend", '<div class="ferror">' + esc(msg) + "</div>");
+    return !msg;
+  }
+  function onSubmit(e) {
+    e.preventDefault();
+    var qty = parseFloat($("#b-qty").value), price = parseFloat($("#b-price").value), when = $("#b-date").value;
+    var ok = fieldError("b-qty", qty >= 1 ? null : "Enter at least 1 tonne.");
+    ok = fieldError("b-price", price > 0 ? null : "Enter a price per tonne.") && ok;
+    ok = fieldError("b-date", when && when >= state.form.earliest_delivery_by ? null : "Choose a date on or after " + fmtDate(state.form.earliest_delivery_by) + ".") && ok;
+    if (!ok) return;
+    var btn = $("#b-submit");
+    btn.disabled = true;
+    FM.post("/buyer/requirements", {
+      crop_variety_id: selected().variety.id, quantity_tonnes: qty, price_per_tonne: price,
+      delivery_by: when, spec_notes: $("#b-spec").value
+    }).then(function (req) {
+      btn.disabled = false;
+      state.open = req.id;
+      loadOrders();
+      openPayment(req);
+    }).catch(function (err) {
+      btn.disabled = false;
+      FM.toast(err.message, { error: true });
+    });
+  }
+
+  /* ---------- Orders table ---------- */
+  function loadOrders() {
+    return FM.get("/buyer/requirements").then(function (rows) { state.orders = rows; renderOrders(); })
+      .catch(function (e) { $("#orders-body").innerHTML = '<tr><td colspan="5" class="empty">' + esc(e.message) + "</td></tr>"; });
+  }
+  function renderOrders() {
+    var body = $("#orders-body");
+    if (!state.orders.length) { body.innerHTML = '<tr><td colspan="5" class="empty">No orders yet — submit your first requirement.</td></tr>'; return; }
+    body.innerHTML = "";
+    state.orders.forEach(function (o) {
+      var isOpen = state.open === o.id;
+      var tr = document.createElement("tr");
+      tr.className = "expandable";
+      tr.tabIndex = 0;
+      tr.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      tr.innerHTML = '<td class="nowrap">' + esc(o.reference || o.id.slice(0, 8)) + "</td><td>" + esc(o.crop) + '</td><td class="qty">' + fmtT(o.quantity_tonnes) + "t</td>" +
+        '<td><span class="badge ' + esc(o.badge || "progress") + '">' + esc(o.status_label || o.status) + "</span></td>" +
+        '<td class="hide-sm" style="width:90px"><div class="progress-track"><div class="progress-fill" style="width:' + (o.progress_pct || 0) + '%"></div></div></td>';
+      var toggle = function () { state.open = state.open === o.id ? null : o.id; renderOrders(); };
+      tr.addEventListener("click", toggle);
+      FM.activateOnKey(tr, toggle);
+      body.appendChild(tr);
+
+      var d = document.createElement("tr");
+      d.className = "detail-row" + (isOpen ? " open" : "");
+      var payBtn = o.status === "pending_payment"
+        ? '<button class="btn btn-gold btn-sm" data-pay="' + esc(o.id) + '">Pay commitment fee · ' + FM.money(o.commitment_fee_amount) + "</button>" : "";
+      d.innerHTML = '<td colspan="5">' + FM.stepper(o.steps, o.stage_index) +
+        '<div class="order-meta"><span>Variety <b>' + esc(o.variety || "—") + "</b></span><span>Delivery by <b>" + esc(o.delivery_by ? fmtDate(o.delivery_by) : o.delivery_timeline) + "</b></span>" +
+        "<span>Price <b>" + FM.money(o.price_per_tonne) + "/t</b></span><span>Commitment fee <b>" + FM.money(o.commitment_fee_amount) + (o.paid ? " · paid" : "") + "</b></span></div>" +
+        (o.spec_notes ? '<div class="order-meta" style="display:block">Spec <b>' + esc(o.spec_notes) + "</b></div>" : "") +
+        (payBtn ? '<div class="detail-actions">' + payBtn + "</div>" : "") + "</td>";
+      body.appendChild(d);
+      var pb = d.querySelector("[data-pay]");
+      if (pb) pb.addEventListener("click", function (e) { e.stopPropagation(); openPayment(o); });
+    });
+  }
+
+  /* ---------- Payment modal: choose -> pending -> success / failed ---------- */
+  function openPayment(req) {
+    var chosen = state.form ? state.form.payment_options[0] : null;
+    var phone = state.form && state.form.payer_phone || "";
+    FM.modal.open(step1);
+
+    function step1(box, api) {
+      var opts = state.form.payment_options;
+      box.innerHTML =
+        "<h3>Pay commitment fee</h3>" +
+        "<p>A commitment fee of <strong>" + FM.money(req.commitment_fee_amount) + "</strong> activates Farm Master's aggregation effort for order " + esc(req.reference) + ".</p>" +
+        '<div class="paymethods" role="radiogroup" aria-label="Payment method">' + opts.map(function (o) {
+          var on = chosen && chosen.network === o.network;
+          return '<button type="button" class="pm' + (on ? " active" : "") + '" role="radio" aria-checked="' + on + '" data-n="' + o.network + '">' + esc(o.label) + (o.hint ? "<small>" + esc(o.hint) + "</small>" : "") + "</button>";
+        }).join("") + "</div>" +
+        (chosen.needs_phone ? '<div class="field"><label for="pay-phone">Mobile money number</label><input id="pay-phone" inputmode="tel" autocomplete="tel" value="' + esc(phone) + '"></div>' : "") +
+        '<div class="modal-actions"><button class="btn btn-ghost btn-sm" data-cancel>Cancel</button><button class="btn btn-primary btn-sm" data-confirm>Confirm payment</button></div>';
+      FM.$$(".pm", box).forEach(function (el) {
+        el.addEventListener("click", function () {
+          var ph = $("#pay-phone", box); if (ph) phone = ph.value;
+          chosen = opts.filter(function (o) { return o.network === el.dataset.n; })[0];
+          api.render(step1);
+        });
+      });
+      box.querySelector("[data-cancel]").addEventListener("click", function () {
+        api.close();
+        FM.toast("Order " + req.reference + " saved — pay the commitment fee to start matching.");
+      });
+      box.querySelector("[data-confirm]").addEventListener("click", function (e) {
+        var ph = $("#pay-phone", box);
+        if (ph) phone = ph.value.trim();
+        if (chosen.needs_phone && !phone) { ph.focus(); return; }
+        e.target.disabled = true;
+        FM.post("/buyer/requirements/" + req.id + "/pay", { network: chosen.network, payer_phone: chosen.needs_phone ? phone : null })
+          .then(function (payment) { api.render(function (b, a) { pending(b, a, payment); }); })
+          .catch(function (err) { e.target.disabled = false; FM.toast(err.message, { error: true }); });
+      });
+    }
+
+    function pending(box, api, payment) {
+      if (payment.status === "failed") return failed(box, api, payment);
+      api.lock(true);
+      box.innerHTML = '<div class="spinner" aria-hidden="true"></div><h3 style="text-align:center">Waiting for confirmation</h3>' +
+        '<p style="text-align:center">' + esc(payment.display_text || "Approve the payment to continue.") + "</p>" +
+        (payment.checkout_url ? '<div class="modal-actions" style="justify-content:center"><a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="' + esc(payment.checkout_url) + '">Open secure checkout</a></div>' : "") +
+        (payment.sandbox ? '<div class="notice" style="margin-top:6px">Sandbox payment: no money moves. Use these buttons in place of the phone prompt.</div>' +
+          '<div class="modal-actions" style="justify-content:center"><button class="btn btn-ghost btn-sm" data-decline>Decline on phone</button><button class="btn btn-primary btn-sm" data-approve>Approve on phone</button></div>' : "");
+      var stopped = false;
+      function settle(p) {
+        if (stopped || p.status === "pending") return false;
+        stopped = true;
+        api.lock(false);
+        api.render(function (b, a) { (p.status === "success" ? success : failed)(b, a, p); });
+        return true;
+      }
+      function poll() {
+        if (stopped) return;
+        FM.get("/buyer/payments/" + payment.id).then(function (p) { if (!settle(p)) setTimeout(poll, 1500); })
+          .catch(function () { setTimeout(poll, 3000); });
+      }
+      setTimeout(poll, 1500);
+      FM.$$("[data-approve],[data-decline]", box).forEach(function (b) {
+        b.addEventListener("click", function () {
+          b.disabled = true;
+          FM.post("/payments/sandbox/" + payment.provider_ref + "/" + (b.hasAttribute("data-approve") ? "approve" : "decline"))
+            .then(function () { return FM.get("/buyer/payments/" + payment.id); }).then(settle)
+            .catch(function (err) { b.disabled = false; FM.toast(err.message, { error: true }); });
+        });
+      });
+    }
+
+    function success(box, api, payment) {
+      box.innerHTML = '<div class="success-mark">' + FM.icon("check", 24) + "</div>" +
+        '<h3 style="text-align:center;">Payment confirmed</h3>' +
+        '<p style="text-align:center;">Paid via ' + esc(payment.network_label) + ". Farm Master will begin matching farmers to this order.</p>" +
+        '<div class="modal-actions" style="justify-content:center;"><button class="btn btn-primary btn-sm" data-done>Done</button></div>';
+      box.querySelector("[data-done]").addEventListener("click", function () {
+        api.close();
+        state.open = req.id;
+        loadOrders().then(function () {
+          FM.toast("Request submitted — Farm Master is matching farmers in your target region.");
+        });
+      });
+    }
+
+    function failed(box, api, payment) {
+      box.innerHTML = "<h3>Payment not completed</h3><p>" + esc(payment.failure_reason || "The payment was not confirmed.") + " Your order is saved, so you can try again.</p>" +
+        '<div class="modal-actions"><button class="btn btn-ghost btn-sm" data-close>Close</button><button class="btn btn-primary btn-sm" data-retry>Try again</button></div>';
+      box.querySelector("[data-close]").addEventListener("click", function () { api.close(); loadOrders(); });
+      box.querySelector("[data-retry]").addEventListener("click", function () { api.render(step1); });
+    }
+  }
+
+  function fmtDate(iso) { return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
+  function fmtT(n) { return Number(n).toLocaleString("en-GH", { maximumFractionDigits: 2 }); }
+})();
+</script>
+</body>
+</html>

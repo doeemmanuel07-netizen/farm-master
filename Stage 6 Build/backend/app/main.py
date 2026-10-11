@@ -181,6 +181,13 @@ if FRONTEND_DIR.exists():
     def design_system_page():
         return _flow_page("design_system_gallery.html")
 
+    # Portal pages built to the CEO platform demo (docs/reference/), on the
+    # shared design system in frontend/assets/. The *-flow pages above stay
+    # as the step-by-step flows they link out to.
+    @app.get("/buyer")
+    def buyer_portal_page():
+        return _flow_page("portal_buyer.html")
+
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")

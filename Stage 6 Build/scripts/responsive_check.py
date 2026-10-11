@@ -36,11 +36,11 @@ DEFAULT_PAGES = {
 def sign_in(page, email):
     """Signs in through the real API and stores the shared session key."""
     r = page.request.post(f"{BASE}/auth/login", data={"email": email, "password": "password123"})
-    r.raise_for_status()
+    assert r.ok, f"login failed for {email}: {r.status}"
     ch = r.json()
     v = page.request.post(f"{BASE}/auth/login/verify-otp",
                           data={"challenge_id": ch["challenge_id"], "email_code": ch["dev_only_email_code"]})
-    v.raise_for_status()
+    assert v.ok, f"OTP verify failed for {email}: {v.status}"
     tok = v.json()
     page.goto(f"{BASE}/health")
     page.evaluate(

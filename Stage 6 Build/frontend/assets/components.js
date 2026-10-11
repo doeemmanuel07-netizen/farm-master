@@ -295,5 +295,45 @@
     if (so) so.addEventListener("click", function () { FM.session.clear(); window.location.reload(); });
   };
 
+  /* ---------------- Portal bootstrap ----------------
+   * FM.portal({ active, role, portalName, demoEmail, onReady(me) }) wires the
+   * top bar, then either calls onReady with GET /auth/me or shows the sign-in
+   * card in #portal-main when nobody (or the wrong role) is signed in.
+   */
+  FM.portal = function (opts) {
+    var main = document.getElementById("portal-main");
+    function boot() {
+      FM.topbar(document.getElementById("topbar"), { active: opts.active });
+      if (!FM.session.get()) return showSignIn();
+      FM.get("/auth/me").then(function (me) {
+        if (opts.role && me.role !== opts.role) return showSignIn("You're signed in as a " + me.role.replace(/_/g, " ") + ". Sign in with a " + opts.role + " account to use the " + opts.portalName + ".");
+        opts.onReady(me);
+      }).catch(function (err) {
+        if (err.status === 401) { FM.session.clear(); FM.topbar(document.getElementById("topbar"), { active: opts.active }); }
+        showSignIn(err.status === 401 ? null : err.message);
+      });
+    }
+    function showSignIn(note) {
+      var holder = document.createElement("div");
+      main.innerHTML = "";
+      if (note) main.insertAdjacentHTML("beforeend", '<div class="notice" style="max-width:440px;margin:30px auto 0">' + FM.esc(note) + "</div>");
+      main.appendChild(holder);
+      FM.signIn(holder, {
+        portalName: opts.portalName, role: opts.role, demoEmail: opts.demoEmail,
+        hint: opts.signInHint, registerHref: "/register-flow",
+        onDone: function () { main.innerHTML = opts.skeleton || ""; boot(); }
+      });
+    }
+    opts.skeleton = opts.skeleton || main.innerHTML;
+    boot();
+  };
+
+  /* Keyboard support for table rows that expand on click. */
+  FM.activateOnKey = function (el, fn) {
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(e); }
+    });
+  };
+
   window.FM = FM;
 })();

@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farm Master — Platform Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest-deep:#173821;
+    --forest:#1E4620;
+    --forest-soft:#2F5C34;
+    --gold:#C7912E;
+    --gold-soft:#E4C583;
+    --clay:#A65B31;
+    --cream:#F6F1E3;
+    --paper:#FFFEFA;
+    --ink:#22261D;
+    --ink-soft:#5B5F51;
+    --line:#DEDBC6;
+    --line-soft:#EAE7D8;
+    --good:#2F6B3A;
+    --good-bg:#E7F0E3;
+    --warn:#9A6A18;
+    --warn-bg:#F7ECD6;
+    --wait:#6B6656;
+    --wait-bg:#EEEAD9;
+    --radius-card:14px;
+    --radius-chip:999px;
+    --radius-tight:6px;
+    --shadow-1: 0 1px 2px rgba(23,56,33,0.08), 0 1px 1px rgba(23,56,33,0.04);
+    --shadow-2: 0 8px 24px rgba(23,56,33,0.14);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--cream);
+    color: var(--ink);
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  h1,h2,h3,.display{
+    font-family: "Fraunces", Georgia, serif;
+    color: var(--forest-deep);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  a{color:inherit;}
+  button{font-family:inherit;}
+  ::selection{ background: var(--gold-soft); }
+
+  /* ---------- App shell ---------- */
+  .app{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 60px;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--line);
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:11px;
+  }
+  .brand-mark{
+    width:34px;height:34px;border-radius:9px;
+    background: linear-gradient(155deg, var(--forest) 0%, var(--forest-deep) 100%);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .brand-mark svg{width:19px;height:19px;}
+  .brand-name{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    font-size: 19px;
+    color: var(--forest-deep);
+    letter-spacing:-0.01em;
+  }
+  .brand-tag{
+    font-size:11.5px;
+    color: var(--ink-soft);
+    margin-top:-2px;
+  }
+
+  .tabs{
+    display:flex;
+    gap:2px;
+    background: var(--paper);
+    border:1px solid var(--line);
+    border-radius: 11px;
+    padding:3px;
+  }
+  .tab-btn{
+    appearance:none;
+    border:none;
+    background:transparent;
+    padding: 9px 16px;
+    font-size:14px;
+    font-weight:600;
+    color: var(--ink-soft);
+    border-radius:8px;
+    cursor:pointer;
+    transition: background .15s ease, color .15s ease;
+    white-space:nowrap;
+  }
+  .tab-btn:hover{ color: var(--forest-deep); }
+  .tab-btn.active{
+    background: var(--forest-deep);
+    color: #fff;
+  }
+
+  .demo-pill{
+    font-size:12px;
+    font-weight:600;
+    color: var(--forest-deep);
+    background: var(--gold-soft);
+    border-radius: var(--radius-chip);
+    padding: 6px 12px;
+    display:flex;align-items:center;gap:6px;
+    flex-shrink:0;
+  }
+  .demo-pill .dot{
+    width:6px;height:6px;border-radius:50%;
+    background: var(--forest-deep);
+  }
+
+  .screen{ display:none; animation: rise .32s ease; }
+  .screen.active{ display:block; }
+  @keyframes rise{
+    from{ opacity:0; transform: translateY(6px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  /* ---------- Overview ---------- */
+  .hero{
+    padding: 56px 0 40px;
+    display:grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 40px;
+    align-items:center;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero h1{
+    font-size: 44px;
+    line-height:1.08;
+    font-weight:600;
+  }
+  .hero p.lede{
+    font-size:17px;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin-top:16px;
+  }
+  .hero-actions{ display:flex; gap:12px; margin-top:26px; }
+  .btn{
+    appearance:none;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+    font-size:14.5px;
+    border-radius:9px;
+    padding: 12px 20px;
+    transition: transform .12s ease, box-shadow .12s ease, background .15s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{ background: var(--forest-deep); color:#fff; }
+  .btn-primary:hover{ background: var(--forest); }
+  .btn-ghost{ background: transparent; color: var(--forest-deep); border:1.5px solid var(--line); }
+  .btn-ghost:hover{ border-color: var(--forest-deep); }
+  .btn-gold{ background: var(--gold); color:#fff; }
+  .btn-gold:hover{ background:#B47F22; }
+  .btn-sm{ padding:8px 14px; font-size:13px; border-radius:7px; }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+  .hero-panel{
+    background: var(--paper);
+    border:1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 22px;
+    box-shadow: var(--shadow-1);
+  }
+  .flow-row{ display:flex; flex-direction:column; gap:0; }
+  .flow-step{
+    display:flex; gap:14px; align-items:flex-start;
+    padding: 12px 0;
+  }
+  .flow-step + .flow-step{ border-top:1px dashed var(--line); }
+  .flow-num{
+    width:26px;height:26px;border-radius:50%;
+    background: var(--cream);
+    border:1px solid var(--line);
+    color: var(--forest-deep);
+    font-weight:700; font-size:12.5px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .flow-step p{ margin:0; font-size:13.5px; color: var(--ink-soft); }
+  .flow-step strong{ color: var(--ink); font-size:14.5px; }
+
+  .ledger{
+    display:flex;
+    border:1px solid var(--line);
+    border-radius: var(--radius-card);
+    overflow:hidden;
+    margin: 34px 0;
+    background: var(--paper);
+  }
+  .ledger-item{
+    flex:1;
+    padding: 22px 20px;
+    text-align:left;
+  }
+  .ledger-item + .ledger-item{ border-left:1px solid var(--line); }
+  .ledger-num{
+    font-family:"Fraunces", serif;
+    font-size: 30px;
+    font-weight:600;
+    color: var(--forest-deep);
+    display:block;
+  }
+  .ledger-label{ font-size:12.5px; color: var(--ink-soft); margin-top:2px; }
+
+  .portal-preview-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:18px;
+    margin: 8px 0 40px;
+  }
+  .portal-card{
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 22px;
+    cursor:pointer;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    border-top: 3px solid var(--forest-deep);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .portal-card:nth-child(2){ border-top-color: var(--gold); }
+  .portal-card:nth-child(3){ border-top-color: var(--clay); }
+  .portal-card:hover{ box-shadow: var(--shadow-2); }
+  .portal-card h3{ font-size:19px; }
+  .portal-card p{ font-size:13.5px; color: var(--ink-soft); margin:0; }
+  .portal-card .go{
+    font-size:13px; font-weight:700; color: var(--forest-deep);
+    margin-top:6px;
+  }
+
+  .section-head{ margin: 8px 0 18px; }
+  .section-head h2{ font-size: 24px; }
+  .section-head p{ color: var(--ink-soft); font-size:14px; margin-top:6px; max-width:60ch;}
+
+  /* ---------- Shared portal layout ---------- */
+  .portal-head{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding: 30px 0 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom:24px;
+    gap: 16px; flex-wrap:wrap;
+  }
+  .portal-head h2{ font-size:26px; }
+  .portal-head .sub{ color: var(--ink-soft); font-size:14px; margin-top:6px; }
+  .role-chip{
+    font-size:12px; font-weight:700; color:#fff;
+    padding: 6px 12px; border-radius: var(--radius-chip);
+  }
+  .role-chip.farmer{ background: var(--forest-deep); }
+  .role-chip.buyer{ background: var(--gold); }
+  .role-chip.vendor{ background: var(--clay); }
+
+  .grid-2{ display:grid; grid-template-columns: 1.3fr 1fr; gap:22px; align-items:start; }
+
+  .card{
+    background: var(--paper);
+    border:1px solid var(--line);
+    border-radius: var(--radius-card);
+    padding: 20px;
+  }
+  .card h3{ font-size:16px; margin-bottom:4px; }
+  .card .hint{ font-size:13px; color:var(--ink-soft); margin-bottom:14px;}
+
+  /* opportunity list */
+  .opp-item{
+    display:flex; gap:14px; align-items:flex-start;
+    padding:16px 4px;
+    border-left: 3px solid var(--line);
+    padding-left:16px;
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+    border-radius: 0 8px 8px 0;
+  }
+  .opp-item:hover{ background: var(--cream); }
+  .opp-item.selected{ border-left-color: var(--forest-deep); background: var(--cream); }
+  .opp-item + .opp-item{ border-top: 1px solid var(--line-soft); }
+  .opp-crop{
+    width:44px;height:44px;border-radius:10px;
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:19px;
+  }
+  .opp-body{ flex:1; }
+  .opp-body .row1{ display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
+  .opp-body h4{ margin:0; font-size:15px; color:var(--ink); }
+  .opp-body .buyer{ font-size:12.5px; color: var(--ink-soft); margin-top:2px;}
+  .opp-meta{ display:flex; gap:14px; margin-top:8px; font-size:12.5px; color: var(--ink-soft); }
+  .badge{
+    font-size:11px; font-weight:700; padding:3px 9px; border-radius: var(--radius-chip);
+    white-space:nowrap;
+  }
+  .badge.open{ color: var(--warn); background: var(--warn-bg); }
+  .badge.accepted{ color: var(--good); background: var(--good-bg); }
+  .badge.progress{ color:#3D5F8A; background:#E4EBF4; }
+
+  .stepper{ display:flex; align-items:center; margin: 16px 0 4px; }
+  .step{
+    flex:1; text-align:center; position:relative;
+  }
+  .step .dot{
+    width:16px;height:16px;border-radius:50%;
+    background: var(--line); border:2px solid var(--paper);
+    margin:0 auto 6px;
+    position:relative; z-index:1;
+  }
+  .step.done .dot{ background: var(--forest-deep); }
+  .step.current .dot{ background: var(--gold); }
+  .step:not(:last-child)::after{
+    content:""; position:absolute; top:7px; left:50%; width:100%; height:2px;
+    background: var(--line); z-index:0;
+  }
+  .step.done:not(:last-child)::after{ background: var(--forest-deep); }
+  .step small{ font-size:11px; color: var(--ink-soft); }
+
+  .formula-list{ margin:0; padding:0; list-style:none; }
+  .formula-list li{
+    display:flex; gap:10px; align-items:flex-start;
+    font-size:13.5px; color: var(--ink-soft);
+    padding:7px 0;
+  }
+  .formula-list li svg{ flex-shrink:0; margin-top:2px; }
+
+  .wallet-row{ display:flex; justify-content:space-between; padding:9px 0; font-size:14px; border-bottom:1px dashed var(--line-soft); }
+  .wallet-row:last-child{ border-bottom:none; font-weight:700; }
+
+  /* form */
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color: var(--ink); margin-bottom:6px;}
+  .field .fhint{ font-size:12px; color:var(--ink-soft); margin-top:4px;}
+  .field input, .field select, .field textarea{
+    width:100%;
+    border:1px solid var(--line);
+    background: var(--cream);
+    border-radius:8px;
+    padding: 10px 12px;
+    font-size:14px;
+    font-family:inherit;
+    color: var(--ink);
+  }
+  .field textarea{ resize:vertical; min-height:64px; }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:2px solid var(--forest-soft); outline-offset:1px;
+  }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+  table.orders{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  table.orders th{
+    text-align:left; font-size:11.5px; color: var(--ink-soft);
+    padding: 8px 8px; border-bottom:1px solid var(--line); font-weight:700;
+  }
+  table.orders td{ padding: 12px 8px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
+  table.orders tr.orow{ cursor:pointer; }
+  table.orders tr.orow:hover{ background: var(--cream); }
+  .progress-track{ background: var(--line-soft); border-radius:99px; height:6px; width:100%; overflow:hidden;}
+  .progress-fill{ background: var(--forest-deep); height:100%; border-radius:99px; transition: width .4s ease; }
+  .order-detail{ display:none; }
+  .order-detail.open{ display:table-row; }
+  .order-detail td{ background: var(--cream); }
+
+  /* vendor marketplace */
+  .cat-tabs{ display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .cat-tab{
+    border:1px solid var(--line); background: var(--paper); color: var(--ink-soft);
+    padding:8px 14px; border-radius: var(--radius-chip); font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .cat-tab.active{ background: var(--clay); border-color: var(--clay); color:#fff; }
+  .product-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
+  .product-card{
+    border:1px solid var(--line); border-radius: 12px; padding:16px; background: var(--paper);
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .product-icon{
+    width:100%; height:74px; border-radius:9px;
+    background: var(--cream);
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;
+  }
+  .product-card h4{ font-size:14.5px; margin:0; }
+  .product-card .price{ font-size:13.5px; color: var(--forest-deep); font-weight:700; }
+  .product-card .unit{ font-size:11.5px; color:var(--ink-soft); font-weight:400; }
+
+  .cart-panel{ position:sticky; top:20px; }
+  .cart-line{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px dashed var(--line-soft); font-size:13.5px;}
+  .cart-line .rm{ background:none; border:none; color: var(--ink-soft); cursor:pointer; font-size:16px; line-height:1; padding:2px 6px;}
+  .cart-empty{ font-size:13px; color: var(--ink-soft); padding: 18px 0; text-align:center; }
+  .cart-total{ display:flex; justify-content:space-between; font-weight:700; padding-top:10px; font-size:15px;}
+
+  /* toast + modal */
+  .toast{
+    position:fixed; bottom:26px; left:50%; transform: translateX(-50%) translateY(20px);
+    background: var(--forest-deep); color:#fff; padding: 13px 20px; border-radius:10px;
+    font-size:13.5px; font-weight:600; box-shadow: var(--shadow-2);
+    display:flex; align-items:center; gap:10px;
+    opacity:0; pointer-events:none; transition: opacity .2s ease, transform .2s ease;
+    z-index: 60;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); pointer-events:auto; }
+
+  .modal-veil{
+    position:fixed; inset:0; background: rgba(23,30,20,0.4);
+    display:none; align-items:center; justify-content:center; z-index:70; padding:20px;
+  }
+  .modal-veil.show{ display:flex; }
+  .modal{
+    background: var(--paper); border-radius: 16px; padding: 26px; max-width: 380px; width:100%;
+    box-shadow: var(--shadow-2);
+  }
+  .modal h3{ font-size:18px; margin-bottom:8px; }
+  .modal p{ font-size:13.5px; color: var(--ink-soft); margin: 0 0 16px; }
+  .paymethods{ display:flex; gap:8px; margin-bottom:18px; }
+  .pm{
+    flex:1; border:1.5px solid var(--line); border-radius:9px; padding:10px 6px; text-align:center;
+    font-size:12px; font-weight:700; cursor:pointer; color: var(--ink-soft);
+  }
+  .pm.active{ border-color: var(--forest-deep); color: var(--forest-deep); background: var(--cream); }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:6px; }
+  .success-mark{
+    width:52px;height:52px;border-radius:50%; background: var(--good-bg); color: var(--good);
+    display:flex;align-items:center;justify-content:center; margin: 0 auto 14px;
+  }
+
+  .ticker{
+    margin-top: 40px; border-top:1px solid var(--line); padding-top:16px;
+    display:flex; align-items:center; gap:10px; font-size:12.5px; color: var(--ink-soft);
+  }
+  .ticker svg{ flex-shrink:0; color: var(--forest-deep); }
+  .ticker span.txt{ transition: opacity .3s ease; }
+
+  @media (max-width: 860px){
+    .hero{ grid-template-columns:1fr; }
+    .grid-2{ grid-template-columns:1fr; }
+    .ledger{ flex-wrap:wrap; }
+    .ledger-item{ flex:1 1 50%; }
+    .ledger-item:nth-child(3){ border-left:1px solid var(--line);}
+    .portal-preview-grid{ grid-template-columns:1fr; }
+    .product-grid{ grid-template-columns:1fr 1fr; }
+    .field-row{ grid-template-columns:1fr; }
+    .topbar{ flex-wrap:wrap; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 6 6.5 6 12.5C6 16.6 8.7 20 12 20C15.3 20 18 16.6 18 12.5C18 6.5 12 2 12 2Z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 20V13" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <div class="brand-name">Farm Master</div>
+      <div class="brand-tag">Digital ecosystem — prototype</div>
+    </div>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Portal switcher">
+    <button class="tab-btn active" data-screen="overview">Overview</button>
+    <button class="tab-btn" data-screen="farmer">Farmer Portal</button>
+    <button class="tab-btn" data-screen="buyer">Buyer Portal</button>
+    <button class="tab-btn" data-screen="vendor">Vendor Portal</button>
+  </div>
+  <div class="demo-pill"><span class="dot"></span>Clickable demo</div>
+</div>
+
+<div class="app">
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="screen active" id="screen-overview">
+    <div class="hero">
+      <div>
+        <h1>One farm-gate to market platform for Ghana's growers, buyers, and input vendors.</h1>
+        <p class="lede">Farm Master connects three sides of the agricultural value chain in a single ecosystem — matching buyer demand to farmer production, and farmer needs to trusted vendors, all coordinated through regional fulfilment centres.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-goto="farmer">Open Farmer Portal</button>
+          <button class="btn btn-ghost" data-goto="buyer">Open Buyer Portal</button>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="flow-row">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <p><strong>Buyer submits demand.</strong> Crop, grade, quantity, and delivery window, with a commitment fee.</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <p><strong>Farm Master matches & guides.</strong> Agronomists issue a production formula to registered farmers.</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <p><strong>Vendors supply inputs.</strong> Seeds, fertiliser and machine rentals delivered to the farm gate.</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">4</div>
+            <p><strong>Logistics moves the harvest.</strong> Fulfilment centres aggregate crops and trunk them to Tema.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ledger">
+      <div class="ledger-item"><span class="ledger-num">3</span><span class="ledger-label">Coordinated portals</span></div>
+      <div class="ledger-item"><span class="ledger-num">16</span><span class="ledger-label">Regional fulfilment centres</span></div>
+      <div class="ledger-item"><span class="ledger-num">6</span><span class="ledger-label">Revenue streams</span></div>
+      <div class="ledger-item"><span class="ledger-num">1</span><span class="ledger-label">Head office — Tema</span></div>
+    </div>
+
+    <div class="section-head">
+      <h2>Explore each portal</h2>
+      <p>Every screen below is part of the working prototype — select a portal to try the actual flow a farmer, buyer, or vendor would follow.</p>
+    </div>
+    <div class="portal-preview-grid">
+      <div class="portal-card" data-goto="farmer">
+        <h3>Farmer Portal</h3>
+        <p>Accept buyer-matched opportunities, follow a production formula, and track settlement.</p>
+        <div class="go">Try the farmer flow →</div>
+      </div>
+      <div class="portal-card" data-goto="buyer">
+        <h3>Buyer Portal</h3>
+        <p>Submit a crop requirement, pay the commitment fee, and track fulfilment to delivery.</p>
+        <div class="go">Try the buyer flow →</div>
+      </div>
+      <div class="portal-card" data-goto="vendor">
+        <h3>Vendor Portal</h3>
+        <p>Browse inputs and equipment, book mechanisation, and route orders to logistics.</p>
+        <div class="go">Try the vendor flow →</div>
+      </div>
+    </div>
+
+    <div class="ticker">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="1" y="7" width="13" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M14 10H17.5L21 13.5V15H14V10Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="5.5" cy="17" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="17.5" cy="17" r="1.6" stroke="currentColor" stroke-width="1.4"/></svg>
+      <span class="txt" id="ticker-text">Live: Tricycle #14 en route to Kumasi fulfilment centre with fertiliser for 3 farms.</span>
+    </div>
+  </section>
+
+  <!-- ================= FARMER PORTAL ================= -->
+  <section class="screen" id="screen-farmer">
+    <div class="portal-head">
+      <div>
+        <h2>Farmer Portal</h2>
+        <div class="sub">Signed in as Kwabena Asante · Nsawam Farmer Union · Eastern Region</div>
+      </div>
+      <span class="role-chip farmer">Farmer view</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Matched opportunities</h3>
+        <div class="hint">Crop requests published by Farm Master, based on your farm's history and region.</div>
+        <div id="opp-list"></div>
+      </div>
+
+      <div class="card" id="opp-detail-card">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <h3>Wallet & settlement</h3>
+      <div class="hint">Running balance across active and completed opportunities.</div>
+      <div class="wallet-row"><span>Input costs (Vendor Portal orders)</span><span id="w-input">— GH₵ 640</span></div>
+      <div class="wallet-row"><span>Logistics fees</span><span id="w-log">— GH₵ 45</span></div>
+      <div class="wallet-row"><span>Estimated payout, this season</span><span id="w-payout">GH₵ 0</span></div>
+    </div>
+  </section>
+
+  <!-- ================= BUYER PORTAL ================= -->
+  <section class="screen" id="screen-buyer">
+    <div class="portal-head">
+      <div>
+        <h2>Buyer Portal</h2>
+        <div class="sub">Signed in as Ministry of Food & Agriculture · Institutional buyer</div>
+      </div>
+      <span class="role-chip buyer">Buyer view</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Submit a crop requirement</h3>
+        <div class="hint">Specify what you need — Farm Master matches farmers and issues the production formula.</div>
+        <div class="field">
+          <label for="b-crop">Crop & variety</label>
+          <select id="b-crop">
+            <option>Maize — Obatanpa (improved)</option>
+            <option>White Rice — Jasmine 85</option>
+            <option>Soybean — Jenguma</option>
+            <option>Tomato — Pectomech</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="b-qty">Quantity (tonnes)</label>
+            <input type="number" id="b-qty" value="120" min="1">
+          </div>
+          <div class="field">
+            <label for="b-date">Delivery by</label>
+            <input type="date" id="b-date" value="2026-12-15">
+          </div>
+        </div>
+        <div class="field">
+          <label for="b-spec">Grading / specification notes</label>
+          <textarea id="b-spec">Grade A, moisture content below 13%, bagged in 50kg sacks.</textarea>
+          <div class="fhint">This becomes the production formula your matched farmers follow.</div>
+        </div>
+        <button class="btn btn-primary" id="b-submit">Submit request & pay commitment fee</button>
+      </div>
+
+      <div class="card">
+        <h3>Your orders</h3>
+        <div class="hint">Track fulfilment from farmer match through to delivery.</div>
+        <table class="orders">
+          <thead>
+            <tr><th>Order</th><th>Crop</th><th>Qty</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="orders-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VENDOR PORTAL ================= -->
+  <section class="screen" id="screen-vendor">
+    <div class="portal-head">
+      <div>
+        <h2>Vendor Portal</h2>
+        <div class="sub">Marketplace for inputs, equipment and mechanisation services</div>
+      </div>
+      <span class="role-chip vendor">Marketplace view</span>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="cat-tabs" id="cat-tabs">
+          <button class="cat-tab active" data-cat="inputs">Seeds & Inputs</button>
+          <button class="cat-tab" data-cat="equipment">Equipment Rental</button>
+          <button class="cat-tab" data-cat="services">Mechanisation Services</button>
+        </div>
+        <div class="product-grid" id="product-grid"></div>
+      </div>
+
+      <div class="card cart-panel">
+        <h3>Your order</h3>
+        <div class="hint">Every item here routes to Farm Master logistics for farm-gate delivery.</div>
+        <div id="cart-lines"><div class="cart-empty">No items added yet — pick something from the catalogue.</div></div>
+        <div class="cart-total"><span>Total</span><span id="cart-total">GH₵ 0</span></div>
+        <button class="btn btn-gold" style="width:100%; margin-top:14px;" id="place-order" disabled>Place order</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Payment modal -->
+<div class="modal-veil" id="pay-veil">
+  <div class="modal" id="pay-modal"></div>
+</div>
+
+<script>
+(function(){
+  const $ = (sel, ctx) => (ctx||document).querySelector(sel);
+  const $$ = (sel, ctx) => Array.from((ctx||document).querySelectorAll(sel));
+
+  /* ---------------- Navigation ---------------- */
+  const tabs = $$('.tab-btn');
+  const screens = $$('.screen');
+  function showScreen(name){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.screen === name));
+    screens.forEach(s => s.classList.toggle('active', s.id === 'screen-' + name));
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showScreen(t.dataset.screen)));
+  $$('[data-goto]').forEach(el => el.addEventListener('click', () => showScreen(el.dataset.goto)));
+
+  /* ---------------- Toast ---------------- */
+  let toastTimer;
+  function showToast(msg){
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove('show'), 2800);
+  }
+
+  /* ================= FARMER PORTAL ================= */
+  const opportunities = [
+    { id:1, crop:'Maize', icon:'🌽', bg:'#F3E7C9', buyer:'Ministry of Food & Agriculture', qty:'40 tonnes', region:'Eastern Region', status:'open',
+      formula:['Obatanpa variety, 75cm x 40cm spacing','NPK 15-15-15 at planting, top-dress at week 4','Harvest at 13% moisture, Grade A bagging'] },
+    { id:2, crop:'Soybean', icon:'🫘', bg:'#E4EAD2', buyer:'AgriProcess Ltd', qty:'22 tonnes', region:'Eastern Region', status:'open',
+      formula:['Jenguma variety, inoculated seed required','Single basal fertiliser application','Delivery in jute sacks, moisture below 12%'] },
+    { id:3, crop:'Tomato', icon:'🍅', bg:'#F3DCD2', buyer:'FreshMart Retail', qty:'8 tonnes', region:'Eastern Region', status:'accepted',
+      formula:['Pectomech variety, staked rows','Weekly fungicide rotation per agronomist schedule','Harvest at breaker stage for transport'] },
+  ];
+  let selectedOpp = opportunities[0].id;
+
+  function renderOppList(){
+    const wrap = $('#opp-list');
+    wrap.innerHTML = '';
+    opportunities.forEach(o => {
+      const div = document.createElement('div');
+      div.className = 'opp-item' + (o.id === selectedOpp ? ' selected' : '');
+      div.innerHTML = `
+        <div class="opp-crop" style="background:${o.bg}">${o.icon}</div>
+        <div class="opp-body">
+          <div class="row1">
+            <h4>${o.crop} — ${o.qty}</h4>
+            <span class="badge ${o.status === 'open' ? 'open' : 'accepted'}">${o.status === 'open' ? 'Open' : 'Accepted'}</span>
+          </div>
+          <div class="buyer">${o.buyer}</div>
+          <div class="opp-meta"><span>${o.region}</span><span>Delivery in 9 weeks</span></div>
+        </div>`;
+      div.addEventListener('click', () => { selectedOpp = o.id; renderOppList(); renderOppDetail(); });
+      wrap.appendChild(div);
+    });
+  }
+
+  function renderOppDetail(){
+    const o = opportunities.find(x => x.id === selectedOpp);
+    const card = $('#opp-detail-card');
+    const stageIndex = o.status === 'open' ? 0 : 2;
+    const stages = ['Matched','Accepted','In production','Harvest & delivery'];
+    card.innerHTML = `
+      <h3>${o.crop} — production formula</h3>
+      <div class="hint">Issued by Farm Master agronomy for ${o.buyer}</div>
+      <div class="stepper">
+        ${stages.map((s,i)=> `<div class="step ${i < stageIndex ? 'done' : i === stageIndex ? 'current' : ''}"><div class="dot"></div><small>${s}</small></div>`).join('')}
+      </div>
+      <ul class="formula-list">
+        ${o.formula.map(f => `<li><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17L19 7" stroke="#2F6B3A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>${f}</li>`).join('')}
+      </ul>
+      <button class="btn ${o.status === 'open' ? 'btn-primary' : 'btn-ghost'}" id="accept-btn" ${o.status !== 'open' ? 'disabled' : ''} style="width:100%; margin-top:6px;">
+        ${o.status === 'open' ? 'Accept opportunity' : 'Opportunity accepted'}
+      </button>
+    `;
+    if (o.status === 'open'){
+      $('#accept-btn').addEventListener('click', () => {
+        o.status = 'accepted';
+        renderOppList(); renderOppDetail(); updateWallet();
+        showToast(`${o.crop} opportunity accepted — agronomist will contact you within 48 hours.`);
+      });
+    }
+  }
+
+  function updateWallet(){
+    const accepted = opportunities.filter(o => o.status === 'accepted').length;
+    $('#w-payout').textContent = 'GH₵ ' + (accepted * 2150).toLocaleString();
+  }
+
+  renderOppList(); renderOppDetail(); updateWallet();
+
+  /* ================= BUYER PORTAL ================= */
+  let orderSeq = 3;
+  const orders = [
+    { id:'FM-1042', crop:'White Rice', qty:'60t', status:'Aggregating', progress:70, steps:['Order placed','Farmer matched','In production','Aggregating','Delivered'], current:3 },
+    { id:'FM-1039', crop:'Maize', qty:'35t', status:'Delivered', progress:100, steps:['Order placed','Farmer matched','In production','Aggregating','Delivered'], current:4 },
+  ];
+  let openOrderRow = null;
+
+  function renderOrders(){
+    const body = $('#orders-body');
+    body.innerHTML = '';
+    orders.forEach((o,i) => {
+      const tr = document.createElement('tr');
+      tr.className = 'orow';
+      tr.innerHTML = `
+        <td>${o.id}</td><td>${o.crop}</td><td>${o.qty}</td>
+        <td><span class="badge ${o.status === 'Delivered' ? 'accepted' : 'progress'}">${o.status}</span></td>
+        <td style="width:90px;"><div class="progress-track"><div class="progress-fill" style="width:${o.progress}%"></div></div></td>`;
+      tr.addEventListener('click', () => { openOrderRow = openOrderRow === i ? null : i; renderOrders(); });
+      body.appendChild(tr);
+
+      const detail = document.createElement('tr');
+      detail.className = 'order-detail' + (openOrderRow === i ? ' open' : '');
+      detail.innerHTML = `<td colspan="5">
+        <div class="stepper">
+          ${o.steps.map((s,si) => `<div class="step ${si < o.current ? 'done' : si === o.current ? 'current' : ''}"><div class="dot"></div><small>${s}</small></div>`).join('')}
+        </div>
+      </td>`;
+      body.appendChild(detail);
+    });
+  }
+  renderOrders();
+
+  const payVeil = $('#pay-veil');
+  const payModal = $('#pay-modal');
+  let chosenProvider = 'MTN';
+
+  function openPaymentModal(onConfirm){
+    chosenProvider = 'MTN';
+    renderPayStep1();
+    payVeil.classList.add('show');
+    function renderPayStep1(){
+      payModal.innerHTML = `
+        <h3>Pay commitment fee</h3>
+        <p>A commitment fee of <strong>GH₵ 1,800</strong> activates Farm Master's aggregation effort for this order.</p>
+        <div class="paymethods">
+          ${['MTN','Vodafone','AirtelTigo'].map(p => `<div class="pm ${p===chosenProvider?'active':''}" data-p="${p}">${p}</div>`).join('')}
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" id="pay-cancel">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="pay-confirm">Confirm payment</button>
+        </div>`;
+      $$('.pm', payModal).forEach(el => el.addEventListener('click', () => { chosenProvider = el.dataset.p; renderPayStep1(); }));
+      $('#pay-cancel', payModal).addEventListener('click', () => payVeil.classList.remove('show'));
+      $('#pay-confirm', payModal).addEventListener('click', renderPaySuccess);
+    }
+    function renderPaySuccess(){
+      payModal.innerHTML = `
+        <div class="success-mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12.5L10 17L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="text-align:center;">Payment confirmed</h3>
+        <p style="text-align:center;">Paid via ${chosenProvider} Mobile Money. Farm Master will begin matching farmers to this order.</p>
+        <div class="modal-actions" style="justify-content:center;">
+          <button class="btn btn-primary btn-sm" id="pay-done">Done</button>
+        </div>`;
+      $('#pay-done', payModal).addEventListener('click', () => { payVeil.classList.remove('show'); onConfirm(); });
+    }
+  }
+
+  $('#b-submit').addEventListener('click', () => {
+    const crop = $('#b-crop').value.split(' — ')[0];
+    const qty = $('#b-qty').value;
+    openPaymentModal(() => {
+      orderSeq += 1;
+      orders.unshift({ id:'FM-10'+(40+orderSeq), crop, qty: qty+'t', status:'Matching farmers', progress:15, steps:['Order placed','Farmer matched','In production','Aggregating','Delivered'], current:0 });
+      openOrderRow = 0;
+      renderOrders();
+      showToast('Request submitted — Farm Master is matching farmers in your target region.');
+    });
+  });
+
+  /* ================= VENDOR PORTAL ================= */
+  const catalogue = {
+    inputs: [
+      { name:'Improved Maize Seed (Obatanpa)', unit:'per 10kg bag', price:180, icon:'🌱', bg:'#E4EAD2' },
+      { name:'NPK 15-15-15 Fertiliser', unit:'per 50kg bag', price:265, icon:'🧪', bg:'#DDEAE0' },
+      { name:'Crop Protection — Fungicide', unit:'per litre', price:95, icon:'🧴', bg:'#F0E6D2' },
+    ],
+    equipment: [
+      { name:'Tractor with plough — day rate', unit:'per day', price:650, icon:'🚜', bg:'#F3E7C9' },
+      { name:'Motorised planter — day rate', unit:'per day', price:280, icon:'🌾', bg:'#EAE7D8' },
+      { name:'Water pump set — day rate', unit:'per day', price:150, icon:'💧', bg:'#DCE6EE' },
+    ],
+    services: [
+      { name:'Land preparation & ploughing', unit:'per acre', price:320, icon:'🧑\u200d🌾', bg:'#E8DED0' },
+      { name:'Mechanised harvesting crew', unit:'per acre', price:410, icon:'🌽', bg:'#F3E7C9' },
+      { name:'Agronomist farm visit', unit:'per visit', price:120, icon:'📋', bg:'#E4EAD2' },
+    ],
+  };
+  let activeCat = 'inputs';
+  const cart = [];
+
+  function renderProducts(){
+    const grid = $('#product-grid');
+    grid.innerHTML = '';
+    catalogue[activeCat].forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'product-card';
+      div.innerHTML = `
+        <div class="product-icon" style="background:${p.bg}">${p.icon}</div>
+        <h4>${p.name}</h4>
+        <div class="price">GH₵ ${p.price} <span class="unit">${p.unit}</span></div>
+        <button class="btn btn-ghost btn-sm" style="width:100%;">Add to order</button>`;
+      div.querySelector('button').addEventListener('click', () => { addToCart(p); showToast(p.name + ' added to your order.'); });
+      grid.appendChild(div);
+    });
+  }
+  $$('.cat-tab').forEach(tab => tab.addEventListener('click', () => {
+    activeCat = tab.dataset.cat;
+    $$('.cat-tab').forEach(t => t.classList.toggle('active', t === tab));
+    renderProducts();
+  }));
+
+  function addToCart(p){
+    const existing = cart.find(c => c.name === p.name);
+    if (existing) existing.qty += 1; else cart.push({ ...p, qty:1 });
+    renderCart();
+  }
+  function renderCart(){
+    const wrap = $('#cart-lines');
+    if (!cart.length){
+      wrap.innerHTML = '<div class="cart-empty">No items added yet — pick something from the catalogue.</div>';
+      $('#place-order').disabled = true;
+      $('#cart-total').textContent = 'GH₵ 0';
+      return;
+    }
+    wrap.innerHTML = '';
+    let total = 0;
+    cart.forEach((c, idx) => {
+      total += c.price * c.qty;
+      const line = document.createElement('div');
+      line.className = 'cart-line';
+      line.innerHTML = `<span>${c.qty} × ${c.name}</span><span style="display:flex;align-items:center;gap:8px;">GH₵ ${c.price * c.qty}<button class="rm" aria-label="Remove">×</button></span>`;
+      line.querySelector('.rm').addEventListener('click', () => { cart.splice(idx,1); renderCart(); });
+      wrap.appendChild(line);
+    });
+    $('#place-order').disabled = false;
+    $('#cart-total').textContent = 'GH₵ ' + total.toLocaleString();
+  }
+  $('#place-order').addEventListener('click', () => {
+    showToast('Order routed to Farm Master logistics — estimated farm-gate delivery in 2 days.');
+    cart.length = 0;
+    renderCart();
+  });
+
+  renderProducts(); renderCart();
+
+  /* ================= Ticker ================= */
+  const tickerMessages = [
+    'Live: Tricycle #14 en route to Kumasi fulfilment centre with fertiliser for 3 farms.',
+    'Live: Fulfilment centre — Tamale has aggregated 12 tonnes of maize today.',
+    'Live: Vehicle #07 trunking graded soybean from Koforidua to Tema head office.',
+    'Live: 4 farmers completed harvest pickup requests in the last hour.',
+  ];
+  let tIdx = 0;
+  setInterval(() => {
+    tIdx = (tIdx + 1) % tickerMessages.length;
+    const el = $('#ticker-text');
+    if (!el) return;
+    el.style.opacity = 0;
+    setTimeout(() => { el.textContent = tickerMessages[tIdx]; el.style.opacity = 1; }, 300);
+  }, 5000);
+
+})();
+</script>
+</body>
+</html>
