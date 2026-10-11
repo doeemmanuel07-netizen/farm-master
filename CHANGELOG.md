@@ -28,3 +28,4 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 
 ### Changed
 - `GET /farmer/opportunities` and `/farmer/opportunities/{id}` are filtered to the farmer's own matches. Previously they returned every open row, including opportunities assigned to other farmers.
+- **Farmer Portal** at `/farmer`, built to the CEO demo: the matched-opportunity list (crop icon, tonnes, buyer, region, delivery in N weeks, Open/Accepted), a detail panel with the four-step stepper and formula checklist, the Accept button behind a one-step commitments confirmation (decision D5) with the demo's toast, and the wallet card from the ledger. Pre-existing opportunities are backfilled to Maize / Greater Accra.

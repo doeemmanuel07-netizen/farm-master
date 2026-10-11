@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmer Portal — Farm Master</title>
+<link rel="stylesheet" href="/static/assets/tokens.css">
+<link rel="stylesheet" href="/static/assets/components.css">
+<style>
+  .icon-tile { color: var(--forest-deep); background: var(--cream); border: 1px solid var(--line-soft); }
+  .select-row.selected .icon-tile { background: var(--paper); }
+  .commit-list { list-style: none; margin: 0 0 16px; padding: 0; }
+  .commit-list label { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; padding: 7px 0; cursor: pointer; }
+  .commit-list input { margin-top: 3px; accent-color: var(--forest-deep); width: 16px; height: 16px; flex-shrink: 0; }
+  .detail-meta { display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-soft); margin: 2px 0 6px; }
+  .detail-meta b { color: var(--ink); font-weight: 600; }
+  .quick-links { display: flex; gap: 8px 18px; flex-wrap: wrap; margin-top: 22px; font-size: 13px; }
+  .quick-links a { color: var(--forest-deep); font-weight: 700; text-decoration: none; }
+  .quick-links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header id="topbar"></header>
+<main class="fm-app fm-screen" id="portal-main">
+  <div class="portal-head">
+    <div><h2>Farmer Portal</h2><div class="sub" id="who">Loading…</div></div>
+    <span class="role-chip farmer">Farmer view</span>
+  </div>
+
+  <div class="grid-2">
+    <section class="card" aria-labelledby="opp-title">
+      <h3 id="opp-title">Matched opportunities</h3>
+      <div class="hint">Crop requests published by Farm Master, based on your farm's history and region.</div>
+      <div id="opp-list" role="listbox" aria-label="Matched opportunities"><div class="empty">Loading…</div></div>
+    </section>
+    <section class="card" id="opp-detail" aria-live="polite"></section>
+  </div>
+
+  <section class="card" style="margin-top:22px;" aria-labelledby="wallet-title">
+    <h3 id="wallet-title">Wallet &amp; settlement</h3>
+    <div class="hint">Running balance across active and completed opportunities.</div>
+    <div class="kv-row"><span>Input costs (Vendor Portal orders)</span><span id="w-input">—</span></div>
+    <div class="kv-row"><span>Logistics fees</span><span id="w-log">—</span></div>
+    <div class="kv-row total"><span>Estimated payout, this season</span><span id="w-payout">—</span></div>
+    <a class="card-link" href="/farmer-dashboard-flow">Full wallet &amp; settlement statement →</a>
+  </section>
+
+  <nav class="quick-links" aria-label="More farmer tools">
+    <a href="/marketplace">Order inputs &amp; services</a>
+    <a href="/harvest-pickup-flow">Request a harvest pickup</a>
+    <a href="/farmer-dashboard-flow">Milestone log &amp; agronomist messages</a>
+  </nav>
+</main>
+
+<script src="/static/assets/components.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = FM.$, esc = FM.esc;
+  var state = { opps: [], selected: null };
+  var COMMITMENTS = [
+    "Follow the production formula issued by your agronomist",
+    "Log planting and input milestones on this portal",
+    "Deliver to your fulfilment centre by the delivery date",
+    "Input and logistics costs are deducted at settlement"
+  ];
+
+  FM.portal({
+    active: "farmer", role: "farmer", portalName: "Farmer Portal", demoEmail: "kojo.mensah@farmmaster.test",
+    onReady: function (me) {
+      $("#who").textContent = "Signed in as " + me.profile_line;
+      loadOpps();
+      loadWallet();
+    }
+  });
+
+  function loadOpps() {
+    return FM.get("/farmer/matched-opportunities").then(function (rows) {
+      state.opps = rows;
+      if (!state.selected || !rows.some(function (o) { return o.id === state.selected; })) state.selected = rows.length ? rows[0].id : null;
+      renderList(); renderDetail();
+    }).catch(function (e) { $("#opp-list").innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; });
+  }
+
+  function renderList() {
+    var wrap = $("#opp-list");
+    if (!state.opps.length) {
+      wrap.innerHTML = '<div class="empty">No matched opportunities right now. Farm Master publishes new crop requests as buyers place them.</div>';
+      return;
+    }
+    wrap.innerHTML = "";
+    state.opps.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "select-row" + (o.id === state.selected ? " selected" : "");
+      b.setAttribute("role", "option");
+      b.setAttribute("aria-selected", o.id === state.selected ? "true" : "false");
+      var open = o.status === "open";
+      b.innerHTML =
+        '<div class="icon-tile">' + FM.icon(o.crop_icon, 22) + "</div>" +
+        '<div class="body"><div class="row1"><h4>' + esc(o.crop) + " — " + fmtT(o.quantity_tonnes) + " tonnes</h4>" +
+        '<span class="badge ' + (open ? "open" : "accepted") + '">' + (open ? "Open" : "Accepted") + "</span></div>" +
+        '<div class="sub">' + esc(o.buyer_name) + "</div>" +
+        '<div class="meta">' + (o.region ? "<span>" + esc(o.region) + " Region</span>" : "") +
+        "<span>" + esc(deliveryText(o)) + "</span></div></div>";
+      b.addEventListener("click", function () { state.selected = o.id; renderList(); renderDetail(); });
+      wrap.appendChild(b);
+    });
+  }
+
+  function deliveryText(o) {
+    if (o.delivery_in_weeks === null || o.delivery_in_weeks === undefined) return "Deliver by " + o.deadline;
+    if (o.delivery_in_weeks === 0) return "Delivery this week";
+    return "Delivery in " + o.delivery_in_weeks + " week" + (o.delivery_in_weeks === 1 ? "" : "s");
+  }
+
+  function renderDetail() {
+    var card = $("#opp-detail");
+    var o = state.opps.filter(function (x) { return x.id === state.selected; })[0];
+    if (!o) { card.innerHTML = '<h3>Production formula</h3><div class="hint">Select an opportunity to see its production formula.</div>'; return; }
+    var open = o.status === "open";
+    card.innerHTML =
+      "<h3>" + esc(o.crop) + " — production formula</h3>" +
+      '<div class="hint">Issued by Farm Master agronomy for ' + esc(o.buyer_name) + "</div>" +
+      '<div class="detail-meta"><span>Grade <b>' + esc(o.grade) + "</b></span><span>Price <b>" + FM.money(o.price_per_tonne) + "/t</b></span>" +
+      (o.variety ? "<span>Variety <b>" + esc(o.variety) + "</b></span>" : "") + "</div>" +
+      FM.stepper(o.steps, o.stage_index) +
+      (o.formula_steps.length ? FM.checklist(o.formula_steps) : '<div class="empty">Agronomy is still preparing this formula.</div>') +
+      '<button class="btn ' + (open ? "btn-primary" : "btn-ghost") + ' btn-block" id="accept-btn" style="margin-top:6px"' + (open ? "" : " disabled") + ">" +
+      (open ? "Accept opportunity" : "Opportunity accepted") + "</button>";
+    if (open) $("#accept-btn").addEventListener("click", function () { confirmAccept(o); });
+  }
+
+  /* Decision D5: the commitments confirmation stays, as one short step. */
+  function confirmAccept(o) {
+    FM.modal.open(function (box, api) {
+      box.innerHTML = "<h3>Accept " + esc(o.crop.toLowerCase()) + " opportunity</h3>" +
+        "<p>" + fmtT(o.quantity_tonnes) + " t for " + esc(o.buyer_name) + " at " + FM.money(o.price_per_tonne) + " per tonne. Confirm your commitments:</p>" +
+        '<ul class="commit-list">' + COMMITMENTS.map(function (c, i) {
+          return '<li><label><input type="checkbox" data-c="' + i + '"><span>' + esc(c) + "</span></label></li>";
+        }).join("") + "</ul>" +
+        '<div class="modal-actions"><button class="btn btn-ghost btn-sm" data-cancel>Cancel</button><button class="btn btn-primary btn-sm" data-ok disabled>Accept opportunity</button></div>';
+      var ok = box.querySelector("[data-ok]");
+      FM.$$("input[type=checkbox]", box).forEach(function (cb) {
+        cb.addEventListener("change", function () {
+          ok.disabled = !FM.$$("input[type=checkbox]", box).every(function (x) { return x.checked; });
+        });
+      });
+      box.querySelector("[data-cancel]").addEventListener("click", api.close);
+      ok.addEventListener("click", function () {
+        ok.disabled = true;
+        FM.post("/farmer/opportunities/" + o.id + "/accept", { commitments_confirmed: true }).then(function () {
+          api.close();
+          FM.toast(o.crop + " opportunity accepted — agronomist will contact you within 48 hours.");
+          loadOpps(); loadWallet();
+        }).catch(function (err) {
+          api.close();
+          FM.toast(err.message, { error: true });
+          loadOpps();
+        });
+      });
+    });
+  }
+
+  function loadWallet() {
+    FM.get("/farmer/wallet/summary").then(function (w) {
+      $("#w-input").textContent = (w.input_costs ? "— " : "") + FM.money(w.input_costs);
+      $("#w-log").textContent = (w.logistics_fees ? "— " : "") + FM.money(w.logistics_fees);
+      $("#w-payout").textContent = FM.money(w.estimated_payout);
+    }).catch(function () {});
+  }
+
+  function fmtT(n) { return Number(n).toLocaleString("en-GH", { maximumFractionDigits: 2 }); }
+})();
+</script>
+</body>
+</html>

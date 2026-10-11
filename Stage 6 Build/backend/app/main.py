@@ -188,6 +188,10 @@ if FRONTEND_DIR.exists():
     def overview_page():
         return _flow_page("portal_overview.html")
 
+    @app.get("/farmer")
+    def farmer_portal_page():
+        return _flow_page("portal_farmer.html")
+
     @app.get("/buyer")
     def buyer_portal_page():
         return _flow_page("portal_buyer.html")

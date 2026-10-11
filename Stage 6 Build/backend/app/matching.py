@@ -151,3 +151,24 @@ def on_opportunity_accepted(db: Session, opp: Opportunity, farmer: User, crop_na
     db.add(UssdSmsLog(farmer_id=farmer.id, channel="sms", purpose="opportunity_accepted", body=message))
     db.commit()
     return task
+
+
+def backfill_opportunities(db: Session) -> None:
+    """
+    Opportunities created before crop/region existed were all pilot rows:
+    maize in Greater Accra. Stamp them so the match filter and the portal
+    show real values (idempotent; only touches NULLs).
+    """
+    maize = db.query(Crop).filter(Crop.name == "Maize").first()
+    region = db.query(Region).filter(Region.name == "Greater Accra").first()
+    rows = db.query(Opportunity).filter(Opportunity.crop_id.is_(None)).all()
+    for o in rows:
+        o.crop_id = maize.id if maize else None
+        if o.region_id is None:
+            o.region_id = region.id if region else None
+        if o.delivery_by is None and o.buyer_requirement_id:
+            req = db.query(BuyerRequirement).filter(BuyerRequirement.id == o.buyer_requirement_id).first()
+            o.delivery_by = req.delivery_by if req else None
+    if rows:
+        db.commit()
+        print(f"Backfilled crop/region on {len(rows)} pre-existing opportunit{'y' if len(rows) == 1 else 'ies'}.")
