@@ -27,7 +27,10 @@ from ..auth import require_roles
 from ..formula import compute_formula_inputs
 from ..dispatch import create_inbound_dispatch_job
 from ..catalogue import product_view, order_view
-from ..wallet import compute_farmer_wallet
+from ..wallet import compute_farmer_wallet, wallet_summary, sync_farmer_ledger
+from ..matching import visible_opportunities_query, matched_opportunities, opportunity_view, on_opportunity_accepted
+from ..state import transition
+from ..models import Notification, Crop
 from ..schemas import (
     OpportunityResponse, AcceptOpportunityRequest, ProductionFormulaResponse,
     HarvestPickupRequestCreate, HarvestPickupRequestResponse, FarmerOrderOption,
@@ -35,6 +38,7 @@ from ..schemas import (
     MilestoneLogEntryCreate, MilestoneLogEntryResponse,
     AgronomistMessageCreate, AgronomistMessageResponse,
     FarmerWalletResponse, FarmerDashboardResponse,
+    MatchedOpportunityResponse, FarmerWalletSummaryResponse, WalletEntryResponse, FarmerNotificationResponse,
 )
 
 router = APIRouter(prefix="/farmer", tags=["farmer"])
@@ -45,7 +49,18 @@ def list_opportunities(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.FARMER)),
 ):
-    return db.query(Opportunity).filter(Opportunity.status == OpportunityStatus.OPEN).all()
+    # Since 11 Oct 2026 filtered to this farmer's matches (brief §4.1) --
+    # previously every OPEN row, including ones assigned to other farmers.
+    return visible_opportunities_query(db, user).filter(Opportunity.status == OpportunityStatus.OPEN).all()
+
+
+@router.get("/matched-opportunities", response_model=List[MatchedOpportunityResponse])
+def my_matched_opportunities(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    """The CEO demo's "Matched opportunities" list: open matches plus this farmer's accepted ones."""
+    return [opportunity_view(db, o) for o in matched_opportunities(db, user)]
 
 
 @router.get("/opportunities/{opportunity_id}", response_model=OpportunityResponse)
@@ -54,7 +69,7 @@ def get_opportunity(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.FARMER)),
 ):
-    opp = db.query(Opportunity).filter(Opportunity.id == opportunity_id).first()
+    opp = visible_opportunities_query(db, user).filter(Opportunity.id == opportunity_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found.")
     return opp
@@ -70,7 +85,7 @@ def accept_opportunity(
     if not payload.commitments_confirmed:
         raise HTTPException(status_code=422, detail="All commitment items must be confirmed before accepting.")
 
-    opp = db.query(Opportunity).filter(Opportunity.id == opportunity_id).first()
+    opp = visible_opportunities_query(db, user).filter(Opportunity.id == opportunity_id).first()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found.")
     if opp.status != OpportunityStatus.OPEN:
@@ -80,7 +95,7 @@ def accept_opportunity(
         # an opportunity that's already gone.
         raise HTTPException(status_code=409, detail="This opportunity has already been accepted.")
 
-    opp.status = OpportunityStatus.ACCEPTED
+    transition(opp, OpportunityStatus.ACCEPTED)
     opp.accepted_by = user.id
     from datetime import datetime
     opp.accepted_at = datetime.utcnow()
@@ -96,6 +111,10 @@ def accept_opportunity(
     db.add(formula)
     db.commit()
     db.refresh(formula)
+
+    crop = db.query(Crop).filter(Crop.id == opp.crop_id).first() if opp.crop_id else None
+    on_opportunity_accepted(db, opp, user, crop.name if crop else "Maize")
+    sync_farmer_ledger(db, user.id)
     return formula
 
 
@@ -419,4 +438,35 @@ def my_dashboard(
         open_opportunities=open_count, accepted_opportunities=accepted_count,
         pending_pickups=pending_pickups,
         unread_message_note=f"New reply from Farm Master agronomy" if last_msg else None,
+    )
+
+
+
+@router.get("/wallet/summary", response_model=FarmerWalletSummaryResponse)
+def my_wallet_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    """
+    The demo's Wallet & settlement card, backed by wallet_ledger (brief §4.3,
+    decision D4): estimated payout = accepted t x price x (1 - margin) - input
+    costs - logistics fees. The actual, delivery-based settlement stays on
+    GET /farmer/wallet.
+    """
+    s = wallet_summary(db, user.id)
+    return FarmerWalletSummaryResponse(
+        input_costs=s.input_costs, logistics_fees=s.logistics_fees,
+        estimated_settlement=s.estimated_settlement, estimated_payout=s.estimated_payout,
+        entries=[WalletEntryResponse.model_validate(e) for e in s.entries],
+    )
+
+
+@router.get("/notifications", response_model=List[FarmerNotificationResponse])
+def my_notifications(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.FARMER)),
+):
+    return (
+        db.query(Notification).filter(Notification.user_id == user.id)
+        .order_by(Notification.created_at.desc()).limit(50).all()
     )

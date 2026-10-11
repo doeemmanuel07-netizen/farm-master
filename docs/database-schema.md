@@ -11,6 +11,10 @@ erDiagram
     users ||--o{ agronomist_messages : "agronomist_id"
     users ||--o{ agronomist_messages : "farmer_id"
     users ||--o{ agronomist_messages : "sender_id"
+    users ||--o{ agronomist_tasks : "completed_by"
+    users ||--o{ agronomist_tasks : "farmer_id"
+    input_orders ||--o{ agronomist_tasks : "input_order_id"
+    opportunities ||--o{ agronomist_tasks : "opportunity_id"
     users ||--o{ audit_log : "actor_user_id"
     users ||--o{ buyer_requirements : "buyer_id"
     crop_varieties ||--o{ buyer_requirements : "crop_variety_id"
@@ -26,6 +30,8 @@ erDiagram
     users ||--o{ field_visit_logs : "agronomist_id"
     users ||--o{ field_visit_logs : "farmer_id"
     opportunities ||--o{ field_visit_logs : "opportunity_id"
+    buyer_requirements ||--o{ formula_steps : "buyer_requirement_id"
+    users ||--o{ formula_steps : "created_by"
     regions ||--o{ fulfilment_centres : "region_id"
     crops ||--o{ fulfilment_intakes : "crop_id"
     fulfilment_centres ||--o{ fulfilment_intakes : "fulfilment_centre_id"
@@ -59,6 +65,8 @@ erDiagram
     users ||--o{ opportunities : "accepted_by"
     users ||--o{ opportunities : "assigned_farmer_id"
     buyer_requirements ||--o{ opportunities : "buyer_requirement_id"
+    crops ||--o{ opportunities : "crop_id"
+    regions ||--o{ opportunities : "region_id"
     buyer_requirements ||--o{ order_reconciliations : "buyer_requirement_id"
     users ||--o{ order_reconciliations : "farmer_settlement_released_by"
     users ||--o{ order_reconciliations : "vendor_payout_released_by"
@@ -81,12 +89,27 @@ erDiagram
     fulfilment_centres ||--o{ vehicles : "home_centre_id"
     users ||--o{ vendor_billing : "vendor_id"
     users ||--o{ vendor_billing_payments : "vendor_id"
+    users ||--o{ wallet_ledger : "farmer_id"
     agronomist_messages {
         string id PK
         string farmer_id FK
         string agronomist_id FK
         string sender_id FK
         text body
+        datetime created_at
+    }
+    agronomist_tasks {
+        string id PK
+        enum kind
+        enum status
+        string farmer_id FK
+        string opportunity_id FK
+        string input_order_id FK
+        string summary
+        datetime due_at
+        datetime completed_at
+        string completed_by FK
+        text notes
         datetime created_at
     }
     audit_log {
@@ -147,6 +170,7 @@ erDiagram
         string name
         string description
         boolean is_active
+        text default_formula_steps
         datetime created_at
     }
     crops {
@@ -191,6 +215,14 @@ erDiagram
         enum status
         text notes
         datetime logged_at
+        datetime created_at
+    }
+    formula_steps {
+        string id PK
+        string buyer_requirement_id FK
+        integer position
+        text text
+        string created_by FK
         datetime created_at
     }
     fulfilment_centres {
@@ -338,6 +370,9 @@ erDiagram
         string assigned_farmer_id FK
         string accepted_by FK
         datetime accepted_at
+        string crop_id FK
+        string region_id FK
+        date delivery_by
         datetime created_at
     }
     order_reconciliations {
@@ -494,6 +529,17 @@ erDiagram
         string transaction_ref
         datetime created_at
     }
+    wallet_ledger {
+        string id PK
+        string farmer_id FK
+        enum entry_type
+        enum source
+        string reference
+        float amount
+        string description
+        boolean is_estimate
+        datetime created_at
+    }
 ```
 
 ## Tables
@@ -507,6 +553,23 @@ erDiagram
 | `agronomist_id` | string | yes | FK → `users.id` |
 | `sender_id` | string | no | FK → `users.id` |
 | `body` | text | no |  |
+| `created_at` | datetime | yes |  |
+
+### `agronomist_tasks`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `kind` | enum(acceptance_follow_up, farm_visit) | no |  |
+| `status` | enum(open, done) | no |  |
+| `farmer_id` | string | no | FK → `users.id` |
+| `opportunity_id` | string | yes | FK → `opportunities.id` |
+| `input_order_id` | string | yes | FK → `input_orders.id` |
+| `summary` | string | no |  |
+| `due_at` | datetime | no |  |
+| `completed_at` | datetime | yes |  |
+| `completed_by` | string | yes | FK → `users.id` |
+| `notes` | text | yes |  |
 | `created_at` | datetime | yes |  |
 
 ### `audit_log`
@@ -582,6 +645,7 @@ erDiagram
 | `name` | string | no |  |
 | `description` | string | yes |  |
 | `is_active` | boolean | no |  |
+| `default_formula_steps` | text | yes |  |
 | `created_at` | datetime | yes |  |
 
 ### `crops`
@@ -641,6 +705,17 @@ erDiagram
 | `status` | enum(scheduled, completed) | no |  |
 | `notes` | text | yes |  |
 | `logged_at` | datetime | yes |  |
+| `created_at` | datetime | yes |  |
+
+### `formula_steps`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `buyer_requirement_id` | string | no | FK → `buyer_requirements.id` |
+| `position` | integer | no |  |
+| `text` | text | no |  |
+| `created_by` | string | yes | FK → `users.id` |
 | `created_at` | datetime | yes |  |
 
 ### `fulfilment_centres`
@@ -808,7 +883,7 @@ erDiagram
 |---|---|---|---|
 | `id` | string | no | PK |
 | `user_id` | string | no | FK → `users.id` |
-| `type` | enum(listing_approved, listing_rejected) | no |  |
+| `type` | enum(listing_approved, listing_rejected, opportunity_accepted, marketplace_order) | no |  |
 | `message` | text | no |  |
 | `listing_id` | string | yes | FK → `listings.id` |
 | `read_at` | datetime | yes |  |
@@ -830,6 +905,9 @@ erDiagram
 | `assigned_farmer_id` | string | yes | FK → `users.id` |
 | `accepted_by` | string | yes | FK → `users.id` |
 | `accepted_at` | datetime | yes |  |
+| `crop_id` | string | yes | FK → `crops.id` |
+| `region_id` | string | yes | FK → `regions.id` |
+| `delivery_by` | date | yes |  |
 | `created_at` | datetime | yes |  |
 
 ### `order_reconciliations`
@@ -1029,6 +1107,20 @@ erDiagram
 | `method` | string | no |  |
 | `status` | string | no |  |
 | `transaction_ref` | string | yes |  |
+| `created_at` | datetime | yes |  |
+
+### `wallet_ledger`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `farmer_id` | string | no | FK → `users.id` |
+| `entry_type` | enum(credit, debit) | no |  |
+| `source` | enum(estimated_settlement, input_order, input_order_reversal, logistics_fee) | no |  |
+| `reference` | string | no |  |
+| `amount` | float | no |  |
+| `description` | string | no |  |
+| `is_estimate` | boolean | no |  |
 | `created_at` | datetime | yes |  |
 
 ## Sequences

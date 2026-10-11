@@ -15,7 +15,8 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Float, Integer, Boolean, Date, DateTime, ForeignKey, Enum as SAEnum, Text, Sequence
+    Column, String, Float, Integer, Boolean, Date, DateTime, ForeignKey, Enum as SAEnum, Text, Sequence,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -156,6 +157,10 @@ class CropVariety(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)  # e.g. "improved"
     is_active = Column(Boolean, nullable=False, default=True)
+    # Agronomy's starting checklist for this variety, one step per line;
+    # {planting_week}/{topdress_week}/{harvest_week} are filled from the
+    # requirement's formula plan. Agronomists edit per requirement on top.
+    default_formula_steps = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     crop = relationship("Crop", back_populates="varieties")
@@ -362,6 +367,12 @@ class Opportunity(Base):
     assigned_farmer_id = Column(String, ForeignKey("users.id"), nullable=True)
     accepted_by = Column(String, ForeignKey("users.id"), nullable=True)
     accepted_at = Column(DateTime, nullable=True)
+    # Added 11 Oct 2026 (brief §4.1): what the Phase 1 match filter reads --
+    # same region + a crop the farmer grows. NULL = unrestricted (the older
+    # open pool rows). delivery_by drives "Delivery in N weeks".
+    crop_id = Column(String, ForeignKey("crops.id"), nullable=True)
+    region_id = Column(String, ForeignKey("regions.id"), nullable=True)
+    delivery_by = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -1116,6 +1127,8 @@ class ListingImage(Base):
 class NotificationType(str, enum.Enum):
     LISTING_APPROVED = "listing_approved"
     LISTING_REJECTED = "listing_rejected"
+    OPPORTUNITY_ACCEPTED = "opportunity_accepted"
+    MARKETPLACE_ORDER = "marketplace_order"
 
 
 class Notification(Base):
@@ -1204,6 +1217,85 @@ class LogisticsEvent(Base):
     public_text = Column(String, nullable=False)
     detail = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class FormulaStep(Base):
+    """
+    Agronomist-authored production-formula checklist for one buyer
+    requirement (brief §4.2) -- variety and spacing, fertiliser schedule,
+    crop protection, harvest/moisture/grading/bagging. Every farmer matched
+    to the requirement sees the same steps. Until an agronomist saves some,
+    app/formula_steps.py derives a draft from the variety, the buyer's spec
+    notes and the formula plan.
+    """
+    __tablename__ = "formula_steps"
+
+    id = Column(String, primary_key=True, default=uid)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=False, index=True)
+    position = Column(Integer, nullable=False)
+    text = Column(Text, nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgronomistTaskKind(str, enum.Enum):
+    ACCEPTANCE_FOLLOW_UP = "acceptance_follow_up"  # farmer accepted an opportunity (48h SLA)
+    FARM_VISIT = "farm_visit"  # farmer bought an agronomist visit in the marketplace
+
+
+class AgronomistTaskStatus(str, enum.Enum):
+    OPEN = "open"
+    DONE = "done"
+
+
+class AgronomistTask(Base):
+    """Agronomist work queue with an SLA due time (brief §4.2, §2F)."""
+    __tablename__ = "agronomist_tasks"
+
+    id = Column(String, primary_key=True, default=uid)
+    kind = Column(SAEnum(AgronomistTaskKind), nullable=False)
+    status = Column(SAEnum(AgronomistTaskStatus), nullable=False, default=AgronomistTaskStatus.OPEN)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    opportunity_id = Column(String, ForeignKey("opportunities.id"), nullable=True)
+    input_order_id = Column(String, ForeignKey("input_orders.id"), nullable=True)
+    summary = Column(String, nullable=False)
+    due_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    completed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WalletEntryType(str, enum.Enum):
+    CREDIT = "credit"
+    DEBIT = "debit"
+
+
+class WalletSource(str, enum.Enum):
+    ESTIMATED_SETTLEMENT = "estimated_settlement"  # accepted tonnes x price x (1 - margin), decision D4
+    INPUT_ORDER = "input_order"
+    INPUT_ORDER_REVERSAL = "input_order_reversal"  # vendor declined -> the debit is reversed
+    LOGISTICS_FEE = "logistics_fee"  # per delivered dispatch job for this farmer
+
+
+class WalletLedgerEntry(Base):
+    """
+    Every movement behind the farmer's Wallet & Settlement card (brief §4.3).
+    Append-only; (farmer, source, reference) is unique, so re-syncing never
+    double-posts. A reversal is a new entry, not an edit.
+    """
+    __tablename__ = "wallet_ledger"
+    __table_args__ = (UniqueConstraint("farmer_id", "source", "reference", name="uq_wallet_ledger_source_ref"),)
+
+    id = Column(String, primary_key=True, default=uid)
+    farmer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    entry_type = Column(SAEnum(WalletEntryType), nullable=False)
+    source = Column(SAEnum(WalletSource), nullable=False)
+    reference = Column(String, nullable=False)  # opportunity / input order / dispatch job id
+    amount = Column(Float, nullable=False)  # always positive; entry_type gives the sign
+    description = Column(String, nullable=False)
+    is_estimate = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class AuditLog(Base):

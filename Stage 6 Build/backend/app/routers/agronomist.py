@@ -33,7 +33,7 @@ from ..database import get_db
 from ..models import (
     User, Role, UserStatus, BuyerRequirement, RequirementStatus,
     Opportunity, OpportunityStatus, RequirementFormulaPlan,
-    FieldVisitLog, FieldVisitStatus, AgronomistMessage,
+    FieldVisitLog, FieldVisitStatus, AgronomistMessage, CropVariety, FormulaStep,
 )
 from ..state import transition
 from ..auth import require_roles
@@ -43,8 +43,9 @@ from ..schemas import (
     AgronomistRequirementResponse, FarmerCandidateResponse, AssignFarmersRequest,
     FormulaBuilderResponse, FormulaPlanUpdate,
     FieldVisitLogCreate, FieldVisitLogCompleteRequest, FieldVisitLogResponse,
-    AgronomistMessageCreate, AgronomistMessageResponse,
+    AgronomistMessageCreate, AgronomistMessageResponse, FormulaStepsResponse, FormulaStepsUpdate,
 )
+from ..matching import formula_steps
 
 router = APIRouter(prefix="/agronomist", tags=["agronomist"])
 
@@ -191,6 +192,7 @@ def assign_farmers(
 
     buyer_name = req.buyer.organisation_name or req.buyer.full_name
     share = round(req.quantity_tonnes / len(farmers), 2)
+    variety = db.query(CropVariety).filter(CropVariety.id == req.crop_variety_id).first() if req.crop_variety_id else None
     for farmer in farmers:
         db.add(Opportunity(
             buyer_requirement_id=req.id,
@@ -202,6 +204,9 @@ def assign_farmers(
             deadline=req.delivery_timeline,
             status=OpportunityStatus.OPEN,
             assigned_farmer_id=farmer.id,
+            crop_id=variety.crop_id if variety else None,
+            region_id=farmer.region_id,
+            delivery_by=req.delivery_by,
         ))
     transition(req, RequirementStatus.PRODUCTION)
     db.commit()
@@ -399,3 +404,43 @@ def reply_to_farmer(
     db.commit()
     db.refresh(msg)
     return _message_view(msg, db)
+
+
+
+# ---------------------------------------------------------------------------
+# Production-formula steps (CEO demo brief §4.2, 11 Oct 2026) -- the
+# checklist every matched farmer sees. GET returns the saved steps, or the
+# variety template + the buyer's spec notes as a draft to edit.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/requirements/{requirement_id}/formula-steps", response_model=FormulaStepsResponse)
+def get_formula_steps(
+    requirement_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    req = _get_requirement_or_404(requirement_id, db)
+    authored = db.query(FormulaStep).filter(FormulaStep.buyer_requirement_id == req.id).count() > 0
+    return FormulaStepsResponse(buyer_requirement_id=req.id, steps=formula_steps(db, req), authored=authored)
+
+
+@router.put("/requirements/{requirement_id}/formula-steps", response_model=FormulaStepsResponse)
+def save_formula_steps(
+    requirement_id: str,
+    payload: FormulaStepsUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.AGRONOMIST)),
+):
+    req = _get_requirement_or_404(requirement_id, db)
+    steps = [s.strip() for s in payload.steps if s and s.strip()]
+    if not steps:
+        raise HTTPException(status_code=422, detail="Add at least one step.")
+    if len(steps) > 20:
+        raise HTTPException(status_code=422, detail="A formula can have at most 20 steps.")
+    db.query(FormulaStep).filter(FormulaStep.buyer_requirement_id == req.id).delete()
+    for i, text in enumerate(steps):
+        db.add(FormulaStep(buyer_requirement_id=req.id, position=i, text=text, created_by=user.id))
+    db.commit()
+    log_audit(db, user, "formula_steps_saved", f"{req.reference or req.id}: {len(steps)} step(s).")
+    return FormulaStepsResponse(buyer_requirement_id=req.id, steps=steps, authored=True)

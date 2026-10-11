@@ -156,6 +156,9 @@ SEED_RATES = [
     ("vendor_subscription_fee_monthly", 150.0, "GHS/month",
      "Farm Master-owned vendor storefront subscription fee (PRD Section 6 revenue stream). "
      "BUSINESS-UNCONFIRMED, added 8 Sep 2026 alongside Subscription & Billing."),
+    ("agronomist_task_sla_hours", 48.0, "hours",
+     "SLA for the agronomist follow-up created when a farmer accepts an opportunity (CEO demo brief "
+     "4.2). Added 11 Oct 2026."),
     ("buyer_min_lead_time_days", 28.0, "days",
      "Earliest delivery date a buyer may request, in days from today -- the minimum lead time "
      "for a production cycle. PROVISIONAL, BUSINESS-UNCONFIRMED, added 11 Oct 2026."),

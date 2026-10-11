@@ -24,3 +24,7 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 - `app/state.py`: one transition table for buyer orders, dispatch/trunking jobs, opportunities and input orders. Illegal moves are a 409 everywhere.
 - `migrations/fix_autogen.py`: names autogenerate's unnamed foreign keys and drops leftover ENUM types so revisions round-trip.
 - **Public landing page** at `/` (brief §3): the demo's hero, CTAs and "How it works" panel; a stats ledger from `/api/public/stats`; role-coloured portal cards; and a live ticker from `/api/public/activity` that rotates every 5s and refreshes every minute. The ledger becomes 2×2 and the cards stack on mobile.
+- Farmer backend (brief §4): Phase 1 matching (region + registered crop; another farmer's assignment is never shown), `GET /farmer/matched-opportunities` with crop, region, "delivery in N weeks", stepper stage and formula steps. Accepting creates a **48-hour agronomist task** and an in-app + SMS notification and posts to the wallet. New `wallet_ledger` (estimated settlement, input orders + reversals, logistics fees) behind `GET /farmer/wallet/summary` (decision D4). Agronomist-authored `formula_steps` (draft from per-variety templates + the buyer's spec notes), `/ops/agronomist-tasks` queue, `GET /farmer/notifications`.
+
+### Changed
+- `GET /farmer/opportunities` and `/farmer/opportunities/{id}` are filtered to the farmer's own matches. Previously they returned every open row, including opportunities assigned to other farmers.

@@ -47,6 +47,31 @@ SEED_CROPS = [
     ("Tomato", "tomato", "tomato", False, 3000.0, [("Pectomech", None)]),
 ]
 
+# Default production-formula steps per variety -- the CEO demo's own checklist
+# text, AGRONOMICALLY UNVERIFIED like the rest of the formula maths (PRD 10).
+SEED_FORMULA_TEMPLATES = {
+    "Obatanpa": [
+        "Obatanpa variety, 75cm x 40cm spacing, planted in week {planting_week}",
+        "NPK 15-15-15 at planting, top-dress at week {topdress_week}",
+        "Harvest around week {harvest_week} at 13% moisture, Grade A bagging",
+    ],
+    "Jenguma": [
+        "Jenguma variety, inoculated seed required",
+        "Single basal fertiliser application",
+        "Delivery in jute sacks, moisture below 12%",
+    ],
+    "Pectomech": [
+        "Pectomech variety, staked rows",
+        "Weekly fungicide rotation per agronomist schedule",
+        "Harvest at breaker stage for transport",
+    ],
+    "Jasmine 85": [
+        "Jasmine 85 variety, transplanted at 20cm x 20cm",
+        "NPK at transplanting, urea top-dress at week {topdress_week}",
+        "Harvest at 20-22% grain moisture, dry to 14% before milling",
+    ],
+}
+
 SEED_UNIONS = ["Tema Smallholder Farmers Union", "Nsawam Farmer Union"]
 
 # Profile backfill for the seeded accounts -- region/crops/union for farmers,
@@ -84,9 +109,17 @@ def seed_reference_data(db: Session) -> None:
             db.add(crop)
             db.flush()
             for vname, desc in varieties:
-                db.add(CropVariety(crop_id=crop.id, name=vname, description=desc))
+                steps = SEED_FORMULA_TEMPLATES.get(vname)
+                db.add(CropVariety(crop_id=crop.id, name=vname, description=desc,
+                                   default_formula_steps="\n".join(steps) if steps else None))
         db.commit()
         print(f"Seeded {len(SEED_CROPS)} crops (Maize active for ordering).")
+
+    # Backfill templates onto varieties seeded before templates existed.
+    for v in db.query(CropVariety).filter(CropVariety.default_formula_steps.is_(None)).all():
+        if v.name in SEED_FORMULA_TEMPLATES:
+            v.default_formula_steps = "\n".join(SEED_FORMULA_TEMPLATES[v.name])
+    db.commit()
 
     if db.query(FarmerUnion).count() == 0:
         for name in SEED_UNIONS:

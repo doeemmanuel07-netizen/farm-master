@@ -1027,3 +1027,85 @@ class AggregationRow(BaseModel):
     centre: str
     crop: str
     tonnes_today: float
+
+
+class MatchedOpportunityResponse(BaseModel):
+    """Farmer Portal opportunity row + detail panel (brief §4.1/§4.2)."""
+    id: str
+    buyer_name: str
+    tag: str
+    grade: str
+    quantity_tonnes: float
+    price_per_tonne: float
+    deadline: str
+    status: OpportunityStatus
+    crop: str
+    crop_icon: str
+    variety: Optional[str] = None
+    region: Optional[str] = None
+    delivery_by: Optional[date] = None
+    delivery_in_weeks: Optional[int] = None
+    stage_index: int
+    steps: List[str]
+    formula_steps: List[str]
+    buyer_requirement_id: Optional[str] = None
+
+
+class WalletEntryResponse(BaseModel):
+    id: str
+    entry_type: str
+    source: str
+    reference: str
+    amount: float
+    description: str
+    is_estimate: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FarmerWalletSummaryResponse(BaseModel):
+    input_costs: float
+    logistics_fees: float
+    estimated_settlement: float
+    estimated_payout: float
+    entries: List[WalletEntryResponse]
+
+
+class FarmerNotificationResponse(BaseModel):
+    id: str
+    type: NotificationType
+    message: str
+    read_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FormulaStepsResponse(BaseModel):
+    buyer_requirement_id: str
+    steps: List[str]
+    authored: bool  # False = still the variety template + spec-notes draft
+
+
+class FormulaStepsUpdate(BaseModel):
+    steps: List[str]
+
+
+class AgronomistTaskResponse(BaseModel):
+    id: str
+    kind: str
+    status: str
+    farmer_name: str
+    summary: str
+    due_at: datetime
+    overdue: bool
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class AgronomistTaskComplete(BaseModel):
+    notes: Optional[str] = None
