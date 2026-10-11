@@ -33,9 +33,12 @@ def scratch_url():
 def test_migrations_match_models(scratch_url):
     engine = create_engine(scratch_url)
     cfg = alembic_config()
-    with engine.begin() as conn:
+    # A plain (not begun) connection: Alembic manages the transaction itself,
+    # which revision 0003's ALTER TYPE ... ADD VALUE autocommit block needs.
+    with engine.connect() as conn:
         cfg.attributes["connection"] = conn
         command.upgrade(cfg, "head")
+        conn.commit()
     with engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn, opts={"compare_type": True}), Base.metadata)
     engine.dispose()

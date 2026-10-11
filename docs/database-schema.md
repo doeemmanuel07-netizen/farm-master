@@ -13,6 +13,7 @@ erDiagram
     users ||--o{ agronomist_messages : "sender_id"
     users ||--o{ audit_log : "actor_user_id"
     users ||--o{ buyer_requirements : "buyer_id"
+    crop_varieties ||--o{ buyer_requirements : "crop_variety_id"
     buyer_requirements ||--o{ commitment_fee_payments : "requirement_id"
     crops ||--o{ crop_varieties : "crop_id"
     users ||--o{ dispatch_jobs : "dispatched_by"
@@ -95,6 +96,10 @@ erDiagram
         string delivery_timeline
         float commitment_fee_amount
         enum status
+        string reference
+        string crop_variety_id FK
+        text spec_notes
+        date delivery_by
         datetime created_at
     }
     commitment_fee_payments {
@@ -104,6 +109,24 @@ erDiagram
         string method
         enum status
         string transaction_ref
+        string provider
+        enum network
+        string payer_phone
+        string provider_ref
+        string checkout_url
+        string failure_reason
+        text webhook_payload
+        datetime paid_at
+        datetime updated_at
+        datetime created_at
+    }
+    commitment_fee_rules {
+        string id PK
+        string name
+        enum basis
+        float rate
+        float minimum_amount
+        boolean is_active
         datetime created_at
     }
     crop_varieties {
@@ -471,7 +494,11 @@ erDiagram
 | `delivery_location` | string | no |  |
 | `delivery_timeline` | string | no |  |
 | `commitment_fee_amount` | float | no |  |
-| `status` | enum(draft, pending_payment, matching, production, aggregation, shipment) | no |  |
+| `status` | enum(draft, pending_payment, matching, production, aggregation, shipment, delivered) | no |  |
+| `reference` | string | yes | unique |
+| `crop_variety_id` | string | yes | FK → `crop_varieties.id` |
+| `spec_notes` | text | yes |  |
+| `delivery_by` | date | yes |  |
 | `created_at` | datetime | yes |  |
 
 ### `commitment_fee_payments`
@@ -484,6 +511,27 @@ erDiagram
 | `method` | string | no |  |
 | `status` | enum(pending, success, failed) | no |  |
 | `transaction_ref` | string | yes |  |
+| `provider` | string | yes |  |
+| `network` | enum(mtn_momo, telecel_cash, at_money, card) | yes |  |
+| `payer_phone` | string | yes |  |
+| `provider_ref` | string | yes | unique |
+| `checkout_url` | string | yes |  |
+| `failure_reason` | string | yes |  |
+| `webhook_payload` | text | yes |  |
+| `paid_at` | datetime | yes |  |
+| `updated_at` | datetime | yes |  |
+| `created_at` | datetime | yes |  |
+
+### `commitment_fee_rules`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `name` | string | no |  |
+| `basis` | enum(per_tonne, percent_of_value) | no |  |
+| `rate` | float | no |  |
+| `minimum_amount` | float | no |  |
+| `is_active` | boolean | no |  |
 | `created_at` | datetime | yes |  |
 
 ### `crop_varieties`
@@ -910,3 +958,7 @@ erDiagram
 | `status` | string | no |  |
 | `transaction_ref` | string | yes |  |
 | `created_at` | datetime | yes |  |
+
+## Sequences
+
+- `buyer_requirement_ref_seq` (starts at 1001)

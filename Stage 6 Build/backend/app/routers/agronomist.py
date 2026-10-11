@@ -56,6 +56,7 @@ QUEUE_STATUSES = {
     RequirementStatus.PRODUCTION,
     RequirementStatus.AGGREGATION,
     RequirementStatus.SHIPMENT,
+    RequirementStatus.DELIVERED,
 }
 
 

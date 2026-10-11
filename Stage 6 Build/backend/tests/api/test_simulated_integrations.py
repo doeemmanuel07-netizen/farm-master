@@ -45,8 +45,9 @@ def test_otp_codes_are_real_looking_but_not_sent_anywhere(client, make_user):
     assert token
 
 
-@pytest.mark.parametrize("method,expect_success", [("momo", True), ("vodafone", True), ("airteltigo", True)])
-def test_mobile_money_methods_succeed_with_a_simulated_marker(client, roles, rate_config, method, expect_success):
+@pytest.mark.parametrize("method,network", [("momo", "mtn_momo"), ("vodafone", "telecel_cash"), ("airteltigo", "at_money")])
+def test_mobile_money_methods_go_through_the_sandbox_with_a_simulated_marker(client, roles, rate_config, method, network):
+    """Legacy method names still work and map to the rebranded networks (Telecel Cash, AT Money)."""
     token = login(client, roles[Role.BUYER].email)
     req = client.post("/buyer/requirements", json={
         "grade": "Grade 1", "quantity_tonnes": 1.0, "price_per_tonne": 2000.0,
@@ -54,8 +55,10 @@ def test_mobile_money_methods_succeed_with_a_simulated_marker(client, roles, rat
     }, headers=auth_headers(token)).json()
     pay = client.post(f"/buyer/requirements/{req['id']}/pay", json={"method": method}, headers=auth_headers(token))
     assert pay.status_code == 200
-    assert pay.json()["transaction_ref"].startswith("SIM-"), (
-        "A mobile money payment must always carry a SIM- prefixed reference -- "
+    assert pay.json()["network"] == network
+    assert pay.json()["provider"] == "sandbox" and pay.json()["sandbox"] is True
+    assert pay.json()["transaction_ref"].startswith("SBX-"), (
+        "A sandbox payment must always carry an SBX- prefixed reference -- "
         "this is the marker that distinguishes simulated money movement from a real one."
     )
 
@@ -67,9 +70,9 @@ def test_card_payment_is_never_silently_treated_as_working(client, roles, rate_c
         "delivery_location": "Tema", "delivery_timeline": "30 Sep 2026",
     }, headers=auth_headers(token)).json()
     pay = client.post(f"/buyer/requirements/{req['id']}/pay", json={"method": "card"}, headers=auth_headers(token))
-    assert pay.status_code == 501
-    # Confirming this order is left exactly where it started -- not
-    # half-activated by a request that claims to have failed.
+    assert pay.status_code == 200 and pay.json()["status"] == "pending"
+    # Confirming this order is left exactly where it started until the
+    # provider's webhook says otherwise.
     fetched = client.get(f"/buyer/requirements/{req['id']}", headers=auth_headers(token)).json()
     assert fetched["status"] == "pending_payment"
 

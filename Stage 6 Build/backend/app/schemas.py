@@ -1,6 +1,6 @@
 """Pydantic request/response schemas -- see API documentation doc for the full contract."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -8,7 +8,7 @@ from .models import (
     Role, RequirementStatus, PaymentStatus, OpportunityStatus, MechanisationRequestStatus,
     UserStatus, OtpPurpose, DispatchDirection, DispatchJobStatus, GradeResult,
     ProductCategory, FormulaInputType, InputOrderStatus, FieldVisitStatus, TrunkingStatus,
-    ListingType, ListingStatus, NotificationType,
+    ListingType, ListingStatus, NotificationType, PaymentNetwork, FeeBasis,
 )
 
 
@@ -149,11 +149,21 @@ class RegistrationApprovalResponse(BaseModel):
 
 
 class RequirementCreate(BaseModel):
-    grade: str
+    """
+    CEO demo form (brief §5.1): crop_variety_id, quantity_tonnes, delivery_by,
+    spec_notes, plus the target price per tonne (decision D2; defaults to the
+    crop's reference price). grade / delivery_location / delivery_timeline are
+    the original Stage 6 fields, still accepted from older clients and
+    defaulted when omitted.
+    """
     quantity_tonnes: float
-    price_per_tonne: float
-    delivery_location: str
-    delivery_timeline: str
+    crop_variety_id: Optional[str] = None
+    delivery_by: Optional[date] = None
+    spec_notes: Optional[str] = None
+    price_per_tonne: Optional[float] = None
+    grade: Optional[str] = None
+    delivery_location: Optional[str] = None
+    delivery_timeline: Optional[str] = None
 
 
 class RequirementResponse(BaseModel):
@@ -167,13 +177,32 @@ class RequirementResponse(BaseModel):
     commitment_fee_amount: float
     status: RequirementStatus
     created_at: datetime
+    # Added 11 Oct 2026 (CEO demo brief §5) -- defaults keep every older
+    # response that validates straight from an ORM row working unchanged.
+    reference: Optional[str] = None
+    crop_icon: str = "maize"
+    crop_variety_id: Optional[str] = None
+    variety: Optional[str] = None
+    delivery_by: Optional[date] = None
+    spec_notes: Optional[str] = None
+    status_label: Optional[str] = None
+    stage_index: Optional[int] = None
+    progress_pct: Optional[int] = None
+    badge: Optional[str] = None
+    steps: List[str] = []
+    latest_payment_status: Optional[PaymentStatus] = None
+    latest_payment_id: Optional[str] = None
+    paid: bool = False
 
     class Config:
         from_attributes = True
 
 
 class PaymentRequest(BaseModel):
-    method: str
+    """network is the current field; method is the pre-rebrand legacy one (momo | vodafone | airteltigo | card)."""
+    network: Optional[PaymentNetwork] = None
+    method: Optional[str] = None
+    payer_phone: Optional[str] = None
 
 
 class PaymentResponse(BaseModel):
@@ -183,9 +212,79 @@ class PaymentResponse(BaseModel):
     method: str
     status: PaymentStatus
     transaction_ref: Optional[str]
+    network: Optional[PaymentNetwork] = None
+    network_label: Optional[str] = None
+    provider: Optional[str] = None
+    provider_ref: Optional[str] = None
+    checkout_url: Optional[str] = None
+    display_text: Optional[str] = None
+    failure_reason: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    requirement_reference: Optional[str] = None
+    sandbox: bool = False
 
     class Config:
         from_attributes = True
+
+
+class FeeQuoteResponse(BaseModel):
+    amount: float
+    rule_name: str
+    basis: FeeBasis
+    rate: float
+    minimum_amount: float
+    explanation: str
+
+
+class PaymentOptionResponse(BaseModel):
+    network: PaymentNetwork
+    label: str
+    hint: Optional[str] = None
+    needs_phone: bool
+
+
+class BuyerOrderFormResponse(BaseModel):
+    """Everything the Submit-a-requirement card needs, none of it hard-coded in the page."""
+    crops: List["CropResponse"]
+    earliest_delivery_by: date
+    payment_options: List[PaymentOptionResponse]
+    payer_phone: Optional[str] = None
+    provider: str
+
+
+class CommitmentFeeRuleResponse(BaseModel):
+    id: str
+    name: str
+    basis: FeeBasis
+    rate: float
+    minimum_amount: float
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CommitmentFeeRuleCreate(BaseModel):
+    name: str
+    basis: FeeBasis
+    rate: float
+    minimum_amount: float = 0.0
+
+
+class OpsPaymentRow(BaseModel):
+    id: str
+    requirement_id: str
+    requirement_reference: Optional[str]
+    buyer_name: str
+    amount: float
+    network_label: str
+    provider: Optional[str]
+    provider_ref: Optional[str]
+    status: PaymentStatus
+    failure_reason: Optional[str]
+    created_at: datetime
+    paid_at: Optional[datetime]
 
 
 class OpportunityResponse(BaseModel):
@@ -907,3 +1006,6 @@ class MeResponse(BaseModel):
     mofa_verified: bool = False
     vendor_ownership: Optional[str] = None
     crops: List[str] = []
+
+
+BuyerOrderFormResponse.model_rebuild()

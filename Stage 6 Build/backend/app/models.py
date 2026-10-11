@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Enum as SAEnum, Text
+    Column, String, Float, Integer, Boolean, Date, DateTime, ForeignKey, Enum as SAEnum, Text, Sequence
 )
 from sqlalchemy.orm import relationship
 
@@ -228,6 +228,15 @@ class RequirementStatus(str, enum.Enum):
     PRODUCTION = "production"
     AGGREGATION = "aggregation"
     SHIPMENT = "shipment"
+    # Added 11 Oct 2026: the CEO demo's order stepper ends at "Delivered",
+    # which RequirementStatus had no state for.
+    DELIVERED = "delivered"
+
+
+# Buyer-facing order reference ("FM-1043"), CEO demo brief §5.1. A real
+# Postgres sequence, so references are sequential and never reused even
+# under concurrent submissions; the UUID primary key is unchanged.
+REQUIREMENT_REF_SEQ = Sequence("buyer_requirement_ref_seq", start=1001, metadata=Base.metadata)
 
 
 class BuyerRequirement(Base):
@@ -243,6 +252,15 @@ class BuyerRequirement(Base):
     delivery_timeline = Column(String, nullable=False)
     commitment_fee_amount = Column(Float, nullable=False)
     status = Column(SAEnum(RequirementStatus), nullable=False, default=RequirementStatus.DRAFT)
+    # Added 11 Oct 2026 (CEO demo brief §5.1). crop stays as the denormalised
+    # crop name every existing screen already reads; crop_variety_id is the
+    # real link. delivery_by is a real date (delivery_timeline is kept as its
+    # display string for older screens). spec_notes becomes the basis of the
+    # production formula agronomy authors.
+    reference = Column(String, unique=True, nullable=True)
+    crop_variety_id = Column(String, ForeignKey("crop_varieties.id"), nullable=True)
+    spec_notes = Column(Text, nullable=True)
+    delivery_by = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     buyer = relationship("User", back_populates="requirements")
@@ -255,15 +273,57 @@ class PaymentStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class PaymentNetwork(str, enum.Enum):
+    """Payer-facing payment options, labelled by current brand names (brief §2D)."""
+    MTN_MOMO = "mtn_momo"
+    TELECEL_CASH = "telecel_cash"  # formerly Vodafone Cash
+    AT_MONEY = "at_money"  # formerly AirtelTigo Money
+    CARD = "card"
+
+
+class FeeBasis(str, enum.Enum):
+    PER_TONNE = "per_tonne"  # rate = GHS per tonne
+    PERCENT_OF_VALUE = "percent_of_value"  # rate = fraction of quantity x price
+
+
+class CommitmentFeeRule(Base):
+    """
+    The buyer commitment fee as a configurable rule (brief §2D, decision D3).
+    Exactly one row is active; the seeded rule is PRD Section 10's GH₵ 90 per
+    tonne with a one-tonne minimum, so existing figures are unchanged.
+    """
+    __tablename__ = "commitment_fee_rules"
+
+    id = Column(String, primary_key=True, default=uid)
+    name = Column(String, nullable=False)
+    basis = Column(SAEnum(FeeBasis), nullable=False)
+    rate = Column(Float, nullable=False)
+    minimum_amount = Column(Float, nullable=False, default=0.0)
+    is_active = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class CommitmentFeePayment(Base):
     __tablename__ = "commitment_fee_payments"
 
     id = Column(String, primary_key=True, default=uid)
     requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=False)
     amount = Column(Float, nullable=False)
-    method = Column(String, nullable=False)  # momo | vodafone | airteltigo | card
+    method = Column(String, nullable=False)  # legacy label; new rows store the PaymentNetwork value
     status = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
     transaction_ref = Column(String, nullable=True)
+    # Added 11 Oct 2026 (brief §2D/§5.1): every payment now goes through a
+    # PaymentProvider driver (app/payments/) and is only marked SUCCESS by a
+    # verified provider webhook -- never by the client.
+    provider = Column(String, nullable=True)  # sandbox | paystack | hubtel
+    network = Column(SAEnum(PaymentNetwork), nullable=True)
+    payer_phone = Column(String, nullable=True)
+    provider_ref = Column(String, nullable=True, unique=True)
+    checkout_url = Column(String, nullable=True)  # card payments: hosted checkout page
+    failure_reason = Column(String, nullable=True)
+    webhook_payload = Column(Text, nullable=True)  # last verified webhook body, for audit
+    paid_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     requirement = relationship("BuyerRequirement", back_populates="payments")

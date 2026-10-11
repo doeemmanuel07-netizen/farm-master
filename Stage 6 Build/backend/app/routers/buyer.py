@@ -2,25 +2,41 @@
 Buyer commitment-fee flow -- the real backend behind
 buyer_commitment_fee_flow_live.html, replacing the Stage 5 prototype's
 local JS state with a real database and real validation.
+
+Revised 11 Oct 2026 for the CEO platform demo (brief §5): requirements
+carry a crop variety, a real delivery-by date, spec notes and an FM-####
+reference; the commitment fee comes from the active CommitmentFeeRule; and
+paying goes through a PaymentProvider driver -- PENDING until a verified
+provider webhook confirms it (app/payments/), never marked paid here.
 """
 
+from datetime import date
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import (
     User, Role, RateConfig, BuyerRequirement, RequirementStatus, CommitmentFeePayment, PaymentStatus,
-    HarvestPickupRequest, FulfilmentIntake, GradeResult, DispatchJob,
+    HarvestPickupRequest, FulfilmentIntake, GradeResult, DispatchJob, Crop, CropVariety, FulfilmentCentre,
+    PaymentNetwork,
 )
 from ..auth import require_roles, get_current_user
 from ..audit import log_audit
+from ..fees import quote_commitment_fee, FeeRuleMissing
+from ..orders import next_reference, requirement_view, earliest_delivery_date
+from ..payments.base import PaymentProviderError
+from ..payments.service import (
+    start_commitment_fee_payment, LEGACY_METHOD, NETWORK_LABEL, NETWORK_HINT, provider_name,
+)
 from ..reconciliation import compute_figures
+from ..reference import active_crops
 from ..schemas import (
     RequirementCreate, RequirementResponse, PaymentRequest, PaymentResponse,
     BuyerDashboardResponse, BuyerDocumentsResponse, BuyerDocumentRow,
     BuyerTrackingResponse, BuyerTrackingLogRow, BuyerInvoiceResponse,
+    FeeQuoteResponse, BuyerOrderFormResponse, PaymentOptionResponse, CropResponse,
 )
 
 router = APIRouter(prefix="/buyer", tags=["buyer"])
@@ -33,32 +49,125 @@ def _get_rate(db: Session, key: str) -> float:
     return row.value
 
 
+def _quote(db: Session, quantity_tonnes: float, price_per_tonne: float):
+    try:
+        return quote_commitment_fee(db, quantity_tonnes, price_per_tonne)
+    except FeeRuleMissing as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+def _payment_view(payment: CommitmentFeePayment, db: Session, display_text: str = None) -> PaymentResponse:
+    req = db.query(BuyerRequirement).filter(BuyerRequirement.id == payment.requirement_id).first()
+    resp = PaymentResponse.model_validate(payment)
+    resp.network_label = NETWORK_LABEL.get(payment.network, payment.method)
+    resp.display_text = display_text or getattr(payment, "display_text", None)
+    resp.requirement_reference = req.reference if req else None
+    resp.sandbox = payment.provider == "sandbox"
+    return resp
+
+
+@router.get("/order-form", response_model=BuyerOrderFormResponse)
+def order_form(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.BUYER)),
+):
+    """Active crops/varieties, the earliest allowed delivery date and the payment options -- the form is built from this."""
+    crops = []
+    for c in active_crops(db):
+        resp = CropResponse.model_validate(c)
+        resp.varieties = [v for v in resp.varieties if v.is_active]
+        crops.append(resp)
+    return BuyerOrderFormResponse(
+        crops=crops,
+        earliest_delivery_by=earliest_delivery_date(db),
+        payment_options=[
+            PaymentOptionResponse(network=n, label=NETWORK_LABEL[n], hint=NETWORK_HINT.get(n), needs_phone=n != PaymentNetwork.CARD)
+            for n in PaymentNetwork
+        ],
+        payer_phone=user.phone,
+        provider=provider_name(),
+    )
+
+
+@router.get("/fee-quote", response_model=FeeQuoteResponse)
+def fee_quote(
+    quantity_tonnes: float = Query(..., gt=0),
+    price_per_tonne: float = Query(..., gt=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.BUYER)),
+):
+    q = _quote(db, quantity_tonnes, price_per_tonne)
+    return FeeQuoteResponse(amount=q.amount, rule_name=q.rule_name, basis=q.basis, rate=q.rate,
+                            minimum_amount=q.minimum_amount, explanation=q.explanation)
+
+
+def _resolve_variety(db: Session, crop_variety_id) -> CropVariety:
+    if crop_variety_id is None:
+        # Older clients (the original Stage 6 buyer flow) send no variety --
+        # they only ever ordered the pilot crop, so take the first active one.
+        crops = active_crops(db)
+        varieties = [v for v in (crops[0].varieties if crops else []) if v.is_active]
+        if not varieties:
+            raise HTTPException(status_code=422, detail="No crop is currently open for ordering.")
+        return varieties[0]
+    variety = db.query(CropVariety).filter(CropVariety.id == crop_variety_id).first()
+    if not variety or not variety.is_active:
+        raise HTTPException(status_code=422, detail="That crop variety isn't available.")
+    if not variety.crop.is_active_for_ordering:
+        raise HTTPException(status_code=422, detail=f"{variety.crop.name} isn't open for ordering yet.")
+    return variety
+
+
 @router.post("/requirements", response_model=RequirementResponse)
 def submit_requirement(
     payload: RequirementCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.BUYER)),
 ):
-    if payload.quantity_tonnes <= 0:
+    if payload.quantity_tonnes is None or payload.quantity_tonnes <= 0:
         raise HTTPException(status_code=422, detail="Quantity must be greater than zero.")
-    rate = _get_rate(db, "buyer_commitment_fee_per_tonne")
-    fee = round(max(rate, payload.quantity_tonnes * rate), 2)
+    variety = _resolve_variety(db, payload.crop_variety_id)
+    crop: Crop = variety.crop
 
+    if payload.delivery_by is not None:
+        earliest = earliest_delivery_date(db)
+        if payload.delivery_by < earliest:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Delivery date must be on or after {earliest.strftime('%d %b %Y')} "
+                       f"(the minimum lead time for a production cycle).",
+            )
+    elif not payload.delivery_timeline:
+        raise HTTPException(status_code=422, detail="A delivery date is required.")
+
+    price = payload.price_per_tonne if payload.price_per_tonne is not None else crop.reference_price_per_tonne
+    if price <= 0:
+        raise HTTPException(status_code=422, detail="Price per tonne must be greater than zero.")
+
+    hq = db.query(FulfilmentCentre).filter(FulfilmentCentre.is_hq.is_(True)).first()
+    quote = _quote(db, payload.quantity_tonnes, price)
     req = BuyerRequirement(
         buyer_id=user.id,
-        crop="Maize",
-        grade=payload.grade,
+        reference=next_reference(db),
+        crop=crop.name,
+        crop_variety_id=variety.id,
+        grade=(payload.grade or "As per specification").strip(),
         quantity_tonnes=payload.quantity_tonnes,
-        price_per_tonne=payload.price_per_tonne,
-        delivery_location=payload.delivery_location,
-        delivery_timeline=payload.delivery_timeline,
-        commitment_fee_amount=fee,
+        price_per_tonne=price,
+        delivery_location=payload.delivery_location or (hq.town if hq else "Tema"),
+        delivery_by=payload.delivery_by,
+        delivery_timeline=payload.delivery_timeline or payload.delivery_by.strftime("%d %b %Y"),
+        spec_notes=(payload.spec_notes or "").strip() or None,
+        commitment_fee_amount=quote.amount,
         status=RequirementStatus.PENDING_PAYMENT,
     )
     db.add(req)
     db.commit()
     db.refresh(req)
-    return req
+    log_audit(db, user, "requirement_submitted",
+              f"{req.reference}: {req.quantity_tonnes:g} t {crop.name} ({variety.name}) at GHS {price:,.2f}/t; "
+              f"commitment fee GHS {quote.amount:,.2f} ({quote.explanation}).")
+    return requirement_view(db, req)
 
 
 @router.get("/requirements/{requirement_id}", response_model=RequirementResponse)
@@ -70,10 +179,7 @@ def get_requirement(
     req = db.query(BuyerRequirement).filter(BuyerRequirement.id == requirement_id).first()
     if not req or req.buyer_id != user.id:
         raise HTTPException(status_code=404, detail="Requirement not found.")
-    return req
-
-
-VALID_METHODS = {"momo", "vodafone", "airteltigo", "card"}
+    return requirement_view(db, req)
 
 
 @router.post("/requirements/{requirement_id}/pay", response_model=PaymentResponse)
@@ -83,35 +189,51 @@ def pay_commitment_fee(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.BUYER)),
 ):
+    """
+    Starts a commitment-fee payment with the configured provider. Returns it
+    PENDING; the order moves to MATCHING only when the provider's verified
+    webhook confirms it (POST /payments/webhook/{provider}).
+    """
     req = db.query(BuyerRequirement).filter(BuyerRequirement.id == requirement_id).first()
     if not req or req.buyer_id != user.id:
         raise HTTPException(status_code=404, detail="Requirement not found.")
     if req.status != RequirementStatus.PENDING_PAYMENT:
         raise HTTPException(status_code=409, detail=f"Requirement is '{req.status.value}', not payable.")
-    if payload.method not in VALID_METHODS:
+
+    network = payload.network or LEGACY_METHOD.get((payload.method or "").lower())
+    if network is None:
         raise HTTPException(status_code=422, detail=f"Unsupported payment method '{payload.method}'.")
-    if payload.method == "card":
-        # Real gateway (Paystack/Hubtel) not yet chosen -- PRD Section 1.1.
-        raise HTTPException(status_code=501, detail="Card payment gateway not yet selected (Paystack/Hubtel TBD).")
+    phone = (payload.payer_phone or user.phone or "").strip() or None
+    if network != PaymentNetwork.CARD and not phone:
+        raise HTTPException(status_code=422, detail="A mobile money number is required.")
 
-    payment = CommitmentFeePayment(
-        requirement_id=req.id,
-        amount=req.commitment_fee_amount,
-        method=payload.method,
-        status=PaymentStatus.SUCCESS,  # mobile money confirmation is simulated -- no real gateway wired yet
-        transaction_ref=f"SIM-{req.id[:8]}",
+    pending = (
+        db.query(CommitmentFeePayment)
+        .filter(CommitmentFeePayment.requirement_id == req.id, CommitmentFeePayment.status == PaymentStatus.PENDING)
+        .first()
     )
-    db.add(payment)
-    req.status = RequirementStatus.MATCHING
-    db.commit()
-    db.refresh(payment)
+    if pending:
+        raise HTTPException(status_code=409, detail="A payment for this order is already awaiting confirmation.")
 
-    log_audit(
-        db, user, "commitment_fee_captured",
-        f"Requirement {req.id}: GHS {payment.amount} via {payload.method}, ref {payment.transaction_ref}.",
-    )
-    return payment
+    try:
+        payment = start_commitment_fee_payment(db, req, user, network, phone)
+    except PaymentProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"Payment provider error: {exc}")
+    return _payment_view(payment, db)
 
+
+@router.get("/payments/{payment_id}", response_model=PaymentResponse)
+def get_payment(
+    payment_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(Role.BUYER)),
+):
+    """Polled by the payment modal while a payment is PENDING."""
+    payment = db.query(CommitmentFeePayment).filter(CommitmentFeePayment.id == payment_id).first()
+    req = db.query(BuyerRequirement).filter(BuyerRequirement.id == payment.requirement_id).first() if payment else None
+    if not payment or not req or req.buyer_id != user.id:
+        raise HTTPException(status_code=404, detail="Payment not found.")
+    return _payment_view(payment, db)
 
 # ---------------------------------------------------------------------------
 # Buyer Dashboard, Specification & Compliance Documents, Fulfilment &
@@ -126,12 +248,13 @@ def my_requirements(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(Role.BUYER)),
 ):
-    return (
+    reqs = (
         db.query(BuyerRequirement)
         .filter(BuyerRequirement.buyer_id == user.id)
         .order_by(BuyerRequirement.created_at.desc())
         .all()
     )
+    return [requirement_view(db, r) for r in reqs]
 
 
 def _own_requirement_or_404(db: Session, requirement_id: str, user: User) -> BuyerRequirement:

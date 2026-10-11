@@ -181,10 +181,18 @@ def rate_config(db_session):
         ("vendor_subscription_fee_monthly", 150.0, "GHS/month"),
         ("logistics_fee_per_delivery", 30.0, "GHS/delivery"),
         ("revenue_streams_count", 6.0, "count"),
+        ("buyer_min_lead_time_days", 28.0, "days"),
     ]
     for key, value, unit in rows:
         db_session.add(RateConfig(key=key, value=value, unit=unit, status="PROVISIONAL", note="test fixture"))
     db_session.commit()
+    # Since 11 Oct 2026 a buyer requirement also needs an orderable crop and
+    # the active commitment fee rule (PRD's GH₵ 90/t, GH₵ 90 minimum) -- both
+    # are the same idempotent seeders the app itself runs.
+    from app.reference import seed_reference_data
+    from app.fees import seed_fee_rule
+    seed_reference_data(db_session)
+    seed_fee_rule(db_session)
 
 
 @pytest.fixture()
@@ -207,3 +215,10 @@ def reference_data(db_session):
         "crops": {c.name: c for c in db_session.query(Crop).all()},
         "unions": {u.name: u for u in db_session.query(FarmerUnion).all()},
     }
+
+
+def sandbox_approve(client, token, payment, outcome="approve"):
+    """Plays the payer's phone: settles a sandbox payment through the real signed-webhook path."""
+    res = client.post(f"/payments/sandbox/{payment['provider_ref']}/{outcome}", headers=auth_headers(token))
+    assert res.status_code == 200, res.text
+    return res.json()

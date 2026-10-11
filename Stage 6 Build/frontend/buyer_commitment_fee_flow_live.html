@@ -438,13 +438,13 @@ var NAV_HREFS = { "Dashboard": "/buyer-dashboard-flow", "Submit Requirement": "/
       var r = state.requirement;
       var methods = [
         { id: "momo", label: "MTN MoMo" },
-        { id: "vodafone", label: "Vodafone Cash" },
-        { id: "airteltigo", label: "AirtelTigo Money" },
-        { id: "card", label: "Card — via Paystack / Hubtel (TBD, returns 501 from the server)" },
+        { id: "vodafone", label: "Telecel Cash (formerly Vodafone Cash)" },
+        { id: "airteltigo", label: "AT Money (formerly AirtelTigo Money)" },
+        { id: "card", label: "Card — sandbox checkout (Paystack / Hubtel driver once the gateway is chosen)" },
       ];
       document.getElementById("screen-title").textContent = "Commitment Fee Payment";
       document.getElementById("screen-crumb").textContent = "Commitment Fee Payment";
-      document.getElementById("screen-desc").textContent = "Fee amount came from the server's response to your Submit call, not from local JS. Try Card to see the real 501 the gateway-not-chosen decision produces.";
+      document.getElementById("screen-desc").textContent = "Fee amount came from the server's response to your Submit call, not from local JS. Paying starts a PENDING payment with the sandbox provider; it only succeeds when the provider's signed webhook confirms it (simulated here as approving the prompt on your phone).";
       document.getElementById("canvas").innerHTML = chrome("Submit Requirement",
         '<div class="grid g2">' +
           '<div class="card"><div class="card-label">Order summary (from server)</div>' +
@@ -476,7 +476,7 @@ var NAV_HREFS = { "Dashboard": "/buyer-dashboard-flow", "Submit Requirement": "/
 
     if (state.step === "success") {
       var p = state.payment;
-      var methodLabel = { momo: "MTN MoMo", vodafone: "Vodafone Cash", airteltigo: "AirtelTigo Money" }[p.method] || p.method;
+      var methodLabel = p.network_label || p.method;
       document.getElementById("screen-title").textContent = "Payment Confirmation";
       document.getElementById("screen-crumb").textContent = "Payment Confirmation";
       document.getElementById("screen-desc").textContent = "This payment record and transaction reference exist in the database -- and the requirement's status column really did change server-side.";
@@ -608,6 +608,18 @@ var NAV_HREFS = { "Dashboard": "/buyer-dashboard-flow", "Submit Requirement": "/
     btn.innerHTML = '<span class="spinner"></span> Processing payment…';
     try {
       var payment = await apiPost("/buyer/requirements/" + state.requirement.id + "/pay", { method: state.method });
+      // PENDING until the provider's verified webhook settles it. In the
+      // sandbox, "approve on the phone" is simulated by the sandbox endpoint,
+      // which sends a signed webhook through the same server-side path.
+      btn.innerHTML = '<span class="spinner"></span> Waiting for approval on the phone…';
+      if (payment.sandbox && payment.status === "pending") {
+        await apiPost("/payments/sandbox/" + payment.provider_ref + "/approve", {});
+      }
+      for (var i = 0; i < 30 && payment.status === "pending"; i++) {
+        await new Promise(function (r) { setTimeout(r, 1000); });
+        payment = await apiGet("/buyer/payments/" + payment.id);
+      }
+      if (payment.status !== "success") throw new Error(payment.failure_reason || "Payment was not confirmed.");
       state.payment = payment;
       // Re-fetch so the Order Status screen reflects the server's real post-payment
       // status column, not the pre-payment snapshot taken at Submit time.

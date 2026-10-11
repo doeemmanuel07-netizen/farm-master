@@ -13,3 +13,9 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 - Reference data (brief §2A–C): `regions` (16), `fulfilment_centres` (16, Tema HQ), `crops` + `crop_varieties` (Maize, White Rice, Soybean, Tomato), `farmer_unions`, `farmer_crops`; profile columns on `users`. The pilot config is Greater Accra/Tema + Maize active, and everything else can be switched on from `/admin/crops|regions|fulfilment-centres`.
 - `GET /api/public/stats|crops|regions` (landing page, no auth) and `GET /auth/me` (portal header line).
 - `docs/database-schema.md`: a table reference and Mermaid ERD generated from the models by `scripts/gen_schema_doc.py`.
+- Payments behind a `PaymentProvider` interface (brief §2D/§5.1): sandbox driver (default), Paystack and Hubtel drivers (not yet run against live credentials). Payments stay **pending until a verified webhook** confirms them (`POST /payments/webhook/{provider}`), with idempotency and amount checks. Networks are labelled MTN MoMo / Telecel Cash / AT Money / Card.
+- Commitment fee is now a configurable rule (`commitment_fee_rules`, per-tonne or % of value, with a minimum), seeded with PRD §10's GH₵ 90/t so existing figures don't change.
+- Buyer orders: `FM-####` references, crop variety, `delivery_by` date with a minimum lead time, spec notes, a `delivered` status, and a server-derived stepper/progress. New `GET /buyer/order-form`, `/buyer/fee-quote`, `/buyer/payments/{id}`, `/ops/payments`, `/admin/commitment-fee-rules`.
+
+### Changed
+- `POST /buyer/requirements/{id}/pay` returns `pending` instead of `success`; card no longer returns 501. The `/buyer-flow` page waits for the webhook (sandbox phone approval).

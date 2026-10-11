@@ -473,6 +473,11 @@ delivery -- see "Known limitations").
 |---|---|---|
 | `FARM_MASTER_DATABASE_URL` | `postgresql+psycopg://farmmaster:farmmaster_dev_pw@127.0.0.1:5432/farm_master` | SQLAlchemy connection string. Override for a different host/role, or to point at a managed Postgres instance in production. |
 | `FARM_MASTER_JWT_SECRET` | a dev-only placeholder string | **Must** be overridden with a real secret outside local dev. Never commit a production value. |
+| `FARM_MASTER_PAYMENT_PROVIDER` | `sandbox` | `sandbox`, `paystack` or `hubtel`. Payments only ever succeed through a verified webhook. The Paystack and Hubtel drivers haven't been run against live credentials yet. |
+| `FARM_MASTER_PUBLIC_BASE_URL` | `http://127.0.0.1:8000` | Used to build the webhook callback URL sent to the provider. |
+| `FARM_MASTER_SANDBOX_WEBHOOK_SECRET` | dev-only placeholder | HMAC key the sandbox driver signs its webhooks with. |
+| `PAYSTACK_SECRET_KEY` | — | Required when the provider is `paystack`. Also verifies `x-paystack-signature`. |
+| `HUBTEL_API_ID`, `HUBTEL_API_KEY`, `HUBTEL_POS_SALES_ID` | — | Required when the provider is `hubtel`. |
 
 ## Manual verification (what's already been tested)
 

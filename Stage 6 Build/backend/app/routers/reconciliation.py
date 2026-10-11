@@ -39,7 +39,7 @@ router = APIRouter(prefix="/finance/reconciliation", tags=["reconciliation"])
 
 RECONCILABLE_STATUSES = [
     RequirementStatus.MATCHING, RequirementStatus.PRODUCTION,
-    RequirementStatus.AGGREGATION, RequirementStatus.SHIPMENT,
+    RequirementStatus.AGGREGATION, RequirementStatus.SHIPMENT, RequirementStatus.DELIVERED,
 ]
 
 

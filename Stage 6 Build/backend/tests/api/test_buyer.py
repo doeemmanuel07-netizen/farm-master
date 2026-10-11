@@ -3,7 +3,7 @@
 import pytest
 
 from app.models import Role, GradeResult
-from tests.conftest import login, auth_headers
+from tests.conftest import login, auth_headers, sandbox_approve
 from tests.factories import make_delivered_graded_pickup
 
 pytestmark = pytest.mark.integration
@@ -43,25 +43,33 @@ def test_submit_requirement_rejects_zero_quantity(client, roles, rate_config):
     assert res.status_code == 422
 
 
-def test_pay_momo_succeeds_and_activates_matching(client, roles, rate_config):
+def test_pay_momo_is_pending_until_the_provider_webhook_confirms(client, roles, rate_config):
+    """Never marked paid by the client: PENDING until a verified webhook (brief §5.1)."""
     token = login(client, roles[Role.BUYER].email)
     req = _submit_requirement(client, token)
     pay = client.post(f"/buyer/requirements/{req['id']}/pay", json={"method": "momo"}, headers=auth_headers(token))
     assert pay.status_code == 200, pay.text
-    assert pay.json()["status"] == "success"
-    assert pay.json()["transaction_ref"].startswith("SIM-")
+    assert pay.json()["status"] == "pending"
+    assert pay.json()["network"] == "mtn_momo" and pay.json()["network_label"] == "MTN MoMo"
+    assert pay.json()["transaction_ref"].startswith("SBX-")
+    assert client.get(f"/buyer/requirements/{req['id']}", headers=auth_headers(token)).json()["status"] == "pending_payment"
 
+    sandbox_approve(client, token, pay.json())
+    polled = client.get(f"/buyer/payments/{pay.json()['id']}", headers=auth_headers(token)).json()
+    assert polled["status"] == "success" and polled["paid_at"]
     fetched = client.get(f"/buyer/requirements/{req['id']}", headers=auth_headers(token))
     assert fetched.json()["status"] == "matching"
+    assert fetched.json()["status_label"] == "Matching farmers"
 
 
 @pytest.mark.simulated
-def test_pay_card_returns_501_not_a_silent_success(client, roles, rate_config):
+def test_pay_card_goes_through_the_provider_not_a_silent_success(client, roles, rate_config):
     token = login(client, roles[Role.BUYER].email)
     req = _submit_requirement(client, token)
-    pay = client.post(f"/buyer/requirements/{req['id']}/pay", json={"method": "card"}, headers=auth_headers(token))
-    assert pay.status_code == 501
-    assert "gateway" in pay.json()["detail"].lower()
+    pay = client.post(f"/buyer/requirements/{req['id']}/pay", json={"network": "card"}, headers=auth_headers(token))
+    assert pay.status_code == 200
+    assert pay.json()["status"] == "pending"
+    assert client.get(f"/buyer/requirements/{req['id']}", headers=auth_headers(token)).json()["status"] == "pending_payment"
 
 
 def test_pay_unsupported_method_returns_422(client, roles, rate_config):

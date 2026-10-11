@@ -15,7 +15,7 @@ from .models import (
     User, Role, UserStatus, RateConfig, Opportunity, OpportunityStatus, MechanisationRequest,
     MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
     HarvestPickupRequest, DispatchJobStatus, FulfilmentIntake, GradeResult,
-    CommitmentFeePayment, PaymentStatus, Product, ProductCategory, FormulaInputType,
+    CommitmentFeePayment, PaymentStatus, PaymentNetwork, Product, ProductCategory, FormulaInputType,
     InputOrder, InputOrderLine, InputOrderStatus, ProductionFormula,
     FieldVisitLog, FieldVisitStatus, AgronomistMessage, MilestoneLogEntry,
     VendorBilling, ListingCategory, Listing, ListingImage, ListingType, ListingStatus,
@@ -25,6 +25,8 @@ from .dispatch import create_dispatch_job, create_inbound_dispatch_job, create_i
 from .formula import compute_formula_inputs
 from .uploads import UPLOADS_DIR
 from .reference import seed_reference_data
+from .fees import seed_fee_rule, quote_commitment_fee
+from .orders import next_reference, backfill_requirements, maize_variety_id
 
 # A minimal valid 1x1 transparent PNG -- the real, on-disk placeholder image
 # for demo Listing rows below (see models.ListingImage: this is the first
@@ -153,6 +155,9 @@ SEED_RATES = [
     ("vendor_subscription_fee_monthly", 150.0, "GHS/month",
      "Farm Master-owned vendor storefront subscription fee (PRD Section 6 revenue stream). "
      "BUSINESS-UNCONFIRMED, added 8 Sep 2026 alongside Subscription & Billing."),
+    ("buyer_min_lead_time_days", 28.0, "days",
+     "Earliest delivery date a buyer may request, in days from today -- the minimum lead time "
+     "for a production cycle. PROVISIONAL, BUSINESS-UNCONFIRMED, added 11 Oct 2026."),
     ("revenue_streams_count", 6.0, "count",
      "Number of Farm Master revenue streams shown on the public landing page ledger (Business "
      "Concept doc). Added 11 Oct 2026 with the CEO platform demo alignment."),
@@ -204,10 +209,10 @@ def seed():
                 print("Rate config already exists, skipping rate seed.")
 
         seed_reference_data(db)
+        seed_fee_rule(db)
+        backfill_requirements(db)
 
         if db.query(BuyerRequirement).count() == 0:
-            fee_rate = db.query(RateConfig).filter(RateConfig.key == "buyer_commitment_fee_per_tonne").first()
-            rate = fee_rate.value if fee_rate else 90.0
             for buyer_email, grade, qty, price, location, timeline in SEED_REQUIREMENTS:
                 buyer = db.query(User).filter(User.email == buyer_email).first()
                 if not buyer:
@@ -215,7 +220,8 @@ def seed():
                 db.add(BuyerRequirement(
                     buyer_id=buyer.id, crop="Maize", grade=grade, quantity_tonnes=qty,
                     price_per_tonne=price, delivery_location=location, delivery_timeline=timeline,
-                    commitment_fee_amount=round(max(rate, qty * rate), 2),
+                    commitment_fee_amount=quote_commitment_fee(db, qty, price).amount,
+                    reference=next_reference(db), crop_variety_id=maize_variety_id(db),
                     status=RequirementStatus.MATCHING,
                 ))
             db.commit()
@@ -242,13 +248,12 @@ def seed():
         if db.query(BuyerRequirement).filter(BuyerRequirement.status == RequirementStatus.PRODUCTION).count() == 0:
             buyer_email, grade, qty, price, location, timeline = SEED_ASSIGNED_REQUIREMENT
             buyer = db.query(User).filter(User.email == buyer_email).first()
-            fee_rate = db.query(RateConfig).filter(RateConfig.key == "buyer_commitment_fee_per_tonne").first()
-            rate = fee_rate.value if fee_rate else 90.0
             if buyer:
                 req = BuyerRequirement(
                     buyer_id=buyer.id, crop="Maize", grade=grade, quantity_tonnes=qty,
                     price_per_tonne=price, delivery_location=location, delivery_timeline=timeline,
-                    commitment_fee_amount=round(max(rate, qty * rate), 2),
+                    commitment_fee_amount=quote_commitment_fee(db, qty, price).amount,
+                    reference=next_reference(db), crop_variety_id=maize_variety_id(db),
                     status=RequirementStatus.PRODUCTION,
                 )
                 db.add(req)
@@ -262,8 +267,9 @@ def seed():
                 # received" from real payment rows, so without this it would
                 # show GHS 0 for the one order with real settlement data too.
                 db.add(CommitmentFeePayment(
-                    requirement_id=req.id, amount=req.commitment_fee_amount, method="momo",
-                    status=PaymentStatus.SUCCESS, transaction_ref=f"SIM-{req.id[:8]}",
+                    requirement_id=req.id, amount=req.commitment_fee_amount, method="mtn_momo",
+                    network=PaymentNetwork.MTN_MOMO, provider="sandbox", provider_ref=f"SBX-SEED-{req.id[:8]}",
+                    status=PaymentStatus.SUCCESS, transaction_ref=f"SIM-{req.id[:8]}", paid_at=datetime.utcnow(),
                 ))
                 db.commit()
 

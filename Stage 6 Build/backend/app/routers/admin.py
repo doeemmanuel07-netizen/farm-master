@@ -20,7 +20,7 @@ from ..models import (
     User, Role, UserStatus, AuditLog, RegistrationApproval, RateConfig,
     MechanisationRequest, MechanisationRequestStatus, SELF_REGISTER_ROLES, INTERNAL_ROLES,
     Listing, ListingStatus, ListingCategory, Notification, NotificationType,
-    Crop, CropVariety, Region, FulfilmentCentre,
+    Crop, CropVariety, Region, FulfilmentCentre, CommitmentFeeRule, FeeBasis,
 )
 from ..auth import require_roles, hash_password
 from ..audit import log_audit
@@ -32,6 +32,7 @@ from ..schemas import (
     AdminUserResponse, AdminUsersResponse, InternalUserCreate,
     ListingResponse, ListingRejectRequest, ListingCategoryResponse, ListingCategoryCreate,
     CropResponse, CropUpdate, CropVarietyCreate, RegionResponse, FulfilmentCentreResponse, ActiveToggle,
+    CommitmentFeeRuleResponse, CommitmentFeeRuleCreate,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin (Super Admin only)"])
@@ -168,6 +169,15 @@ def list_rates(
     return db.query(RateConfig).all()
 
 
+# Rate rows kept for history but no longer read by any calculation --
+# editing one would silently change nothing, so it's refused with a pointer.
+SUPERSEDED_RATE_KEYS = {
+    "buyer_commitment_fee_per_tonne": (
+        "The commitment fee is now a rule (11 Oct 2026). Change it with POST /admin/commitment-fee-rules."
+    ),
+}
+
+
 @router.put("/rates/{key}", response_model=RateConfigResponse)
 def update_rate(
     key: str,
@@ -178,6 +188,8 @@ def update_rate(
     row = db.query(RateConfig).filter(RateConfig.key == key).first()
     if not row:
         raise HTTPException(status_code=404, detail="Rate config key not found.")
+    if key in SUPERSEDED_RATE_KEYS:
+        raise HTTPException(status_code=409, detail=SUPERSEDED_RATE_KEYS[key])
     old_value = row.value
     row.value = payload.value
     db.commit()
@@ -550,3 +562,40 @@ def admin_toggle_centre(
     db.commit()
     log_audit(db, admin, "fulfilment_centre_toggled", f"{centre.name}: is_active={payload.is_active}.")
     return _centre_view(centre)
+
+
+# ---------------------------------------------------------------------------
+# Commitment fee rule (CEO demo brief §2D, decision D3). Creating a rule
+# activates it and deactivates the previous one, so there is always exactly
+# one rule in force and every past rule stays on record.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/commitment-fee-rules", response_model=List[CommitmentFeeRuleResponse])
+def list_fee_rules(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN))):
+    return db.query(CommitmentFeeRule).order_by(CommitmentFeeRule.created_at.desc()).all()
+
+
+@router.post("/commitment-fee-rules", response_model=CommitmentFeeRuleResponse)
+def create_fee_rule(
+    payload: CommitmentFeeRuleCreate,
+    db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    if payload.rate <= 0:
+        raise HTTPException(status_code=422, detail="Rate must be greater than zero.")
+    if payload.basis == FeeBasis.PERCENT_OF_VALUE and payload.rate >= 1:
+        raise HTTPException(status_code=422, detail="A percent-of-value rate is a fraction, e.g. 0.02 for 2%.")
+    if payload.minimum_amount < 0:
+        raise HTTPException(status_code=422, detail="Minimum must not be negative.")
+    previous = db.query(CommitmentFeeRule).filter(CommitmentFeeRule.is_active.is_(True)).all()
+    for r in previous:
+        r.is_active = False
+    rule = CommitmentFeeRule(name=payload.name.strip() or "Commitment fee rule", basis=payload.basis,
+                             rate=payload.rate, minimum_amount=payload.minimum_amount, is_active=True)
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    log_audit(db, admin, "commitment_fee_rule_changed",
+              f"Now '{rule.name}': {rule.basis.value} rate {rule.rate}, minimum GHS {rule.minimum_amount}. "
+              f"Replaced: {', '.join(r.name for r in previous) or 'none'}.")
+    return rule
