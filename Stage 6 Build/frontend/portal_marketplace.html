@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marketplace — Farm Master</title>
+<link rel="stylesheet" href="/static/assets/tokens.css">
+<link rel="stylesheet" href="/static/assets/components.css">
+<style>
+  .product-icon { color: var(--clay); }
+  .stock { font-size: 11.5px; color: var(--ink-soft); }
+  .vendor-note { font-size: 12.5px; color: var(--ink-soft); margin-top: 14px; }
+  .vendor-note a { color: var(--forest-deep); font-weight: 700; }
+  .cart-line { flex-wrap: wrap; }
+  .cart-line .qty-wrap { display: inline-flex; align-items: center; gap: 4px; }
+  .cart-line .qty { min-width: 22px; text-align: center; font-weight: 600; }
+  .cart-vendor { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .05em; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header id="topbar"></header>
+<main class="fm-app fm-screen" id="portal-main">
+  <div class="portal-head">
+    <div><h2>Vendor Portal</h2><div class="sub">Marketplace for inputs, equipment and mechanisation services</div></div>
+    <span class="role-chip vendor">Marketplace view</span>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Catalogue categories"></div>
+      <div class="product-grid" id="product-grid" role="tabpanel"><div class="empty">Loading catalogue…</div></div>
+      <p class="vendor-note">Selling on Farm Master? <a href="/vendor-dashboard-flow">Open the vendor back-office</a> to manage listings, incoming orders and payouts.</p>
+    </div>
+
+    <aside class="card cart-panel" aria-labelledby="cart-title">
+      <h3 id="cart-title">Your order</h3>
+      <div class="hint">Every item here routes to Farm Master logistics for farm-gate delivery.</div>
+      <div id="cart-lines"><div class="cart-empty">No items added yet — pick something from the catalogue.</div></div>
+      <div class="cart-total"><span>Total</span><span id="cart-total">GH₵ 0</span></div>
+      <button class="btn btn-gold btn-block" style="margin-top:14px;" id="place-order" disabled>Place order</button>
+    </aside>
+  </div>
+</main>
+
+<script src="/static/assets/components.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = FM.$, esc = FM.esc;
+  var state = { tabs: [], items: [], active: null, cart: [], sla: 2 };
+  var CART_KEY = "farmmaster_marketplace_cart";
+
+  FM.portal({
+    active: "vendor", role: "farmer", portalName: "Marketplace", demoEmail: "kojo.mensah@farmmaster.test",
+    signInHint: "The marketplace is where farmers order inputs, equipment and services. Sign in with your farmer account.",
+    onReady: function () { restoreCart(); load(); }
+  });
+
+  function load() {
+    FM.get("/farmer/marketplace").then(function (cat) {
+      state.tabs = cat.tabs; state.items = cat.items; state.sla = cat.delivery_sla_days;
+      state.active = state.active || cat.tabs[0].kind;
+      // Drop cart lines whose listing is no longer on sale.
+      state.cart = state.cart.filter(function (c) { return cat.items.some(function (i) { return i.id === c.id; }); });
+      renderTabs(); renderProducts(); renderCart();
+    }).catch(function (e) { $("#product-grid").innerHTML = '<div class="empty">' + esc(e.message) + "</div>"; });
+  }
+
+  function renderTabs() {
+    var wrap = $("#cat-tabs");
+    wrap.innerHTML = "";
+    state.tabs.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cat-tab" + (t.kind === state.active ? " active" : "");
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", t.kind === state.active ? "true" : "false");
+      b.textContent = t.label;
+      b.addEventListener("click", function () { state.active = t.kind; renderTabs(); renderProducts(); });
+      wrap.appendChild(b);
+    });
+  }
+
+  function renderProducts() {
+    var grid = $("#product-grid");
+    var items = state.items.filter(function (i) { return i.kind === state.active; });
+    if (!items.length) { grid.innerHTML = '<div class="empty">Nothing listed here yet.</div>'; return; }
+    grid.innerHTML = "";
+    items.forEach(function (p) {
+      var div = document.createElement("div");
+      div.className = "product-card";
+      div.innerHTML =
+        '<div class="product-icon">' + (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="">' : FM.icon(p.icon, 32)) + "</div>" +
+        "<h4>" + esc(p.title) + "</h4>" +
+        '<div class="vendor">' + esc(p.vendor_name) + (p.vendor_owned && p.vendor_name.indexOf("Farm Master") !== 0 ? " · Farm Master-owned" : "") + "</div>" +
+        '<div class="price">' + FM.money(p.price) + ' <span class="unit">' + esc(p.unit) + "</span></div>" +
+        (p.quantity_available !== null && p.quantity_available !== undefined ? '<div class="stock">' + fmt(p.quantity_available) + " available</div>" : "") +
+        '<button class="btn btn-ghost btn-sm btn-block" type="button">Add to order</button>';
+      div.querySelector("button").addEventListener("click", function () { addToCart(p); FM.toast(p.title + " added to your order."); });
+      grid.appendChild(div);
+    });
+  }
+
+  function defaultDate() {
+    var d = new Date(); d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  }
+  function addToCart(p) {
+    var existing = state.cart.filter(function (c) { return c.id === p.id; })[0];
+    if (existing) existing.qty += 1;
+    else state.cart.push({ id: p.id, qty: 1, date: p.needs_date ? defaultDate() : null });
+    renderCart();
+  }
+  function item(id) { return state.items.filter(function (i) { return i.id === id; })[0]; }
+
+  function renderCart() {
+    saveCart();
+    var wrap = $("#cart-lines");
+    if (!state.cart.length) {
+      wrap.innerHTML = '<div class="cart-empty">No items added yet — pick something from the catalogue.</div>';
+      $("#place-order").disabled = true;
+      $("#cart-total").textContent = FM.money(0);
+      return;
+    }
+    wrap.innerHTML = "";
+    var total = 0, today = new Date().toISOString().slice(0, 10);
+    var vendors = [];
+    state.cart.forEach(function (c) { var p = item(c.id); if (p && vendors.indexOf(p.vendor_name) < 0) vendors.push(p.vendor_name); });
+    vendors.forEach(function (v) {
+      if (vendors.length > 1) wrap.insertAdjacentHTML("beforeend", '<div class="cart-vendor">' + esc(v) + "</div>");
+      state.cart.forEach(function (c, idx) {
+        var p = item(c.id);
+        if (!p || p.vendor_name !== v) return;
+        total += p.price * c.qty;
+        var line = document.createElement("div");
+        line.className = "cart-line";
+        line.innerHTML =
+          '<span class="name">' + c.qty + " × " + esc(p.title) +
+            (p.needs_date ? '<label class="when">Needed on <input type="date" min="' + today + '" value="' + esc(c.date || "") + '" aria-label="Date needed for ' + esc(p.title) + '"></label>' : "") +
+          "</span>" +
+          '<span class="ctl"><span class="qty-wrap"><button class="qty-btn" type="button" data-d="-1" aria-label="One fewer">−</button>' +
+          '<button class="qty-btn" type="button" data-d="1" aria-label="One more">+</button></span>' +
+          FM.money(p.price * c.qty) + '<button class="rm" type="button" aria-label="Remove ' + esc(p.title) + '">×</button></span>';
+        FM.$$(".qty-btn", line).forEach(function (b) {
+          b.addEventListener("click", function () {
+            c.qty += Number(b.dataset.d);
+            if (c.qty <= 0) state.cart.splice(idx, 1);
+            renderCart();
+          });
+        });
+        line.querySelector(".rm").addEventListener("click", function () { state.cart.splice(idx, 1); renderCart(); });
+        var di = line.querySelector("input[type=date]");
+        if (di) di.addEventListener("change", function () { c.date = di.value; saveCart(); });
+        wrap.appendChild(line);
+      });
+    });
+    $("#place-order").disabled = false;
+    $("#cart-total").textContent = FM.money(total);
+  }
+
+  $("#place-order").addEventListener("click", function () {
+    var missing = state.cart.filter(function (c) { var p = item(c.id); return p && p.needs_date && !c.date; })[0];
+    if (missing) { FM.toast("Choose a date for " + item(missing.id).title + ".", { error: true }); return; }
+    var btn = $("#place-order");
+    btn.disabled = true;
+    FM.post("/farmer/marketplace/orders", {
+      lines: state.cart.map(function (c) { return { listing_id: c.id, quantity: c.qty, requested_date: c.date || null }; })
+    }).then(function (res) {
+      FM.toast(res.message);
+      state.cart = [];
+      renderCart();
+      load();
+    }).catch(function (err) {
+      btn.disabled = false;
+      FM.toast(err.message, { error: true });
+      load();
+    });
+  });
+
+  // The open cart survives a reload in this browser only (a per-viewer
+  // convenience); nothing is ordered until Place order.
+  function saveCart() { try { localStorage.setItem(CART_KEY, JSON.stringify(state.cart)); } catch (e) {} }
+  function restoreCart() { try { state.cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]") || []; } catch (e) { state.cart = []; } }
+  function fmt(n) { return Number(n).toLocaleString("en-GH", { maximumFractionDigits: 2 }); }
+})();
+</script>
+</body>
+</html>
