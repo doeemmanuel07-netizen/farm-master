@@ -382,6 +382,9 @@ class AgronomistRequirementResponse(BaseModel):
     status: RequirementStatus
     assigned_farmer_count: int
     formula_published: bool
+    reference: Optional[str] = None  # FM-####, added 11 Oct 2026
+    crop: Optional[str] = None
+    spec_notes: Optional[str] = None
 
     class Config:
         from_attributes = True

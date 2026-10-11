@@ -77,6 +77,7 @@ def _requirement_view(req: BuyerRequirement, db: Session) -> AgronomistRequireme
         status=req.status,
         assigned_farmer_count=assigned,
         formula_published=bool(plan and plan.published),
+        reference=req.reference, crop=req.crop, spec_notes=req.spec_notes,
     )
 
 

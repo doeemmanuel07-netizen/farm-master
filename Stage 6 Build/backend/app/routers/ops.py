@@ -141,3 +141,16 @@ def complete_agronomist_task(
     db.commit()
     log_audit(db, user, "agronomist_task_completed", f"{t.summary} (due {t.due_at:%Y-%m-%d %H:%M}).")
     return _task_view(db, t)
+
+
+@router.get("/requirements", response_model=List[RequirementResponse])
+def list_orders_for_ops(
+    status: List[RequirementStatus] = Query([RequirementStatus.AGGREGATION, RequirementStatus.SHIPMENT]),
+    db: Session = Depends(get_db), user: User = Depends(require_roles(*LOGISTICS_OPS)),
+):
+    """Buyer orders in the given stages (default: the ones logistics can move on -- aggregating, in transit)."""
+    reqs = (
+        db.query(BuyerRequirement).filter(BuyerRequirement.status.in_(status))
+        .order_by(BuyerRequirement.created_at.desc()).all()
+    )
+    return [requirement_view(db, r) for r in reqs]

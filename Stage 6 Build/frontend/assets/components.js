@@ -257,8 +257,9 @@
       if (f2) f2.addEventListener("submit", function (e) {
         e.preventDefault();
         FM.post("/auth/login/verify-otp", { challenge_id: state.challengeId, email_code: FM.$("#fm-otp", container).value.trim() }).then(function (r) {
-          if (opts.role && r.role !== opts.role) {
-            render("creds", "That account is a " + r.role.replace(/_/g, " ") + " account. Sign in with a " + opts.role + " account to use this portal.");
+          var allowed = opts.roles || (opts.role ? [opts.role] : null);
+          if (allowed && allowed.indexOf(r.role) < 0) {
+            render("creds", "That account is a " + r.role.replace(/_/g, " ") + " account. Sign in with " + (opts.roleLabel || "a " + opts.role + " account") + " to use this portal.");
             return;
           }
           FM.session.save(r.access_token, { role: r.role, fullName: r.full_name });
@@ -306,7 +307,8 @@
       FM.topbar(document.getElementById("topbar"), { active: opts.active });
       if (!FM.session.get()) return showSignIn();
       FM.get("/auth/me").then(function (me) {
-        if (opts.role && me.role !== opts.role) return showSignIn("You're signed in as a " + me.role.replace(/_/g, " ") + ". Sign in with a " + opts.role + " account to use the " + opts.portalName + ".");
+        var allowed = opts.roles || (opts.role ? [opts.role] : null);
+        if (allowed && allowed.indexOf(me.role) < 0) return showSignIn("You're signed in as a " + me.role.replace(/_/g, " ") + ". Sign in with " + (opts.roleLabel || "a " + opts.role + " account") + " to use the " + opts.portalName + ".");
         opts.onReady(me);
       }).catch(function (err) {
         if (err.status === 401) { FM.session.clear(); FM.topbar(document.getElementById("topbar"), { active: opts.active }); }
@@ -319,7 +321,7 @@
       if (note) main.insertAdjacentHTML("beforeend", '<div class="notice" style="max-width:440px;margin:30px auto 0">' + FM.esc(note) + "</div>");
       main.appendChild(holder);
       FM.signIn(holder, {
-        portalName: opts.portalName, role: opts.role, demoEmail: opts.demoEmail,
+        portalName: opts.portalName, role: opts.role, roles: opts.roles, roleLabel: opts.roleLabel, demoEmail: opts.demoEmail,
         hint: opts.signInHint, registerHref: "/register-flow",
         onDone: function () { main.innerHTML = opts.skeleton || ""; boot(); }
       });
