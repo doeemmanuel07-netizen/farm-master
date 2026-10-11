@@ -18,13 +18,15 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User, Role, UserStatus, OtpPurpose, RegistrationApproval, SELF_REGISTER_ROLES
-from ..auth import verify_password, hash_password, create_access_token
+from ..auth import verify_password, hash_password, create_access_token, get_current_user
 from ..audit import log_audit
 from ..otp import create_challenge, verify_challenge
 from ..schemas import (
     LoginRequest, LoginResponse, RegisterRequest, OtpChallengeResponse,
-    VerifyOtpRequest, RegisterVerifyResponse,
+    VerifyOtpRequest, RegisterVerifyResponse, MeResponse,
 )
+from ..models import Crop
+from ..reference import farmer_crop_ids, profile_line
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -131,3 +133,23 @@ def verify_login_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
 
     token = create_access_token(user)
     return LoginResponse(access_token=token, role=user.role, full_name=user.full_name)
+
+
+@router.get("/me", response_model=MeResponse)
+def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The signed-in account's own profile -- drives every portal header."""
+    crop_names = []
+    if user.role == Role.FARMER:
+        ids = farmer_crop_ids(db, user)
+        if ids:
+            crop_names = [c.name for c in db.query(Crop).filter(Crop.id.in_(ids)).order_by(Crop.display_order).all()]
+    return MeResponse(
+        id=user.id, full_name=user.full_name, email=user.email, role=user.role,
+        profile_line=profile_line(user), organisation_name=user.organisation_name,
+        region=user.region.name if user.region else None,
+        farmer_union=user.farmer_union.name if user.farmer_union else None,
+        buyer_type=user.buyer_type.value if user.buyer_type else None,
+        mofa_verified=bool(user.mofa_verified),
+        vendor_ownership=user.vendor_ownership.value if user.vendor_ownership else None,
+        crops=crop_names,
+    )

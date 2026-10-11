@@ -180,6 +180,7 @@ def rate_config(db_session):
         ("trading_margin_pct", 0.15, "fraction"),
         ("vendor_subscription_fee_monthly", 150.0, "GHS/month"),
         ("logistics_fee_per_delivery", 30.0, "GHS/delivery"),
+        ("revenue_streams_count", 6.0, "count"),
     ]
     for key, value, unit in rows:
         db_session.add(RateConfig(key=key, value=value, unit=unit, status="PROVISIONAL", note="test fixture"))
@@ -192,3 +193,17 @@ def roles(make_user, rate_config):
     from app.models import Role
 
     return {r: make_user(r) for r in Role}
+
+
+@pytest.fixture()
+def reference_data(db_session):
+    """Seeds regions/centres/crops/unions exactly as app/reference.py does for the dev dataset."""
+    from app.reference import seed_reference_data
+    from app.models import Region, Crop, FarmerUnion
+
+    seed_reference_data(db_session)
+    return {
+        "regions": {r.name: r for r in db_session.query(Region).all()},
+        "crops": {c.name: c for c in db_session.query(Crop).all()},
+        "unions": {u.name: u for u in db_session.query(FarmerUnion).all()},
+    }

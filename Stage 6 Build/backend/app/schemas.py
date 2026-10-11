@@ -823,3 +823,87 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Reference data + profile (CEO platform demo alignment, 11 Oct 2026)
+# ---------------------------------------------------------------------------
+
+class CropVarietyResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class CropResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    icon: str
+    is_active_for_ordering: bool
+    reference_price_per_tonne: float
+    varieties: List[CropVarietyResponse]
+
+    class Config:
+        from_attributes = True
+
+
+class CropUpdate(BaseModel):
+    is_active_for_ordering: Optional[bool] = None
+    reference_price_per_tonne: Optional[float] = None
+
+
+class CropVarietyCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class RegionResponse(BaseModel):
+    id: str
+    name: str
+    code: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class FulfilmentCentreResponse(BaseModel):
+    id: str
+    name: str
+    town: str
+    region_id: str
+    region_name: str
+    is_hq: bool
+    is_active: bool
+
+
+class ActiveToggle(BaseModel):
+    is_active: bool
+
+
+class PublicStatsResponse(BaseModel):
+    coordinated_portals: int
+    fulfilment_centres: int
+    active_fulfilment_centres: int
+    revenue_streams: int
+    head_office: str
+
+
+class MeResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: Role
+    profile_line: str
+    organisation_name: Optional[str] = None
+    region: Optional[str] = None
+    farmer_union: Optional[str] = None
+    buyer_type: Optional[str] = None
+    mofa_verified: bool = False
+    vendor_ownership: Optional[str] = None
+    crops: List[str] = []

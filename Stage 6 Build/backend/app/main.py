@@ -21,6 +21,7 @@ from .routers import reporting as reporting_router
 from .routers import dashboard as dashboard_router
 from .routers import ussd as ussd_router
 from .routers import listings as listings_router
+from .routers import public as public_router
 from .uploads import UPLOADS_DIR
 
 app = FastAPI(
@@ -52,6 +53,7 @@ app.include_router(reporting_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(ussd_router.router)
 app.include_router(listings_router.router)
+app.include_router(public_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():

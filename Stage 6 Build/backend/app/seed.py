@@ -24,6 +24,7 @@ from .auth import hash_password
 from .dispatch import create_dispatch_job, create_inbound_dispatch_job, create_input_order_dispatch_job
 from .formula import compute_formula_inputs
 from .uploads import UPLOADS_DIR
+from .reference import seed_reference_data
 
 # A minimal valid 1x1 transparent PNG -- the real, on-disk placeholder image
 # for demo Listing rows below (see models.ListingImage: this is the first
@@ -152,6 +153,9 @@ SEED_RATES = [
     ("vendor_subscription_fee_monthly", 150.0, "GHS/month",
      "Farm Master-owned vendor storefront subscription fee (PRD Section 6 revenue stream). "
      "BUSINESS-UNCONFIRMED, added 8 Sep 2026 alongside Subscription & Billing."),
+    ("revenue_streams_count", 6.0, "count",
+     "Number of Farm Master revenue streams shown on the public landing page ledger (Business "
+     "Concept doc). Added 11 Oct 2026 with the CEO platform demo alignment."),
     ("logistics_fee_per_delivery", 30.0, "GHS/delivery",
      "Flat logistics support fee per delivered dispatch job, used only by the Reporting "
      "dashboard's revenue-stream tally. BUSINESS-UNCONFIRMED, added 8 Sep 2026."),
@@ -198,6 +202,8 @@ def seed():
                 print(f"Backfilled {added} new rate config row(s).")
             else:
                 print("Rate config already exists, skipping rate seed.")
+
+        seed_reference_data(db)
 
         if db.query(BuyerRequirement).count() == 0:
             fee_rate = db.query(RateConfig).filter(RateConfig.key == "buyer_commitment_fee_per_tonne").first()

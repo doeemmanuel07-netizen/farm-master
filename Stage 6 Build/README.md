@@ -395,6 +395,17 @@ The first run applies every Alembic migration to `farm_master` (see
   the Admin Pending Review queue, and the Farmer/Buyer browse endpoint all
   have real data on first run.
 
+- Reference data (11 Oct 2026): Ghana's 16 regions, one fulfilment
+  centre per region (Tema = head office), four crops with their varieties
+  (Maize/Obatanpa, White Rice/Jasmine 85, Soybean/Jenguma,
+  Tomato/Pectomech), and two farmer unions. **Pilot config:** only Greater
+  Accra/Tema and Maize are active; Super Admin activates the rest from
+  `/admin/crops`, `/admin/regions` and `/admin/fulfilment-centres`. The
+  seeded farmers are backfilled with region Greater Accra and crop Maize
+  (Kojo Mensah and Ama Serwaa also belong to Tema Smallholder Farmers
+  Union), GSFP becomes an institutional, MoFA-verified buyer, and Kwame's
+  Agro Supplies becomes a third-party vendor.
+
 Re-running the seed is safe; it skips seeding if data already exists.
 
 ## Schema migrations

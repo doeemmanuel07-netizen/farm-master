@@ -20,6 +20,7 @@ from ..models import (
     User, Role, UserStatus, AuditLog, RegistrationApproval, RateConfig,
     MechanisationRequest, MechanisationRequestStatus, SELF_REGISTER_ROLES, INTERNAL_ROLES,
     Listing, ListingStatus, ListingCategory, Notification, NotificationType,
+    Crop, CropVariety, Region, FulfilmentCentre,
 )
 from ..auth import require_roles, hash_password
 from ..audit import log_audit
@@ -30,6 +31,7 @@ from ..schemas import (
     MechanisationRequestResponse, RegistrationApprovalResponse,
     AdminUserResponse, AdminUsersResponse, InternalUserCreate,
     ListingResponse, ListingRejectRequest, ListingCategoryResponse, ListingCategoryCreate,
+    CropResponse, CropUpdate, CropVarietyCreate, RegionResponse, FulfilmentCentreResponse, ActiveToggle,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin (Super Admin only)"])
@@ -443,3 +445,108 @@ def deactivate_listing_category(
     db.refresh(category)
     log_audit(db, admin, "listing_category_deactivated", category.name)
     return category
+
+
+# ---------------------------------------------------------------------------
+# Crops, regions, fulfilment centres (CEO demo brief §2A/§2B, 11 Oct 2026).
+# Activating a crop or region is a data change, not a deploy -- the pilot
+# (Maize, Greater Accra/Tema) is just the seeded active set.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/crops", response_model=List[CropResponse])
+def admin_list_crops(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN))):
+    return db.query(Crop).order_by(Crop.display_order, Crop.name).all()
+
+
+@router.put("/crops/{crop_id}", response_model=CropResponse)
+def admin_update_crop(
+    crop_id: str, payload: CropUpdate,
+    db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    crop = db.query(Crop).filter(Crop.id == crop_id).first()
+    if not crop:
+        raise HTTPException(status_code=404, detail="Crop not found.")
+    changes = []
+    if payload.is_active_for_ordering is not None and payload.is_active_for_ordering != crop.is_active_for_ordering:
+        crop.is_active_for_ordering = payload.is_active_for_ordering
+        changes.append(f"active_for_ordering={payload.is_active_for_ordering}")
+    if payload.reference_price_per_tonne is not None:
+        if payload.reference_price_per_tonne <= 0:
+            raise HTTPException(status_code=422, detail="Reference price must be greater than zero.")
+        changes.append(f"reference_price {crop.reference_price_per_tonne} -> {payload.reference_price_per_tonne}")
+        crop.reference_price_per_tonne = payload.reference_price_per_tonne
+    db.commit()
+    db.refresh(crop)
+    if changes:
+        log_audit(db, admin, "crop_updated", f"{crop.name}: {', '.join(changes)}.")
+    return crop
+
+
+@router.post("/crops/{crop_id}/varieties", response_model=CropResponse)
+def admin_add_variety(
+    crop_id: str, payload: CropVarietyCreate,
+    db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    crop = db.query(Crop).filter(Crop.id == crop_id).first()
+    if not crop:
+        raise HTTPException(status_code=404, detail="Crop not found.")
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Variety name is required.")
+    if any(v.name.lower() == name.lower() for v in crop.varieties):
+        raise HTTPException(status_code=409, detail=f"{crop.name} already has a variety named '{name}'.")
+    db.add(CropVariety(crop_id=crop.id, name=name, description=payload.description))
+    db.commit()
+    db.refresh(crop)
+    log_audit(db, admin, "crop_variety_added", f"{crop.name}: {name}.")
+    return crop
+
+
+@router.get("/regions", response_model=List[RegionResponse])
+def admin_list_regions(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN))):
+    return db.query(Region).order_by(Region.name).all()
+
+
+@router.put("/regions/{region_id}", response_model=RegionResponse)
+def admin_toggle_region(
+    region_id: str, payload: ActiveToggle,
+    db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    region = db.query(Region).filter(Region.id == region_id).first()
+    if not region:
+        raise HTTPException(status_code=404, detail="Region not found.")
+    region.is_active = payload.is_active
+    db.commit()
+    db.refresh(region)
+    log_audit(db, admin, "region_toggled", f"{region.name}: is_active={payload.is_active}.")
+    return region
+
+
+def _centre_view(c: FulfilmentCentre) -> FulfilmentCentreResponse:
+    return FulfilmentCentreResponse(
+        id=c.id, name=c.name, town=c.town, region_id=c.region_id, region_name=c.region.name,
+        is_hq=c.is_hq, is_active=c.is_active,
+    )
+
+
+@router.get("/fulfilment-centres", response_model=List[FulfilmentCentreResponse])
+def admin_list_centres(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN))):
+    rows = db.query(FulfilmentCentre).order_by(FulfilmentCentre.is_hq.desc(), FulfilmentCentre.name).all()
+    return [_centre_view(c) for c in rows]
+
+
+@router.put("/fulfilment-centres/{centre_id}", response_model=FulfilmentCentreResponse)
+def admin_toggle_centre(
+    centre_id: str, payload: ActiveToggle,
+    db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.SUPER_ADMIN)),
+):
+    centre = db.query(FulfilmentCentre).filter(FulfilmentCentre.id == centre_id).first()
+    if not centre:
+        raise HTTPException(status_code=404, detail="Fulfilment centre not found.")
+    if centre.is_hq and not payload.is_active:
+        raise HTTPException(status_code=409, detail="The head-office centre cannot be deactivated.")
+    centre.is_active = payload.is_active
+    db.commit()
+    log_audit(db, admin, "fulfilment_centre_toggled", f"{centre.name}: is_active={payload.is_active}.")
+    return _centre_view(centre)

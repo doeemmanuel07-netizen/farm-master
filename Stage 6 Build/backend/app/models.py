@@ -88,6 +88,96 @@ class UserStatus(str, enum.Enum):
     SUSPENDED = "suspended"
 
 
+class BuyerType(str, enum.Enum):
+    INSTITUTIONAL = "institutional"  # e.g. Ministry of Food & Agriculture, school feeding
+    PRIVATE = "private"
+
+
+class VendorOwnership(str, enum.Enum):
+    OWNED = "owned"  # Farm Master-owned storefront
+    THIRD_PARTY = "third_party"
+
+
+class Region(Base):
+    """
+    Ghana's 16 administrative regions (brief §2B). The pilot activates only
+    Greater Accra; the rest are switched on from admin with no code change.
+    """
+    __tablename__ = "regions"
+
+    id = Column(String, primary_key=True, default=uid)
+    name = Column(String, nullable=False, unique=True)
+    code = Column(String, nullable=False, unique=True)
+    is_active = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class FulfilmentCentre(Base):
+    """One regional aggregation hub per region; is_hq marks Tema head office."""
+    __tablename__ = "fulfilment_centres"
+
+    id = Column(String, primary_key=True, default=uid)
+    name = Column(String, nullable=False, unique=True)
+    town = Column(String, nullable=False)
+    region_id = Column(String, ForeignKey("regions.id"), nullable=False)
+    is_hq = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    region = relationship("Region")
+
+
+class Crop(Base):
+    """
+    Crops Farm Master can aggregate (brief §2A). is_active_for_ordering
+    gates what buyers can order and what farmers are matched on -- the
+    pilot launches with Maize only. reference_price_per_tonne pre-fills the
+    buyer's target price (decision D2); icon names an FM.icon() glyph.
+    """
+    __tablename__ = "crops"
+
+    id = Column(String, primary_key=True, default=uid)
+    name = Column(String, nullable=False, unique=True)
+    slug = Column(String, nullable=False, unique=True)
+    icon = Column(String, nullable=False, default="box")
+    is_active_for_ordering = Column(Boolean, nullable=False, default=False)
+    reference_price_per_tonne = Column(Float, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    varieties = relationship("CropVariety", back_populates="crop", order_by="CropVariety.name")
+
+
+class CropVariety(Base):
+    __tablename__ = "crop_varieties"
+
+    id = Column(String, primary_key=True, default=uid)
+    crop_id = Column(String, ForeignKey("crops.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)  # e.g. "improved"
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    crop = relationship("Crop", back_populates="varieties")
+
+
+class FarmerUnion(Base):
+    """Name-only union affiliation (brief §2C). Union management is Phase 2."""
+    __tablename__ = "farmer_unions"
+
+    id = Column(String, primary_key=True, default=uid)
+    name = Column(String, nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class FarmerCrop(Base):
+    """Crops a farmer is registered to grow -- the Phase 1 opportunity filter."""
+    __tablename__ = "farmer_crops"
+
+    farmer_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    crop_id = Column(String, ForeignKey("crops.id"), primary_key=True)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -99,9 +189,20 @@ class User(Base):
     status = Column(SAEnum(UserStatus), nullable=False, default=UserStatus.ACTIVE)
     password_hash = Column(String, nullable=False)
     organisation_name = Column(String, nullable=True)  # buyer/vendor org name, if applicable
+    # Profile fields added 11 Oct 2026 for the CEO platform demo's portal
+    # headers ("Signed in as {name} · {union} · {region}", "{org} ·
+    # Institutional buyer") and the farmer opportunity filter (region +
+    # registered crops). All nullable: internal staff have none of them.
+    region_id = Column(String, ForeignKey("regions.id"), nullable=True)
+    farmer_union_id = Column(String, ForeignKey("farmer_unions.id"), nullable=True)
+    buyer_type = Column(SAEnum(BuyerType), nullable=True)
+    mofa_verified = Column(Boolean, nullable=False, default=False, server_default="false")
+    vendor_ownership = Column(SAEnum(VendorOwnership), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     requirements = relationship("BuyerRequirement", back_populates="buyer")
+    region = relationship("Region")
+    farmer_union = relationship("FarmerUnion")
 
 
 class RateConfig(Base):
