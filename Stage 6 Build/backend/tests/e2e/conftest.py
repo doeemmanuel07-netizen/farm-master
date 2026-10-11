@@ -95,6 +95,11 @@ def live_server_url():
     _terminate_stale_connections()
     engine = create_engine(DATABASE_URL)
     Base.metadata.drop_all(bind=engine)
+    # alembic_version isn't on Base.metadata, so drop_all leaves it behind;
+    # without this the server's startup upgrade_to_head() would see "already
+    # at head" and never recreate the tables just dropped.
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
     engine.dispose()
 
     port = _free_port()

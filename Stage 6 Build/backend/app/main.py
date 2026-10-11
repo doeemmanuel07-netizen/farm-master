@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .database import Base, engine
+from .migrate import upgrade_to_head
 from .seed import seed
 from .routers import auth as auth_router
 from .routers import buyer as buyer_router
@@ -182,7 +182,7 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    upgrade_to_head()
     seed()
 
 

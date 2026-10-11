@@ -328,7 +328,8 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-The first run creates the tables in `farm_master` and seeds:
+The first run applies every Alembic migration to `farm_master` (see
+"Schema migrations" below) and seeds:
 
 - One user per role, plus extra Buyer/Farmer accounts so the Matching Queue
   has real candidates to assign (all passwords: `password123`, all phone
@@ -395,6 +396,29 @@ The first run creates the tables in `farm_master` and seeds:
   have real data on first run.
 
 Re-running the seed is safe; it skips seeding if data already exists.
+
+## Schema migrations
+
+Schema changes are **Alembic** revisions in `backend/migrations/versions/`
+(introduced 11 Oct 2026, decision D6 in `docs/ceo-demo-gap-report.md`).
+The app runs `alembic upgrade head` itself at startup (`app/migrate.py`).
+A database created before Alembic existed is stamped at the baseline
+revision (`0001_baseline`) first, so only the later revisions run against
+it. To run migrations by hand:
+
+```bash
+cd "Stage 6 Build/backend"
+python -m alembic upgrade head        # apply everything
+python -m alembic history             # list revisions
+python -m alembic revision --autogenerate -m "describe the change"
+```
+
+`alembic.ini` deliberately has no URL: `migrations/env.py` always uses
+`FARM_MASTER_DATABASE_URL`, the same as the app. Autogenerate doesn't create
+Postgres ENUM types for `add_column`, and it leaves foreign keys unnamed, so
+check each generated revision (see `0002_reference_data` for the pattern).
+`tests/unit/test_migrations.py` upgrades a scratch database to head and
+fails if any model differs from what the migrations produce.
 
 ## Running it
 

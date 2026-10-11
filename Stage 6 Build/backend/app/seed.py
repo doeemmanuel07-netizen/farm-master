@@ -10,7 +10,7 @@ and must never be reused as one.
 import base64
 from datetime import datetime
 
-from .database import Base, engine, SessionLocal
+from .database import SessionLocal
 from .models import (
     User, Role, UserStatus, RateConfig, Opportunity, OpportunityStatus, MechanisationRequest,
     MechanisationRequestStatus, BuyerRequirement, RequirementStatus,
@@ -159,7 +159,6 @@ SEED_RATES = [
 
 
 def seed():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
