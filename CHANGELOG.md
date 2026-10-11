@@ -35,3 +35,9 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 
 ### Removed
 - `frontend/farmer_order_inputs_flow_live.html`. `GET /farmer/catalogue`, `POST /farmer/input-orders` and `POST /vendor/catalogue` now return **410 Gone** with a pointer to the replacement. `GET /vendor/catalogue` stays read-only for history.
+- E2E suite for the portal pages (`tests/e2e/test_ceo_demo_portals_e2e.py`): every demo interaction from brief §9 against a live server, plus overflow and 44px touch-target checks at 375/768/1280px.
+
+### Fixed
+- Touch targets: the demo's compact buttons, tabs, steppers, links and form fields now all meet PRD §5.1's 44px minimum without changing their look.
+- A fresh database crashed at startup on Windows consoles (cp1252), because a seed log line printed "₵". Startup output is now ASCII.
+- After signing in on `/marketplace`, the Place order button lost its handler. It's now bound after sign-in.

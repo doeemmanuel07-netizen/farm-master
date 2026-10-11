@@ -109,4 +109,5 @@ The light values are the demo's exactly. Never hard-code a hex value in a page: 
 3. **Copy comes from the server.** Crops, regions, fees, prices, counts and SLA days are never typed into a page; they come from the API.
 4. **Responsive is part of done.** Every page must pass `python "Stage 6 Build/scripts/responsive_check.py"` (no horizontal scroll at 390 / 820 / 1400px). Give flex/grid children `min-width: 0`, and match the selector specificity of the rule you're overriding inside `@media`.
 5. **Motion respects `prefers-reduced-motion`.** All animation and transition is disabled under it, and the ticker swaps text without fading.
-6. **Accessible by default.** Focus rings use `--forest-soft`. Interactive rows are buttons or have `tabindex` plus key handlers. Toasts are live regions.
+6. **44px touch targets (PRD §5.1).** Every button, link, input and select is at least 44px tall and 24px wide. The compact variants (`.btn-sm`, `.cat-tab`, `.qty-btn`, `.card-link`) keep their look but get a 44px hit area. Checkbox rows use `.check-row`, where the real input covers the whole label. `tests/e2e/helpers.py` enforces this.
+7. **Accessible by default.** Focus rings use `--forest-soft`. Interactive rows are buttons or have `tabindex` plus key handlers. Toasts are live regions.

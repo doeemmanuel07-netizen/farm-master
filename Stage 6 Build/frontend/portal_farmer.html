@@ -10,12 +10,11 @@
   .icon-tile { color: var(--forest-deep); background: var(--cream); border: 1px solid var(--line-soft); }
   .select-row.selected .icon-tile { background: var(--paper); }
   .commit-list { list-style: none; margin: 0 0 16px; padding: 0; }
-  .commit-list label { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; padding: 7px 0; cursor: pointer; }
-  .commit-list input { margin-top: 3px; accent-color: var(--forest-deep); width: 16px; height: 16px; flex-shrink: 0; }
+  .commit-list .check-row { font-size: 13.5px; }
   .detail-meta { display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-soft); margin: 2px 0 6px; }
   .detail-meta b { color: var(--ink); font-weight: 600; }
   .quick-links { display: flex; gap: 8px 18px; flex-wrap: wrap; margin-top: 22px; font-size: 13px; }
-  .quick-links a { color: var(--forest-deep); font-weight: 700; text-decoration: none; }
+  .quick-links a { color: var(--forest-deep); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
   .quick-links a:hover { text-decoration: underline; }
 </style>
 </head>
@@ -137,7 +136,7 @@
       box.innerHTML = "<h3>Accept " + esc(o.crop.toLowerCase()) + " opportunity</h3>" +
         "<p>" + fmtT(o.quantity_tonnes) + " t for " + esc(o.buyer_name) + " at " + FM.money(o.price_per_tonne) + " per tonne. Confirm your commitments:</p>" +
         '<ul class="commit-list">' + COMMITMENTS.map(function (c, i) {
-          return '<li><label><input type="checkbox" data-c="' + i + '"><span>' + esc(c) + "</span></label></li>";
+          return '<li><label class="check-row"><input type="checkbox" data-c="' + i + '"><span class="box">' + FM.icon("check", 12) + "</span><span>" + esc(c) + "</span></label></li>";
         }).join("") + "</ul>" +
         '<div class="modal-actions"><button class="btn btn-ghost btn-sm" data-cancel>Cancel</button><button class="btn btn-primary btn-sm" data-ok disabled>Accept opportunity</button></div>';
       var ok = box.querySelector("[data-ok]");

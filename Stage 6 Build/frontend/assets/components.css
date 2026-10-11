@@ -159,7 +159,7 @@ button.fm-pill { cursor: pointer; }
 .field .ferror { font-size: 12px; color: var(--danger); margin-top: 4px; font-weight: 600; }
 .field input, .field select, .field textarea {
   width: 100%; border: 1px solid var(--line); background: var(--cream); border-radius: 8px;
-  padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--ink); min-height: 42px;
+  padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--ink); min-height: 44px;
 }
 .field textarea { resize: vertical; min-height: 64px; }
 .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--forest-soft); outline-offset: 1px; }
@@ -289,3 +289,21 @@ table.data tr.detail-row td { background: var(--cream); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Touch targets (PRD §5.1: >= 44px tall, >= 24px wide) ----------
+ * The demo's small buttons, tabs, steppers and links are visually compact;
+ * these rules keep that look but give every interactive element a 44px
+ * hit area. tests/e2e/helpers.py's assert_responsive_clean enforces this.
+ */
+.btn-sm, .cat-tab, .pm, .fm-tab, button.fm-pill { min-height: 44px; }
+.fm-tab, button.fm-pill { display: inline-flex; align-items: center; justify-content: center; }
+.fm-brand { min-height: 44px; }
+.qty-btn, .cart-line .rm { min-height: 44px; min-width: 32px; }
+.cart-line .when input { min-height: 44px; padding: 4px 8px; }
+.card-link, .link-44 { display: inline-flex; align-items: center; min-height: 44px; }
+/* Checkbox rows: the real input covers its whole label so the label is the target. */
+.check-row { position: relative; display: flex; gap: 10px; align-items: flex-start; min-height: 44px; padding: 10px 0 10px 28px; cursor: pointer; }
+.check-row input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+.check-row .box { position: absolute; left: 0; top: 11px; width: 18px; height: 18px; border: 2px solid var(--line); border-radius: 5px; background: var(--paper); display: flex; align-items: center; justify-content: center; color: transparent; }
+.check-row input:checked + .box { background: var(--forest-deep); border-color: var(--forest-deep); color: var(--on-fill); }
+.check-row input:focus-visible + .box { outline: 2px solid var(--forest-soft); outline-offset: 2px; }

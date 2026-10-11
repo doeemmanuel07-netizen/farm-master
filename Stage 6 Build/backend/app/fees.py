@@ -64,4 +64,4 @@ def seed_fee_rule(db: Session) -> None:
         basis=FeeBasis.PER_TONNE, rate=90.0, minimum_amount=90.0, is_active=True,
     ))
     db.commit()
-    print("Seeded the default commitment fee rule (GH₵ 90/t, GH₵ 90 minimum).")
+    print("Seeded the default commitment fee rule (GHS 90/t, GHS 90 minimum).")
