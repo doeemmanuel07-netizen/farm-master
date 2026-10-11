@@ -14,6 +14,15 @@ Greater Accra, on a single crop (maize). See
 for the full concept and [Farm_Master_PRD_Stage1.docx](Farm_Master_PRD_Stage1.docx)
 for the confirmed pilot scope.
 
+## CEO demo alignment (October 2026)
+
+The app is being brought in line with the CEO-approved platform demo. See [docs/ceo-demo-gap-report.md](docs/ceo-demo-gap-report.md) for what's finished, what's in progress and the open questions.
+
+- **Run it locally:** start PostgreSQL, then `cd "Stage 6 Build/backend"` and `python -m uvicorn app.main:app --port 8000`. Open <http://127.0.0.1:8000/>.
+- **Portals:** `/` Overview · `/farmer` · `/buyer` · `/marketplace` (the demo's "Vendor Portal" tab) · `/design-system`.
+- **Demo accounts** (dev only, password `password123`; the one-time code is shown on screen): Farmer `kojo.mensah@farmmaster.test`, Buyer `gsfp@farmmaster.test`, Vendor `vendor@farmmaster.test` or `services@farmmaster.test` (Farm Master-owned), Ops `emmanuel@farmmaster.test` (Super Admin), `agronomist@`, `logistics@`, `finance@`, `ops.coordinator@farmmaster.test`.
+- **Shareable preview** (static snapshot, no backend, private until shared): https://claude.ai/artifact/VJ3eaUesdjfFBKRhtPQvQX. Rebuild it with `python "Stage 6 Build/scripts/build_static_demo.py" <out_dir>` while the app is running.
+
 ## Project status
 
 Following the 9-stage workflow in

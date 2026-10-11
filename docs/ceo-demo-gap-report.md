@@ -146,3 +146,40 @@ Status key: **exists** = built and matches the demo's behaviour · **partial** =
 | D6 | Introduce **Alembic** with a baseline revision. |
 | D7 | Keep dark mode: the light theme matches the demo exactly, and dark values are derived. |
 | D8 | Vanilla HTML/CSS/JS portal pages (`/`, `/farmer`, `/buyer`, `/marketplace`) on shared component files. Existing flow pages are restyled onto the same tokens. |
+
+
+---
+
+## Implementation status (11 Oct 2026, end of day)
+
+### Finished (built, tested, committed)
+
+| Brief § | Feature | Where |
+|---|---|---|
+| §1 | Design system: tokens, components, icons, toast, modal, stepper, ticker, 44px touch targets, reduced motion | `frontend/assets/`, `docs/design-system.md`, `/design-system` |
+| §2A–C | Crops/varieties, 16 regions and centres, unions, profile fields; pilot = Maize + Greater Accra/Tema | `app/reference.py`, `/admin/crops`, `/admin/regions`, `/admin/fulfilment-centres` |
+| §2D | Payments behind `PaymentProvider` (sandbox default; Paystack/Hubtel drivers), webhook-only settlement, configurable fee rule, rebranded networks | `app/payments/`, `app/fees.py` |
+| §2E / D1 | Marketplace on listings, per-vendor checkout, products retired, formula pre-fill | `app/marketplace.py`, `/marketplace` |
+| §2F | Agronomist visit as a service that creates an agronomist task | marketplace + `/ops/agronomist-tasks` |
+| §3 | Public landing page with DB-computed ledger and live anonymised ticker | `/`, `/api/public/*` |
+| §4 | Farmer Portal: matching, stepper, formula steps, accept (48h task + SMS/in-app), wallet ledger | `/farmer` |
+| §5 | Buyer Portal: order form from config, payment modal, FM-#### orders, derived stepper/progress | `/buyer` |
+| §6.1 | Marketplace page: tabs, cards, sticky cart, qty stepper, dates, place order | `/marketplace` |
+| §7 | Fleet, logistics events, aggregation, order advance, payments list (API), task queue (API) | `app/fleet.py`, `/ops/*` |
+| §8 | Alembic migrations 0001–0007, transition tables for every status | `migrations/`, `app/state.py` |
+| §9 | E2E suite for every demo interaction + responsive/touch checks; static shareable preview | `tests/e2e/test_ceo_demo_portals_e2e.py`, `scripts/build_static_demo.py` |
+
+Shareable preview (static, snapshot data, no backend): https://claude.ai/artifact/VJ3eaUesdjfFBKRhtPQvQX
+
+### Still in progress
+
+- **Ops page (`/ops`).** The backend is done (payments list, agronomist task queue, formula-step editor API, fleet, aggregation, order advance, fee/crop/region/SLA settings). The page itself isn't built yet, so the landing page's "Operations" link 404s until it is. The existing internal flow pages (Matching Queue, Formula Builder, Dispatch, Intake, Reconciliation, Approvals, User Admin) still work.
+- **Restyling the 24 older `*-flow` pages** onto the new tokens (brief §1, "app-wide"). They work but still use the Stage 4 look.
+- **Staging seed that reproduces the demo's own people and records** (Kwabena Asante / Nsawam union / Eastern Region, MoFA as buyer, FreshMart, AgriProcess, rice/soybean/tomato orders). The pilot seed and the demo catalogue are done.
+- **Full regression run** of all suites after the final commits. Every suite touched by a change was run at the time it changed, and the whole 617-test unit+API suite passed after the Alembic change.
+
+### Open questions for the CEO
+
+1. Brief §6.1 says placing a marketplace order creates the logistics job. The app keeps the existing vendor confirmation step, and confirming creates the job, so vendors can still decline. Keep it, or auto-confirm Farm Master-owned vendors?
+2. Provisional values to confirm: reference prices for rice/soybean/tomato, 28-day minimum buyer lead time, 2-day marketplace SLA, 48h agronomist SLA, 6 revenue streams, GH₵ 30 logistics fee.
+3. Payment gateway: Paystack or Hubtel? Both drivers exist, but neither has been run against live credentials.

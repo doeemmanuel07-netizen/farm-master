@@ -42,3 +42,4 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 - A fresh database crashed at startup on Windows consoles (cp1252), because a seed log line printed "₵". Startup output is now ASCII.
 - After signing in on `/marketplace`, the Place order button lost its handler. It's now bound after sign-in.
 - `GET /ops/requirements?status=` (Logistics, Super Admin, Operations Coordinator): buyer orders in the given stages, by default the ones logistics can advance. Agronomist requirement rows now include the FM reference, crop and spec notes. `FM.portal()` accepts several roles, ready for the Ops page.
+- `scripts/build_static_demo.py`: a static, backend-free preview of the four portal pages built from a snapshot of the running app, with an in-browser mock for submit/pay, accept and place order. It's published as a private shareable link, and the gap report gained an implementation-status section.

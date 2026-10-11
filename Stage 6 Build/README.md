@@ -439,6 +439,7 @@ fails if any model differs from what the migrations produce.
 - **Marketplace (CEO demo "Vendor Portal" tab):** <http://127.0.0.1:8000/marketplace>. Sign in as a farmer, e.g. `ama.serwaa@farmmaster.test`. Equipment and services are sold by the new Farm Master-owned vendor `services@farmmaster.test`.
 - **Buyer Portal (CEO demo design):** <http://127.0.0.1:8000/buyer>. Sign in as `gsfp@farmmaster.test`. Submitting opens the commitment-fee modal; with the sandbox provider, use "Approve on phone" to simulate the payer.
 - Design system gallery: <http://127.0.0.1:8000/design-system>
+- **Static shareable preview** of the four portal pages: https://claude.ai/artifact/VJ3eaUesdjfFBKRhtPQvQX (snapshot data; actions run in the browser only). To rebuild it, run `python scripts/build_static_demo.py <out_dir>` with the app running. It signs in as the demo accounts, captures the JSON each page reads into `demo/fixtures.js`, and serves it through `scripts/static_demo/mock-api.js`.
 - Live Registration + OTP flow: <http://127.0.0.1:8000/register-flow>
 - Live Buyer flow: <http://127.0.0.1:8000/buyer-flow>
 - Live Farmer flow: <http://127.0.0.1:8000/farmer-flow>
