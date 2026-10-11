@@ -191,8 +191,10 @@ def rate_config(db_session):
     # are the same idempotent seeders the app itself runs.
     from app.reference import seed_reference_data
     from app.fees import seed_fee_rule
+    from app.fleet import seed_vehicles
     seed_reference_data(db_session)
     seed_fee_rule(db_session)
+    seed_vehicles(db_session)
 
 
 @pytest.fixture()

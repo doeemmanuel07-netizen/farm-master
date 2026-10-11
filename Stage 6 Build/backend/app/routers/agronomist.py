@@ -35,6 +35,7 @@ from ..models import (
     Opportunity, OpportunityStatus, RequirementFormulaPlan,
     FieldVisitLog, FieldVisitStatus, AgronomistMessage,
 )
+from ..state import transition
 from ..auth import require_roles
 from ..audit import log_audit
 from ..formula import compute_formula_inputs
@@ -202,7 +203,7 @@ def assign_farmers(
             status=OpportunityStatus.OPEN,
             assigned_farmer_id=farmer.id,
         ))
-    req.status = RequirementStatus.PRODUCTION
+    transition(req, RequirementStatus.PRODUCTION)
     db.commit()
     db.refresh(req)
 

@@ -8,14 +8,18 @@ gets the same read-only view it already has of reconciliation.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from ..audit import log_audit
 from ..auth import require_roles
 from ..database import get_db
-from ..models import BuyerRequirement, CommitmentFeePayment, PaymentStatus, Role, User
+from ..fleet import aggregated_today, emit_order_progress
+from ..models import BuyerRequirement, CommitmentFeePayment, PaymentStatus, RequirementStatus, Role, User, Vehicle
+from ..orders import requirement_view
 from ..payments.service import NETWORK_LABEL
-from ..schemas import OpsPaymentRow
+from ..schemas import OpsPaymentRow, VehicleResponse, OrderAdvanceRequest, AggregationRow, RequirementResponse
+from ..state import transition
 
 router = APIRouter(prefix="/ops", tags=["internal operations"])
 
@@ -41,3 +45,45 @@ def list_payments(
             created_at=p.created_at, paid_at=p.paid_at,
         ))
     return rows
+
+
+# ---------------------------------------------------------------------------
+# Fleet, order progression and aggregation (brief §7)
+# ---------------------------------------------------------------------------
+
+LOGISTICS_OPS = (Role.LOGISTICS, Role.SUPER_ADMIN, Role.OPERATIONS_COORDINATOR)
+
+
+@router.get("/vehicles", response_model=List[VehicleResponse])
+def list_vehicles(db: Session = Depends(get_db), user: User = Depends(require_roles(*LOGISTICS_OPS))):
+    return [
+        VehicleResponse(id=v.id, code=v.code, vehicle_type=v.vehicle_type.value,
+                        home_centre=v.home_centre.town if v.home_centre else "", status=v.status.value)
+        for v in db.query(Vehicle).order_by(Vehicle.vehicle_type, Vehicle.code).all()
+    ]
+
+
+@router.get("/aggregation", response_model=List[AggregationRow])
+def aggregation_today(db: Session = Depends(get_db), user: User = Depends(require_roles(*LOGISTICS_OPS, Role.FINANCE))):
+    return [
+        AggregationRow(centre=c.name if c else "(unknown)", crop=cr.name if cr else "(unknown)", tonnes_today=round(t, 3))
+        for c, cr, t in aggregated_today(db)
+    ]
+
+
+@router.post("/requirements/{requirement_id}/advance", response_model=RequirementResponse)
+def advance_order(
+    requirement_id: str, payload: OrderAdvanceRequest,
+    db: Session = Depends(get_db), user: User = Depends(require_roles(*LOGISTICS_OPS)),
+):
+    """Moves an aggregated order on to In transit, then Delivered -- only along the allowed transitions."""
+    if payload.status not in (RequirementStatus.SHIPMENT, RequirementStatus.DELIVERED):
+        raise HTTPException(status_code=422, detail="Only 'shipment' and 'delivered' are set from here; earlier stages follow payment, matching and intake.")
+    req = db.query(BuyerRequirement).filter(BuyerRequirement.id == requirement_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Requirement not found.")
+    transition(req, payload.status)
+    db.commit()
+    emit_order_progress(db, req, delivered=payload.status == RequirementStatus.DELIVERED)
+    log_audit(db, user, "order_advanced", f"{req.reference} -> {payload.status.value}.")
+    return requirement_view(db, req)

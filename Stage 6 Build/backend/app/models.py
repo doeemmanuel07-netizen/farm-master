@@ -618,6 +618,7 @@ class DispatchJob(Base):
     direction = Column(SAEnum(DispatchDirection), nullable=False, default=DispatchDirection.OUTBOUND)
     status = Column(SAEnum(DispatchJobStatus), nullable=False, default=DispatchJobStatus.ASSIGNED)
     tricycle_label = Column(String, nullable=True)  # e.g. "#1" -- PRD Section 1.1's 3-5 tricycle pilot placeholder
+    vehicle_id = Column(String, ForeignKey("vehicles.id"), nullable=True)  # set when the label matches a fleet vehicle
     dispatched_by = Column(String, ForeignKey("users.id"), nullable=True)
     delivered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -692,6 +693,10 @@ class FulfilmentIntake(Base):
     weigh_in_kg = Column(Float, nullable=False)
     grade = Column(SAEnum(GradeResult), nullable=False)
     graded_by = Column(String, ForeignKey("users.id"), nullable=False)
+    # Added 11 Oct 2026 (brief §7): intakes are the per-centre, per-crop,
+    # per-day aggregation record. Nullable for rows graded before this.
+    fulfilment_centre_id = Column(String, ForeignKey("fulfilment_centres.id"), nullable=True)
+    crop_id = Column(String, ForeignKey("crops.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -873,6 +878,8 @@ class TrunkingJob(Base):
     tonnes_available_at_creation = Column(Float, nullable=False)
     destination = Column(String, nullable=False)
     vehicle_label = Column(String, nullable=False)
+    vehicle_id = Column(String, ForeignKey("vehicles.id"), nullable=True)
+    origin_centre_id = Column(String, ForeignKey("fulfilment_centres.id"), nullable=True)
     status = Column(SAEnum(TrunkingStatus), nullable=False, default=TrunkingStatus.SCHEDULED)
     scheduled_by = Column(String, ForeignKey("users.id"), nullable=False)
     dispatched_at = Column(DateTime, nullable=True)
@@ -1130,6 +1137,73 @@ class Notification(Base):
     listing_id = Column(String, ForeignKey("listings.id"), nullable=True)
     read_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class VehicleType(str, enum.Enum):
+    TRICYCLE = "tricycle"
+    TRUCK = "truck"
+
+
+class VehicleStatus(str, enum.Enum):
+    AVAILABLE = "available"
+    ON_JOB = "on_job"
+    MAINTENANCE = "maintenance"
+
+
+class Vehicle(Base):
+    """
+    The logistics fleet (CEO demo brief §7). code is what drivers and the
+    public ticker call it ("Tricycle #14", "Vehicle #07"). Pilot seed: four
+    tricycles and one trunking truck at Tema.
+    """
+    __tablename__ = "vehicles"
+
+    id = Column(String, primary_key=True, default=uid)
+    code = Column(String, nullable=False, unique=True)
+    vehicle_type = Column(SAEnum(VehicleType), nullable=False)
+    home_centre_id = Column(String, ForeignKey("fulfilment_centres.id"), nullable=False)
+    status = Column(SAEnum(VehicleStatus), nullable=False, default=VehicleStatus.AVAILABLE)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    home_centre = relationship("FulfilmentCentre")
+
+
+class LogisticsEventKind(str, enum.Enum):
+    INPUT_EN_ROUTE = "input_en_route"
+    INPUT_DELIVERED = "input_delivered"
+    SERVICE_EN_ROUTE = "service_en_route"
+    SERVICE_DELIVERED = "service_delivered"
+    PICKUP_EN_ROUTE = "pickup_en_route"
+    PICKUP_DELIVERED = "pickup_delivered"
+    INTAKE_GRADED = "intake_graded"
+    TRUNKING_DISPATCHED = "trunking_dispatched"
+    TRUNKING_DELIVERED = "trunking_delivered"
+    ORDER_SHIPPED = "order_shipped"
+    ORDER_DELIVERED = "order_delivered"
+
+
+class LogisticsEvent(Base):
+    """
+    Append-only history of every logistics state change (brief §7). Feeds
+    buyer Delivery Tracking, the vendor handoff stepper and the public
+    landing-page ticker. public_text is written at emit time from aggregate,
+    anonymised facts only -- never a person's name or phone number -- so the
+    public feed can return it verbatim; detail is the internal version.
+    """
+    __tablename__ = "logistics_events"
+
+    id = Column(String, primary_key=True, default=uid)
+    kind = Column(SAEnum(LogisticsEventKind), nullable=False)
+    dispatch_job_id = Column(String, ForeignKey("dispatch_jobs.id"), nullable=True)
+    trunking_job_id = Column(String, ForeignKey("trunking_jobs.id"), nullable=True)
+    buyer_requirement_id = Column(String, ForeignKey("buyer_requirements.id"), nullable=True)
+    vehicle_id = Column(String, ForeignKey("vehicles.id"), nullable=True)
+    fulfilment_centre_id = Column(String, ForeignKey("fulfilment_centres.id"), nullable=True)
+    crop_id = Column(String, ForeignKey("crops.id"), nullable=True)
+    tonnes = Column(Float, nullable=True)
+    public_text = Column(String, nullable=False)
+    detail = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class AuditLog(Base):

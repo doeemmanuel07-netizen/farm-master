@@ -24,6 +24,9 @@ from ..models import (
     FulfilmentIntake, GradeResult,
 )
 from ..auth import require_roles
+from ..fleet import resolve_vehicle, emit_dispatch_en_route, emit_dispatch_delivered, emit_trunking, hq_centre
+from ..models import VehicleStatus, Vehicle
+from ..state import transition
 from ..schemas import (
     DispatchJobResponse, DispatchAssignRequest,
     ProofOfDeliveryCreate, ProofOfDeliveryResponse,
@@ -104,11 +107,16 @@ def dispatch_job(
     if job.status != DispatchJobStatus.ASSIGNED:
         raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not ready to dispatch.")
 
+    vehicle = resolve_vehicle(db, payload.tricycle_label)
     job.tricycle_label = payload.tricycle_label
-    job.status = DispatchJobStatus.EN_ROUTE
+    job.vehicle_id = vehicle.id if vehicle else None
+    if vehicle:
+        vehicle.status = VehicleStatus.ON_JOB
+    transition(job, DispatchJobStatus.EN_ROUTE)
     job.dispatched_by = user.id
     db.commit()
     db.refresh(job)
+    emit_dispatch_en_route(db, job)
     return _job_view(job, db)
 
 
@@ -124,11 +132,26 @@ def deliver_job(
     if job.status != DispatchJobStatus.EN_ROUTE:
         raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not en route.")
 
-    job.status = DispatchJobStatus.DELIVERED
+    transition(job, DispatchJobStatus.DELIVERED)
     job.delivered_at = datetime.utcnow()
+    _release_vehicle(db, job.vehicle_id)
     db.commit()
     db.refresh(job)
+    emit_dispatch_delivered(db, job)
     return _job_view(job, db)
+
+
+def _release_vehicle(db: Session, vehicle_id):
+    """Back to AVAILABLE unless the vehicle is still out on another job."""
+    if not vehicle_id:
+        return
+    still_busy = (
+        db.query(DispatchJob).filter(DispatchJob.vehicle_id == vehicle_id, DispatchJob.status == DispatchJobStatus.EN_ROUTE).count()
+        + db.query(TrunkingJob).filter(TrunkingJob.vehicle_id == vehicle_id, TrunkingJob.status == TrunkingStatus.DISPATCHED).count()
+    )
+    v = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if v and not still_busy and v.status == VehicleStatus.ON_JOB:
+        v.status = VehicleStatus.AVAILABLE
 
 
 # ---------------------------------------------------------------------------
@@ -232,9 +255,12 @@ def schedule_trunking_job(
     if payload.produce_tonnes > available:
         raise HTTPException(status_code=409, detail=f"Only {available}t of graded produce is ready -- cannot trunk {payload.produce_tonnes}t.")
 
+    vehicle = resolve_vehicle(db, payload.vehicle_label)
+    hq = hq_centre(db)
     job = TrunkingJob(
         produce_tonnes=payload.produce_tonnes, tonnes_available_at_creation=available,
         destination=payload.destination, vehicle_label=payload.vehicle_label, scheduled_by=user.id,
+        vehicle_id=vehicle.id if vehicle else None, origin_centre_id=hq.id if hq else None,
     )
     db.add(job)
     db.commit()
@@ -253,10 +279,15 @@ def dispatch_trunking_job(
         raise HTTPException(status_code=404, detail="Trunking job not found.")
     if job.status != TrunkingStatus.SCHEDULED:
         raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not ready to dispatch.")
-    job.status = TrunkingStatus.DISPATCHED
+    transition(job, TrunkingStatus.DISPATCHED)
     job.dispatched_at = datetime.utcnow()
+    if job.vehicle_id:
+        v = db.query(Vehicle).filter(Vehicle.id == job.vehicle_id).first()
+        if v:
+            v.status = VehicleStatus.ON_JOB
     db.commit()
     db.refresh(job)
+    emit_trunking(db, job, delivered=False)
     return job
 
 
@@ -271,8 +302,10 @@ def deliver_trunking_job(
         raise HTTPException(status_code=404, detail="Trunking job not found.")
     if job.status != TrunkingStatus.DISPATCHED:
         raise HTTPException(status_code=409, detail=f"Job is '{job.status.value}', not dispatched.")
-    job.status = TrunkingStatus.DELIVERED
+    transition(job, TrunkingStatus.DELIVERED)
     job.delivered_at = datetime.utcnow()
+    _release_vehicle(db, job.vehicle_id)
     db.commit()
     db.refresh(job)
+    emit_trunking(db, job, delivered=True)
     return job

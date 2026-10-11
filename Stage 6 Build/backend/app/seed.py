@@ -27,6 +27,7 @@ from .uploads import UPLOADS_DIR
 from .reference import seed_reference_data
 from .fees import seed_fee_rule, quote_commitment_fee
 from .orders import next_reference, backfill_requirements, maize_variety_id
+from .fleet import seed_vehicles
 
 # A minimal valid 1x1 transparent PNG -- the real, on-disk placeholder image
 # for demo Listing rows below (see models.ListingImage: this is the first
@@ -211,6 +212,7 @@ def seed():
         seed_reference_data(db)
         seed_fee_rule(db)
         backfill_requirements(db)
+        seed_vehicles(db)
 
         if db.query(BuyerRequirement).count() == 0:
             for buyer_email, grade, qty, price, location, timeline in SEED_REQUIREMENTS:

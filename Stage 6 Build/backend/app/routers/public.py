@@ -4,14 +4,17 @@ Everything here is aggregate or reference data -- never a person's name,
 phone number or any per-account figure.
 """
 
+from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import FulfilmentCentre, RateConfig, Region, SELF_REGISTER_ROLES
 from ..reference import active_crops
+from ..fleet import public_activity
 from ..schemas import CropResponse, RegionResponse, PublicStatsResponse
 
 router = APIRouter(prefix="/api/public", tags=["public"])
@@ -44,3 +47,14 @@ def crops(db: Session = Depends(get_db)):
 @router.get("/regions", response_model=List[RegionResponse])
 def regions(db: Session = Depends(get_db)):
     return db.query(Region).filter(Region.is_active.is_(True)).order_by(Region.name).all()
+
+
+class ActivityItem(BaseModel):
+    text: str
+    at: datetime
+
+
+@router.get("/activity", response_model=List[ActivityItem])
+def activity(limit: int = Query(10, ge=1, le=50), db: Session = Depends(get_db)):
+    """Live ticker feed: today's per-centre aggregation, then the latest logistics events -- anonymised text only."""
+    return public_activity(db, limit)

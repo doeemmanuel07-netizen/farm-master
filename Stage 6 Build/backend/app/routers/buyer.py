@@ -20,7 +20,7 @@ from ..database import get_db
 from ..models import (
     User, Role, RateConfig, BuyerRequirement, RequirementStatus, CommitmentFeePayment, PaymentStatus,
     HarvestPickupRequest, FulfilmentIntake, GradeResult, DispatchJob, Crop, CropVariety, FulfilmentCentre,
-    PaymentNetwork,
+    PaymentNetwork, LogisticsEvent,
 )
 from ..auth import require_roles, get_current_user
 from ..audit import log_audit
@@ -339,6 +339,9 @@ def buyer_tracking(
             log.append(BuyerTrackingLogRow(text=f"Lot intake -- graded {grade_label}", when=intake.created_at))
             if intake.grade != GradeResult.REJECT:
                 delivered_tonnes += intake.weigh_in_kg / 1000.0
+    # Logistics events linked to this order (brief §7: events feed Delivery Tracking).
+    for ev in db.query(LogisticsEvent).filter(LogisticsEvent.buyer_requirement_id == req.id).all():
+        log.append(BuyerTrackingLogRow(text=ev.public_text.removeprefix("Live: "), when=ev.created_at))
     log.sort(key=lambda r: r.when, reverse=True)
     return BuyerTrackingResponse(
         buyer_requirement_id=req.id, status=req.status,

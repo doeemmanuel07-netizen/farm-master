@@ -19,6 +19,9 @@ from ..database import get_db
 from ..models import User, Role, DispatchJob, DispatchJobStatus, DispatchDirection, HarvestPickupRequest, FulfilmentIntake
 from ..auth import require_roles
 from ..audit import log_audit
+from ..fleet import centre_for_farmer, crop_for_pickup, emit_intake_graded
+from ..models import BuyerRequirement, RequirementStatus, GradeResult
+from ..state import transition
 from ..schemas import FulfilmentQueueEntry, FulfilmentIntakeCreate, FulfilmentIntakeResponse
 
 router = APIRouter(prefix="/fulfilment", tags=["fulfilment"])
@@ -68,17 +71,28 @@ def confirm_intake(
     if db.query(FulfilmentIntake).filter(FulfilmentIntake.harvest_pickup_request_id == req.id).first():
         raise HTTPException(status_code=409, detail="This pickup has already been graded.")
 
+    farmer = db.query(User).filter(User.id == req.farmer_id).first()
+    centre = centre_for_farmer(db, farmer)
+    crop = crop_for_pickup(db, req)
     intake = FulfilmentIntake(
         harvest_pickup_request_id=req.id,
         weigh_in_kg=payload.weigh_in_kg,
         grade=payload.grade,
         graded_by=user.id,
+        fulfilment_centre_id=centre.id if centre else None,
+        crop_id=crop.id if crop else None,
     )
     db.add(intake)
+    # The first graded, non-reject lot against an order in production is what
+    # moves the buyer's order to "Aggregating" (brief §7).
+    if payload.grade != GradeResult.REJECT and req.buyer_requirement_id:
+        order = db.query(BuyerRequirement).filter(BuyerRequirement.id == req.buyer_requirement_id).first()
+        if order and order.status == RequirementStatus.PRODUCTION:
+            transition(order, RequirementStatus.AGGREGATION)
     db.commit()
     db.refresh(intake)
+    emit_intake_graded(db, intake, req)
 
-    farmer = db.query(User).filter(User.id == req.farmer_id).first()
     log_audit(
         db, user, "fulfilment_intake_graded",
         f"Harvest pickup {req.id} ({farmer.full_name}, {req.quantity_ready_tonnes}t expected): "

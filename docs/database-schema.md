@@ -20,12 +20,15 @@ erDiagram
     harvest_pickup_requests ||--o{ dispatch_jobs : "harvest_pickup_request_id"
     input_orders ||--o{ dispatch_jobs : "input_order_id"
     mechanisation_requests ||--o{ dispatch_jobs : "mechanisation_request_id"
+    vehicles ||--o{ dispatch_jobs : "vehicle_id"
     crops ||--o{ farmer_crops : "crop_id"
     users ||--o{ farmer_crops : "farmer_id"
     users ||--o{ field_visit_logs : "agronomist_id"
     users ||--o{ field_visit_logs : "farmer_id"
     opportunities ||--o{ field_visit_logs : "opportunity_id"
     regions ||--o{ fulfilment_centres : "region_id"
+    crops ||--o{ fulfilment_intakes : "crop_id"
+    fulfilment_centres ||--o{ fulfilment_intakes : "fulfilment_centre_id"
     users ||--o{ fulfilment_intakes : "graded_by"
     harvest_pickup_requests ||--o{ fulfilment_intakes : "harvest_pickup_request_id"
     buyer_requirements ||--o{ harvest_pickup_requests : "buyer_requirement_id"
@@ -39,6 +42,12 @@ erDiagram
     listing_categories ||--o{ listings : "category_id"
     users ||--o{ listings : "reviewed_by"
     users ||--o{ listings : "vendor_id"
+    buyer_requirements ||--o{ logistics_events : "buyer_requirement_id"
+    crops ||--o{ logistics_events : "crop_id"
+    dispatch_jobs ||--o{ logistics_events : "dispatch_job_id"
+    fulfilment_centres ||--o{ logistics_events : "fulfilment_centre_id"
+    trunking_jobs ||--o{ logistics_events : "trunking_job_id"
+    vehicles ||--o{ logistics_events : "vehicle_id"
     buyer_requirements ||--o{ mechanisation_requests : "buyer_requirement_id"
     users ||--o{ mechanisation_requests : "override_approver_id"
     users ||--o{ mechanisation_requests : "vendor_id"
@@ -63,10 +72,13 @@ erDiagram
     users ||--o{ registration_approvals : "user_id"
     buyer_requirements ||--o{ requirement_formula_plans : "buyer_requirement_id"
     users ||--o{ requirement_formula_plans : "published_by"
+    fulfilment_centres ||--o{ trunking_jobs : "origin_centre_id"
     users ||--o{ trunking_jobs : "scheduled_by"
+    vehicles ||--o{ trunking_jobs : "vehicle_id"
     farmer_unions ||--o{ users : "farmer_union_id"
     regions ||--o{ users : "region_id"
     users ||--o{ ussd_sms_log : "farmer_id"
+    fulfilment_centres ||--o{ vehicles : "home_centre_id"
     users ||--o{ vendor_billing : "vendor_id"
     users ||--o{ vendor_billing_payments : "vendor_id"
     agronomist_messages {
@@ -155,6 +167,7 @@ erDiagram
         enum direction
         enum status
         string tricycle_label
+        string vehicle_id FK
         string dispatched_by FK
         datetime delivered_at
         datetime created_at
@@ -195,6 +208,8 @@ erDiagram
         float weigh_in_kg
         enum grade
         string graded_by FK
+        string fulfilment_centre_id FK
+        string crop_id FK
         datetime created_at
     }
     harvest_pickup_requests {
@@ -253,6 +268,20 @@ erDiagram
         datetime reviewed_at
         datetime created_at
         datetime updated_at
+    }
+    logistics_events {
+        string id PK
+        enum kind
+        string dispatch_job_id FK
+        string trunking_job_id FK
+        string buyer_requirement_id FK
+        string vehicle_id FK
+        string fulfilment_centre_id FK
+        string crop_id FK
+        float tonnes
+        string public_text
+        text detail
+        datetime created_at
     }
     mechanisation_requests {
         string id PK
@@ -407,6 +436,8 @@ erDiagram
         float tonnes_available_at_creation
         string destination
         string vehicle_label
+        string vehicle_id FK
+        string origin_centre_id FK
         enum status
         string scheduled_by FK
         datetime dispatched_at
@@ -435,6 +466,14 @@ erDiagram
         string channel
         string purpose
         text body
+        datetime created_at
+    }
+    vehicles {
+        string id PK
+        string code
+        enum vehicle_type
+        string home_centre_id FK
+        enum status
         datetime created_at
     }
     vendor_billing {
@@ -569,6 +608,7 @@ erDiagram
 | `direction` | enum(outbound, inbound) | no |  |
 | `status` | enum(assigned, en_route, delivered) | no |  |
 | `tricycle_label` | string | yes |  |
+| `vehicle_id` | string | yes | FK → `vehicles.id` |
 | `dispatched_by` | string | yes | FK → `users.id` |
 | `delivered_at` | datetime | yes |  |
 | `created_at` | datetime | yes |  |
@@ -624,6 +664,8 @@ erDiagram
 | `weigh_in_kg` | float | no |  |
 | `grade` | enum(grade_1, grade_2, reject) | no |  |
 | `graded_by` | string | no | FK → `users.id` |
+| `fulfilment_centre_id` | string | yes | FK → `fulfilment_centres.id` |
+| `crop_id` | string | yes | FK → `crops.id` |
 | `created_at` | datetime | yes |  |
 
 ### `harvest_pickup_requests`
@@ -700,6 +742,23 @@ erDiagram
 | `reviewed_at` | datetime | yes |  |
 | `created_at` | datetime | yes |  |
 | `updated_at` | datetime | yes |  |
+
+### `logistics_events`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `kind` | enum(input_en_route, input_delivered, service_en_route, service_delivered, pickup_en_route, pickup_delivered, intake_graded, trunking_dispatched, trunking_delivered, order_shipped, order_delivered) | no |  |
+| `dispatch_job_id` | string | yes | FK → `dispatch_jobs.id` |
+| `trunking_job_id` | string | yes | FK → `trunking_jobs.id` |
+| `buyer_requirement_id` | string | yes | FK → `buyer_requirements.id` |
+| `vehicle_id` | string | yes | FK → `vehicles.id` |
+| `fulfilment_centre_id` | string | yes | FK → `fulfilment_centres.id` |
+| `crop_id` | string | yes | FK → `crops.id` |
+| `tonnes` | float | yes |  |
+| `public_text` | string | no |  |
+| `detail` | text | yes |  |
+| `created_at` | datetime | yes |  |
 
 ### `mechanisation_requests`
 
@@ -899,6 +958,8 @@ erDiagram
 | `tonnes_available_at_creation` | float | no |  |
 | `destination` | string | no |  |
 | `vehicle_label` | string | no |  |
+| `vehicle_id` | string | yes | FK → `vehicles.id` |
+| `origin_centre_id` | string | yes | FK → `fulfilment_centres.id` |
 | `status` | enum(scheduled, dispatched, delivered) | no |  |
 | `scheduled_by` | string | no | FK → `users.id` |
 | `dispatched_at` | datetime | yes |  |
@@ -933,6 +994,17 @@ erDiagram
 | `channel` | string | no |  |
 | `purpose` | string | no |  |
 | `body` | text | no |  |
+| `created_at` | datetime | yes |  |
+
+### `vehicles`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `code` | string | no | unique |
+| `vehicle_type` | enum(tricycle, truck) | no |  |
+| `home_centre_id` | string | no | FK → `fulfilment_centres.id` |
+| `status` | enum(available, on_job, maintenance) | no |  |
 | `created_at` | datetime | yes |  |
 
 ### `vendor_billing`

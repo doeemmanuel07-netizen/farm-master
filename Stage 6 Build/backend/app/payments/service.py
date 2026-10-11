@@ -21,6 +21,7 @@ from ..models import (
     BuyerRequirement, CommitmentFeePayment, PaymentNetwork, PaymentStatus, RequirementStatus, User,
 )
 from .base import InitiateRequest, PaymentProvider, WebhookEvent
+from ..state import transition
 
 NETWORK_LABEL = {
     PaymentNetwork.MTN_MOMO: "MTN MoMo",
@@ -127,7 +128,7 @@ def apply_webhook(db: Session, provider: PaymentProvider, event: WebhookEvent) -
         payment.status = PaymentStatus.SUCCESS
         payment.paid_at = datetime.utcnow()
         if requirement and requirement.status == RequirementStatus.PENDING_PAYMENT:
-            requirement.status = RequirementStatus.MATCHING
+            transition(requirement, RequirementStatus.MATCHING)
         db.commit()
         log_audit(db, None, "commitment_fee_captured",
                   f"Requirement {requirement.reference if requirement else payment.requirement_id}: GHS {payment.amount} "

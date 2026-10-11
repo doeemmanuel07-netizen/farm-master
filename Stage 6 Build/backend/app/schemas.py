@@ -1009,3 +1009,21 @@ class MeResponse(BaseModel):
 
 
 BuyerOrderFormResponse.model_rebuild()
+
+
+class VehicleResponse(BaseModel):
+    id: str
+    code: str
+    vehicle_type: str
+    home_centre: str
+    status: str
+
+
+class OrderAdvanceRequest(BaseModel):
+    status: RequirementStatus
+
+
+class AggregationRow(BaseModel):
+    centre: str
+    crop: str
+    tonnes_today: float
