@@ -131,3 +131,18 @@ Status key: **exists** = built and matches the demo's behaviour · **partial** =
 - **D6 — Migrations.** There's no migration tool. *Recommendation:* introduce **Alembic** (a new dependency, flagged per brief §0) with a baseline revision of the current schema, then one revision per change. The alternative is a small hand-written `ALTER … IF NOT EXISTS` upgrade step at startup.
 - **D7 — Dark mode.** Every current page supports dark mode and the demo is light-only. *Recommendation:* keep dark mode by deriving dark values for the new tokens, with the light theme matching the demo exactly.
 - **D8 — Front-end shape.** The demo is one page with three portal tabs. The app is 25 standalone pages, each with a developer "flow rail". *Recommendation:* add real portal pages (`/`, `/farmer`, `/buyer`, `/marketplace`) built from the shared component CSS/JS (vanilla, no new framework), and restyle the existing flow pages onto the same tokens, keeping their routes working.
+
+---
+
+## Decisions taken (11 Oct 2026)
+
+| # | Decision |
+|---|---|
+| D1 | **Listings** become the single marketplace catalogue (gains `kind` = input / equipment / service, a pricing basis and an optional formula input type). Marketplace orders reuse `input_orders` / `input_order_lines`, with lines pointing at a listing, so reconciliation, wallet, dispatch and vendor payout keep working. `products` is retired once Order Inputs is moved over. |
+| D2 | Keep a **target price per tonne** field on the buyer form, pre-filled from a configurable per-crop reference price. |
+| D3 | `commitment_fee_rules` table supporting `per_tonne` and `percent_of_value` (each with a minimum), seeded with PRD §10's GH₵ 90/t rule. |
+| D4 | **Estimated payout = accepted t × price × (1 − trading margin) − input costs − logistics fees.** Actual settlement stays on delivered/graded tonnes. Both are backed by `wallet_ledger`. |
+| D5 | Keep the commitments checklist as a short confirm step inside the accept action. |
+| D6 | Introduce **Alembic** with a baseline revision. |
+| D7 | Keep dark mode: the light theme matches the demo exactly, and dark values are derived. |
+| D8 | Vanilla HTML/CSS/JS portal pages (`/`, `/farmer`, `/buyer`, `/marketplace`) on shared component files. Existing flow pages are restyled onto the same tokens. |
