@@ -358,6 +358,9 @@ Stage 6 Build/                                  Stage 6 deliverable — the actu
 
 ## Key documents
 
+- [Design System](docs/design-system.md): tokens, components and usage rules from the CEO platform demo (live gallery at `/design-system`)
+- [CEO Demo Gap Report](docs/ceo-demo-gap-report.md): the app audited against the CEO-approved demo, with decisions D1–D8
+- [CHANGELOG](CHANGELOG.md)
 - [PRD (Stage 1)](Farm_Master_PRD_Stage1.docx) — problem, scope, roles, provisional rates
 - [Information Architecture (Stage 2)](Farm_Master_IA_Stage2.docx) — sitemaps, user flows, device requirements
 - [Style Guide (Stage 4)](Farm_Master_Style_Guide_Stage4.docx) — color/type/component system, and the running log of what's built

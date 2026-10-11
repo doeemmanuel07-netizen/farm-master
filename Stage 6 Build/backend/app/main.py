@@ -171,6 +171,10 @@ if FRONTEND_DIR.exists():
     def listing_review_flow_page():
         return _flow_page("listing_review_queue_flow_live.html")
 
+    @app.get("/design-system")
+    def design_system_page():
+        return _flow_page("design_system_gallery.html")
+
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")

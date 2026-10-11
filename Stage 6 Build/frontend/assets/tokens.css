@@ -1,0 +1,118 @@
+/*
+ * Farm Master design tokens -- Stage 4 visual language, revised Oct 2026 to
+ * match the CEO-approved platform demo (docs/reference/Farm_Master_Platform_Demo.html).
+ * Light values are the demo's exactly. Dark values are derived (decision D7 in
+ * docs/ceo-demo-gap-report.md) so pages that already supported dark mode keep it.
+ * See docs/design-system.md for usage rules.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --forest-deep: #173821;
+  --forest: #1E4620;
+  --forest-soft: #2F5C34;
+  --gold: #C7912E;
+  --gold-hover: #B47F22;
+  --gold-soft: #E4C583;
+  --clay: #A65B31;
+  --cream: #F6F1E3;
+  --paper: #FFFEFA;
+  --ink: #22261D;
+  --ink-soft: #5B5F51;
+  --line: #DEDBC6;
+  --line-soft: #EAE7D8;
+  --good: #2F6B3A;
+  --good-bg: #E7F0E3;
+  --warn: #9A6A18;
+  --warn-bg: #F7ECD6;
+  --wait: #6B6656;
+  --wait-bg: #EEEAD9;
+  --info: #3D5F8A;
+  --info-bg: #E4EBF4;
+  --danger: #A33A2B;
+  --danger-bg: #F5E1DC;
+
+  /* Text/icon colour that sits on a filled --forest-deep / --gold / --clay surface. */
+  --on-fill: #FFFFFF;
+
+  --role-farmer: var(--forest-deep);
+  --role-buyer: var(--gold);
+  --role-vendor: var(--clay);
+
+  --radius-card: 14px;
+  --radius-chip: 999px;
+  --radius-btn: 9px;
+  --radius-btn-sm: 7px;
+  --radius-tight: 6px;
+  --shadow-1: 0 1px 2px rgba(23, 56, 33, 0.08), 0 1px 1px rgba(23, 56, 33, 0.04);
+  --shadow-2: 0 8px 24px rgba(23, 56, 33, 0.14);
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Archivo", "Segoe UI", system-ui, sans-serif;
+
+  --page-max: 1180px;
+  --gutter: 28px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --forest-deep: #A9D3B0;
+    --forest: #BFE0C4;
+    --forest-soft: #7FB98A;
+    --gold: #DDAA4E;
+    --gold-hover: #E8BD6C;
+    --gold-soft: #5A4720;
+    --clay: #D48A5F;
+    --cream: #13170F;
+    --paper: #1B2017;
+    --ink: #ECEBDF;
+    --ink-soft: #A6A895;
+    --line: #34392C;
+    --line-soft: #282D22;
+    --good: #8CCB98;
+    --good-bg: #1F3323;
+    --warn: #E6B867;
+    --warn-bg: #3A2E15;
+    --wait: #B5B09C;
+    --wait-bg: #2C2B22;
+    --info: #9DB9DD;
+    --info-bg: #1E2A3A;
+    --danger: #E9907F;
+    --danger-bg: #3A1F1A;
+    --on-fill: #12160F;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --forest-deep: #A9D3B0;
+  --forest: #BFE0C4;
+  --forest-soft: #7FB98A;
+  --gold: #DDAA4E;
+  --gold-hover: #E8BD6C;
+  --gold-soft: #5A4720;
+  --clay: #D48A5F;
+  --cream: #13170F;
+  --paper: #1B2017;
+  --ink: #ECEBDF;
+  --ink-soft: #A6A895;
+  --line: #34392C;
+  --line-soft: #282D22;
+  --good: #8CCB98;
+  --good-bg: #1F3323;
+  --warn: #E6B867;
+  --warn-bg: #3A2E15;
+  --wait: #B5B09C;
+  --wait-bg: #2C2B22;
+  --info: #9DB9DD;
+  --info-bg: #1E2A3A;
+  --danger: #E9907F;
+  --danger-bg: #3A1F1A;
+  --on-fill: #12160F;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
