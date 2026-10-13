@@ -20,8 +20,49 @@ The app is being brought in line with the CEO-approved platform demo. See [docs/
 
 - **Run it locally:** start PostgreSQL, then `cd "Stage 6 Build/backend"` and `python -m uvicorn app.main:app --port 8000`. Open <http://127.0.0.1:8000/>.
 - **Portals:** `/` Overview · `/farmer` · `/buyer` · `/marketplace` (the demo's "Vendor Portal" tab) · `/design-system`.
-- **Demo accounts** (dev only, password `password123`; the one-time code is shown on screen): Farmer `kojo.mensah@farmmaster.test`, Buyer `gsfp@farmmaster.test`, Vendor `vendor@farmmaster.test` or `services@farmmaster.test` (Farm Master-owned), Ops `emmanuel@farmmaster.test` (Super Admin), `agronomist@`, `logistics@`, `finance@`, `ops.coordinator@farmmaster.test`.
+- **Demo accounts** (dev only, password `password123` on a fresh database; once a public preview has run, use the rotated passwords in `Stage 6 Build/.preview/credentials.txt`. The one-time code is shown on screen): Farmer `kojo.mensah@farmmaster.test`, Buyer `gsfp@farmmaster.test`, Vendor `vendor@farmmaster.test` or `services@farmmaster.test` (Farm Master-owned), Ops `emmanuel@farmmaster.test` (Super Admin), `agronomist@`, `logistics@`, `finance@`, `ops.coordinator@farmmaster.test`.
 - **Shareable preview** (static snapshot, no backend, private until shared): https://claude.ai/artifact/VJ3eaUesdjfFBKRhtPQvQX. Rebuild it with `python "Stage 6 Build/scripts/build_static_demo.py" <out_dir>` while the app is running.
+
+## Preview via Cloudflare
+
+A public link to the live app (backend and portals on one origin), for phones and for people outside this machine. It uses a Cloudflare Quick Tunnel, so you don't need an account, but **the link changes every time the tunnel restarts**.
+
+**Start or restart it** (prints the new link):
+
+```bash
+"Stage 6 Build/start-preview.sh"
+```
+
+From PowerShell, run `& "Stage 6 Build\start-preview.ps1"`. Add `--stop` (`-Stop`) to stop it, or `--install` (`-Install`) to also restart it each time you sign in to Windows (a `FarmMasterPreview` scheduled task; remove it with `Unregister-ScheduledTask FarmMasterPreview`).
+
+What the script does:
+
+1. Starts PostgreSQL if it's stopped, then runs `scripts/preview_accounts.py`. That script applies migrations and loads the seed data, then gives every active account still on a weak or default password (the seeded `password123`) a strong random password.
+2. Starts the API on **127.0.0.1:8000 only** with `FARM_MASTER_PUBLIC_PREVIEW=1`, with no auto-reload, behind Cloudflare's proxy headers.
+3. Starts `cloudflared tunnel --url http://127.0.0.1:8000`. Install it once with `winget install Cloudflare.cloudflared`.
+4. Waits until the link answers, then prints it.
+
+The app and the tunnel run as detached background processes, so they keep going after the terminal closes. They stop when the machine restarts unless you used `--install`.
+
+Local files in `Stage 6 Build/.preview/` (git-ignored, never committed):
+
+| File | Contents |
+|---|---|
+| `credentials.txt` | Test logins for each portal (Super Admin, Farmer, Buyer, Vendor) and every other account |
+| `url.txt` | The current public link |
+| `secret.env` | The random JWT signing secret, created on the first run |
+| `app.log`, `tunnel.log` | Server and tunnel logs |
+
+**Public preview safeguards** (`app/preview.py`):
+
+- Sign-in (password, then one-time code) is still required on every portal, and every data endpoint checks the role.
+- The app refuses to start if the JWT secret is the dev default or any active account still has a weak password (`password123`, `password`, `admin123`).
+- `/docs`, `/redoc` and `/openapi.json` are switched off. CORS allows no cross-origin callers, because the portals are same-origin. Set `FARM_MASTER_CORS_ORIGINS` to allow specific ones.
+- Login pages no longer pre-fill a password, and the vendor "simulate Super Admin approval" shortcut asks for the admin password instead of embedding it.
+- PostgreSQL only accepts connections from localhost (`pg_hba.conf`), and `listen_addresses` is set to `localhost` (this applies after the PostgreSQL service restarts). The tunnel only forwards port 8000.
+- The one-time code is still shown on screen, because email/SMS delivery isn't integrated yet (PRD §12). Until it is, the strong password is the only real login factor.
+
+**Permanent link.** To replace the changing Quick Tunnel link with a fixed address such as `preview.farmmaster.com.gh`, you need a Cloudflare account and the domain's DNS on Cloudflare. Then run `cloudflared tunnel login`, `cloudflared tunnel create farm-master-preview`, and `cloudflared tunnel route dns farm-master-preview preview.farmmaster.com.gh`, and point the script at the named tunnel instead of `--url`. Cloudflare Access can add an email allow-list in front of it.
 
 ## Project status
 
@@ -331,7 +372,7 @@ Then open:
 - <http://127.0.0.1:8000/farmer-dashboard-flow> — Farmer Dashboard, Milestones, Messaging & Wallet
 - <http://127.0.0.1:8000/vendor-dashboard-flow> — Vendor Dashboard, Billing, Payout & Handoff
 - <http://127.0.0.1:8000/ussd-sms-flow> — USSD/SMS Channel (session emulator, Farmer)
-- <http://127.0.0.1:8000/docs> — interactive Swagger API reference
+- <http://127.0.0.1:8000/docs> — interactive Swagger API reference (local only; off in public preview mode)
 
 Every flow above now signs in through two steps — password, then an OTP
 screen with both codes pre-filled (delivery is simulated, see above).

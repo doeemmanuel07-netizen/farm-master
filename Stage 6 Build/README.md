@@ -328,6 +328,8 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
+For a public link through a Cloudflare Quick Tunnel, run `./start-preview.sh` from this folder instead. It rotates the seeded passwords below, and the new ones are written to `.preview/credentials.txt`. See the root README, "Preview via Cloudflare".
+
 The first run applies every Alembic migration to `farm_master` (see
 "Schema migrations" below) and seeds:
 
