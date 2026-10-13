@@ -300,7 +300,7 @@
   var state = {
     token: null,
     email: "vendor@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["vendor@farmmaster.test"] || "",
     challengeId: null,
     otpEmail: "",
     categories: [],
@@ -912,7 +912,7 @@
   document.getElementById("restartBtn").addEventListener("click", function () {
     clearSession();
     state = {
-      token: null, email: "vendor@farmmaster.test", password: "", challengeId: null, otpEmail: "",
+      token: null, email: "vendor@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["vendor@farmmaster.test"] || "", challengeId: null, otpEmail: "",
       categories: [], notifications: [], listings: [], statusFilter: "all", editingId: null,
       form: JSON.parse(JSON.stringify(EMPTY_FORM)), stagedFiles: [], listingImages: [], listing: null,
       showNotifPanel: false, step: "login",

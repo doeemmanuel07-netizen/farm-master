@@ -153,7 +153,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var PORTAL_NAV = ["Dashboard", "Finance", "MoFA", "Reporting"];
 var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Finance": "/reconciliation-flow", "MoFA": "/mofa-report-flow", "Reporting": "/reporting-flow" };
   var API = "";
-  var state = { token: null, email: "finance@farmmaster.test", password: "", challengeId: null, otpEmail: "", data: null, step: "login" };
+  var state = { token: null, email: "finance@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["finance@farmmaster.test"] || "", challengeId: null, otpEmail: "", data: null, step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "reporting", label: "Reporting" }];
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
   async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
@@ -222,7 +222,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Finance": "/reconciliati
     el.querySelectorAll(".flow-step.done").forEach(function (row) { row.addEventListener("click", function () { var target = STEPS[+row.dataset.idx].id; if (target === "login") state.token = null; state.step = target; render(); }); });
   }
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "finance@farmmaster.test", password: "", challengeId: null, otpEmail: "", data: null, step: "login" }; render(); });
+    state = { token: null, email: "finance@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["finance@farmmaster.test"] || "", challengeId: null, otpEmail: "", data: null, step: "login" }; render(); });
   var _existing = loadSession();
 
   if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }

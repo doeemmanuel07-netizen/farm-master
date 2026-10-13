@@ -249,7 +249,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Fulfilment": "/fulfilmen
   var state = {
     token: null,
     email: "finance@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["finance@farmmaster.test"] || "",
     challengeId: null,
     otpEmail: "",
     queue: [],
@@ -473,7 +473,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Fulfilment": "/fulfilmen
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "finance@farmmaster.test", password: "", challengeId: null, otpEmail: "", queue: [], entry: null, weighIn: "", grade: "grade_1", result: null, step: "login" };
+    state = { token: null, email: "finance@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["finance@farmmaster.test"] || "", challengeId: null, otpEmail: "", queue: [], entry: null, weighIn: "", grade: "grade_1", result: null, step: "login" };
     render();
   });
 

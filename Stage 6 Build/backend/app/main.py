@@ -3,11 +3,11 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from .migrate import upgrade_to_head
 from .seed import seed
-from .preview import PUBLIC_PREVIEW, check_public_preview_safe, cors_origins
+from .preview import DEMO_PREFILL, PUBLIC_PREVIEW, check_public_preview_safe, cors_origins, inject_demo_logins
 from .routers import auth as auth_router
 from .routers import buyer as buyer_router
 from .routers import farmer as farmer_router
@@ -47,6 +47,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# The shared assets change with the pages that use them, so browsers (and
+# phones that opened an earlier preview link) must revalidate them every
+# load instead of running a heuristically cached old components.js.
+@app.middleware("http")
+async def revalidate_static(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 app.include_router(auth_router.router)
 app.include_router(buyer_router.router)
 app.include_router(farmer_router.router)
@@ -77,11 +88,13 @@ if FRONTEND_DIR.exists():
     # after a real on-disk fix, with no visible error. Every -flow route
     # below goes through this helper so a hard refresh is never required
     # to see the current file.
-    def _flow_page(filename: str) -> FileResponse:
-        return FileResponse(
-            str(FRONTEND_DIR / filename),
-            headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
-        )
+    NO_STORE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
+
+    def _flow_page(filename: str):
+        if DEMO_PREFILL:
+            html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
+            return HTMLResponse(inject_demo_logins(html), headers=NO_STORE)
+        return FileResponse(str(FRONTEND_DIR / filename), headers=NO_STORE)
 
     @app.get("/buyer-flow")
     def buyer_flow_page():

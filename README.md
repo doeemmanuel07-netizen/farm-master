@@ -33,7 +33,7 @@ A public link to the live app (backend and portals on one origin), for phones an
 "Stage 6 Build/start-preview.sh"
 ```
 
-From PowerShell, run `& "Stage 6 Build\start-preview.ps1"`. Add `--stop` (`-Stop`) to stop it, or `--install` (`-Install`) to also restart it each time you sign in to Windows (a `FarmMasterPreview` scheduled task; remove it with `Unregister-ScheduledTask FarmMasterPreview`).
+From PowerShell, run `& "Stage 6 Build\start-preview.ps1"`. Add `--app-only` (`-AppOnly`) to restart only the app and keep the current link, `--stop` (`-Stop`) to stop it, or `--install` (`-Install`) to also restart it each time you sign in to Windows (a `FarmMasterPreview` scheduled task; remove it with `Unregister-ScheduledTask FarmMasterPreview`).
 
 What the script does:
 
@@ -55,10 +55,11 @@ Local files in `Stage 6 Build/.preview/` (git-ignored, never committed):
 
 **Public preview safeguards** (`app/preview.py`):
 
-- Sign-in (password, then one-time code) is still required on every portal, and every data endpoint checks the role.
+- **Pre-filled logins (on by default, at the owner's request, 13 Oct 2026):** every login page arrives with the account's email and password filled in, and the one-time code step continues automatically, so **Continue / Sign in is one click**. This applies to every portal, **Super Admin included**, so anyone who has the link can use the whole app. The passwords are injected into the page by the server from `.preview/credentials.txt` at request time (`FARM_MASTER_DEMO_PREFILL=1` in `scripts/preview-app.cmd`) and never committed. To require typed passwords again, delete that line and run `start-preview.sh --app-only`.
+- Every data endpoint still checks the signed-in role.
 - The app refuses to start if the JWT secret is the dev default or any active account still has a weak password (`password123`, `password`, `admin123`).
 - `/docs`, `/redoc` and `/openapi.json` are switched off. CORS allows no cross-origin callers, because the portals are same-origin. Set `FARM_MASTER_CORS_ORIGINS` to allow specific ones.
-- Login pages no longer pre-fill a password, and the vendor "simulate Super Admin approval" shortcut asks for the admin password instead of embedding it.
+- No password is hard-coded in any page. Without prefill, login pages start empty and the vendor "simulate Super Admin approval" shortcut asks for the admin password.
 - PostgreSQL only accepts connections from localhost (`pg_hba.conf`), and `listen_addresses` is set to `localhost` (this applies after the PostgreSQL service restarts). The tunnel only forwards port 8000.
 - The one-time code is still shown on screen, because email/SMS delivery isn't integrated yet (PRD §12). Until it is, the strong password is the only real login factor.
 

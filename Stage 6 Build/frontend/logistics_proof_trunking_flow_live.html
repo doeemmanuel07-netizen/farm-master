@@ -197,7 +197,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var PORTAL_NAV = ["Dashboard", "Dispatch", "Proof", "Trunking"];
 var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Dispatch": "/dispatch-flow", "Proof": "/proof-trunking-flow", "Trunking": "/proof-trunking-flow" };
   var API = "";
-  var state = { token: null, email: "logistics@farmmaster.test", password: "", challengeId: null, otpEmail: "", deliveredJobs: [], trunkingJobs: [], availability: 0, step: "login" };
+  var state = { token: null, email: "logistics@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["logistics@farmmaster.test"] || "", challengeId: null, otpEmail: "", deliveredJobs: [], trunkingJobs: [], availability: 0, step: "login" };
   var STEPS = [
     { id: "login", label: "Sign in" },
     { id: "otp", label: "Verify OTP" },
@@ -390,7 +390,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Dispatch": "/dispatch-fl
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "logistics@farmmaster.test", password: "", challengeId: null, otpEmail: "", deliveredJobs: [], trunkingJobs: [], availability: 0, step: "login" };
+    state = { token: null, email: "logistics@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["logistics@farmmaster.test"] || "", challengeId: null, otpEmail: "", deliveredJobs: [], trunkingJobs: [], availability: 0, step: "login" };
     render();
   });
   var _existing = loadSession();

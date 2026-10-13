@@ -162,7 +162,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var PORTAL_NAV = ["Dashboard", "Catalogue", "Listings", "Billing", "Payout"];
 var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-catalogue-flow", "Listings": "/vendor-listings-flow", "Billing": "/vendor-dashboard-flow", "Payout": "/vendor-dashboard-flow" };
   var API = "";
-  var state = { token: null, email: "vendor@farmmaster.test", password: "", challengeId: null, otpEmail: "", dashboard: null, billing: null, payout: [], handoff: [], step: "login" };
+  var state = { token: null, email: "vendor@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["vendor@farmmaster.test"] || "", challengeId: null, otpEmail: "", dashboard: null, billing: null, payout: [], handoff: [], step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "dashboard", label: "Vendor Dashboard" }, { id: "billing", label: "Subscription & Billing" }, { id: "payout", label: "Payout Statement" }, { id: "handoff", label: "Logistics Handoff" }];
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
   async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
@@ -298,7 +298,7 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
     });
   }
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "vendor@farmmaster.test", password: "", challengeId: null, otpEmail: "", dashboard: null, billing: null, payout: [], handoff: [], step: "login" }; render(); });
+    state = { token: null, email: "vendor@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["vendor@farmmaster.test"] || "", challengeId: null, otpEmail: "", dashboard: null, billing: null, payout: [], handoff: [], step: "login" }; render(); });
   var _existing = loadSession();
 
   if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }

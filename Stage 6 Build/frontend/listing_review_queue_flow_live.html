@@ -163,7 +163,7 @@
   var PORTAL_NAV = ["Dashboard", "Admin", "Approvals", "Listings", "Audit Log"];
   var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flow", "Approvals": "/approvals-flow", "Listings": "/listing-review-flow", "Audit Log": "/approvals-flow" };
   var API = "";
-  var state = { token: null, email: "emmanuel@farmmaster.test", password: "", challengeId: null, otpEmail: "", pending: [], listing: null, rejectReason: "", step: "login" };
+  var state = { token: null, email: "emmanuel@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["emmanuel@farmmaster.test"] || "", challengeId: null, otpEmail: "", pending: [], listing: null, rejectReason: "", step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "queue", label: "Pending Review" }, { id: "detail", label: "Review Listing" }];
 
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
@@ -332,7 +332,7 @@
 
   document.getElementById("restartBtn").addEventListener("click", function () {
     clearSession();
-    state = { token: null, email: "emmanuel@farmmaster.test", password: "", challengeId: null, otpEmail: "", pending: [], listing: null, rejectReason: "", step: "login" };
+    state = { token: null, email: "emmanuel@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["emmanuel@farmmaster.test"] || "", challengeId: null, otpEmail: "", pending: [], listing: null, rejectReason: "", step: "login" };
     render();
   });
 

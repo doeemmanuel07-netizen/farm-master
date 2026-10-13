@@ -303,7 +303,7 @@ var PORTAL_NAV = [
   var state = {
     token: null,
     email: "farmer@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["farmer@farmmaster.test"] || "",
     challengeId: null,
     otpEmail: "",
     opportunities: [],
@@ -562,7 +562,7 @@ var PORTAL_NAV = [
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "farmer@farmmaster.test", password: "", challengeId: null, otpEmail: "", opportunities: [], opp: null, checks: [false, false, false, false], formula: null, step: "login" };
+    state = { token: null, email: "farmer@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["farmer@farmmaster.test"] || "", challengeId: null, otpEmail: "", opportunities: [], opp: null, checks: [false, false, false, false], formula: null, step: "login" };
     render();
   });
 

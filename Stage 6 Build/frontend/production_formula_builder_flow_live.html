@@ -263,7 +263,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
   var state = {
     token: null,
     email: "agronomist@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["agronomist@farmmaster.test"] || "",
     challengeId: null,
     otpEmail: "",
     requirements: [],
@@ -547,7 +547,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Agronomy": "/matching-fl
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "agronomist@farmmaster.test", password: "", challengeId: null, otpEmail: "", requirements: [], req: null, builder: null, weeks: null, step: "login" };
+    state = { token: null, email: "agronomist@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["agronomist@farmmaster.test"] || "", challengeId: null, otpEmail: "", requirements: [], req: null, builder: null, weeks: null, step: "login" };
     render();
   });
 

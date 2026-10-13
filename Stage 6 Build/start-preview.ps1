@@ -4,13 +4,14 @@
 #
 #   start-preview.ps1           restart both and print the link
 #   start-preview.ps1 -Stop     stop both
+#   start-preview.ps1 -AppOnly  restart just the app; the tunnel and its link stay
 #   start-preview.ps1 -Install  also restart the preview at every Windows sign-in
 #
 # Both run as detached processes (created through WMI, so they outlive the
 # shell that started them). Logs, the current link and the preview logins
 # live in .preview\ (git-ignored).
 
-param([switch]$Stop, [switch]$Install)
+param([switch]$Stop, [switch]$Install, [switch]$AppOnly)
 
 $ErrorActionPreference = "Stop"
 $Build = $PSScriptRoot
@@ -18,8 +19,8 @@ $State = Join-Path $Build ".preview"
 $Port = 8000
 New-Item -ItemType Directory -Force $State | Out-Null
 
-function Stop-Preview {
-    foreach ($name in "app", "tunnel") {
+function Stop-Preview([string[]]$Names = @("app", "tunnel")) {
+    foreach ($name in $Names) {
         $pidFile = Join-Path $State "$name.pid"
         if (Test-Path $pidFile) {
             & taskkill.exe /T /F /PID (Get-Content $pidFile) 2>$null | Out-Null
@@ -27,9 +28,11 @@ function Stop-Preview {
         }
     }
     # Anything left over from an earlier run started some other way.
-    Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" |
-        Where-Object { $_.CommandLine -match "127\.0\.0\.1:$Port" } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    if ($Names -contains "tunnel") {
+        Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" |
+            Where-Object { $_.CommandLine -match "127\.0\.0\.1:$Port" } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    }
     Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue |
         ForEach-Object { Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue } |
         Where-Object { $_.ProcessName -eq "python" } |
@@ -44,7 +47,10 @@ function Start-Detached([string]$CommandLine, [string]$PidName) {
     Set-Content (Join-Path $State "$PidName.pid") $r.ProcessId
 }
 
-Stop-Preview
+$url = $null
+$urlFile = Join-Path $State "url.txt"
+if ($AppOnly -and (Test-Path $urlFile)) { $url = (Get-Content $urlFile -Raw).Trim() }
+if ($url) { Stop-Preview @("app") } else { Stop-Preview }
 if ($Stop) { Write-Host "Farm Master preview stopped."; exit 0 }
 
 if ($Install) {
@@ -84,18 +90,19 @@ do {
 } until ($ok -or (Get-Date) -gt $deadline)
 if (-not $ok) { throw "The app didn't start. See $State\app.log" }
 
-Start-Detached "cmd.exe /c `"`"$Build\scripts\preview-tunnel.cmd`" `"$cloudflared`"`"" "tunnel"
-$logFile = Join-Path $State "tunnel.log"
-$deadline = (Get-Date).AddSeconds(60)
-$url = $null
-do {
-    Start-Sleep -Seconds 1
-    if (Test-Path $logFile) {
-        $m = Select-String -Path $logFile -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
-        if ($m) { $url = $m.Matches[0].Value }
-    }
-} until ($url -or (Get-Date) -gt $deadline)
-if (-not $url) { throw "The tunnel didn't report a link. See $logFile" }
+if (-not $url) {
+    Start-Detached "cmd.exe /c `"`"$Build\scripts\preview-tunnel.cmd`" `"$cloudflared`"`"" "tunnel"
+    $logFile = Join-Path $State "tunnel.log"
+    $deadline = (Get-Date).AddSeconds(60)
+    do {
+        Start-Sleep -Seconds 1
+        if (Test-Path $logFile) {
+            $m = Select-String -Path $logFile -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
+            if ($m) { $url = $m.Matches[0].Value }
+        }
+    } until ($url -or (Get-Date) -gt $deadline)
+    if (-not $url) { throw "The tunnel didn't report a link. See $logFile" }
+}
 
 # A new hostname can take a few seconds to resolve.
 $deadline = (Get-Date).AddSeconds(60)

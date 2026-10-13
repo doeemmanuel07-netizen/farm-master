@@ -251,7 +251,7 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
   var state = {
     token: null,
     email: "vendor@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["vendor@farmmaster.test"] || "",
     challengeId: null,
     otpEmail: "",
     catalogue: [],
@@ -509,7 +509,7 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "vendor@farmmaster.test", password: "", challengeId: null, otpEmail: "", catalogue: [], orders: [], order: null, step: "login" };
+    state = { token: null, email: "vendor@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["vendor@farmmaster.test"] || "", challengeId: null, otpEmail: "", catalogue: [], orders: [], order: null, step: "login" };
     render();
   });
 

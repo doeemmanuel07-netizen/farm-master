@@ -21,10 +21,8 @@ from app.auth import hash_password  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.migrate import upgrade_to_head  # noqa: E402
 from app.models import User  # noqa: E402
-from app.preview import users_with_weak_passwords  # noqa: E402
+from app.preview import CREDENTIALS_FILE, load_credentials, users_with_weak_passwords  # noqa: E402
 from app.seed import seed  # noqa: E402
-
-CREDENTIALS_FILE = BUILD_DIR / ".preview" / "credentials.txt"
 
 # The login to hand out for each portal; every other account is listed after.
 PORTAL_LOGINS = [
@@ -40,16 +38,6 @@ ALPHABET = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 def new_password() -> str:
     return "-".join("".join(secrets.choice(ALPHABET) for _ in range(4)) for _ in range(4))
-
-
-def load_credentials() -> dict[str, str]:
-    creds = {}
-    if CREDENTIALS_FILE.exists():
-        for line in CREDENTIALS_FILE.read_text(encoding="utf-8").splitlines():
-            parts = line.split()
-            if len(parts) >= 2 and "@" in parts[-2]:
-                creds[parts[-2]] = parts[-1]
-    return creds
 
 
 def write_credentials(creds: dict[str, str]) -> None:

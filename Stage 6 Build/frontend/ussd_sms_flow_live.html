@@ -150,7 +150,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var API = "";
   var SESSION_TIMEOUT_SECONDS = 45;
   var state = {
-    token: null, email: "kojo.mensah@farmmaster.test", password: "",
+    token: null, email: "kojo.mensah@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["kojo.mensah@farmmaster.test"] || "",
     challengeId: null, otpEmail: "",
     menu: "main", opportunities: [], selectedOpp: null, smsLog: [], lastAlert: null, lastPayment: null,
     timer: SESSION_TIMEOUT_SECONDS, timerHandle: null,
@@ -334,7 +334,7 @@ var API = "";
   document.getElementById("restartBtn").addEventListener("click", function () {
     stopSessionTimer();
     clearSession();
-    state = { token: null, email: "kojo.mensah@farmmaster.test", password: "", challengeId: null, otpEmail: "", menu: "main", opportunities: [], selectedOpp: null, smsLog: [], lastAlert: null, lastPayment: null, timer: SESSION_TIMEOUT_SECONDS, timerHandle: null, step: "login" };
+    state = { token: null, email: "kojo.mensah@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["kojo.mensah@farmmaster.test"] || "", challengeId: null, otpEmail: "", menu: "main", opportunities: [], selectedOpp: null, smsLog: [], lastAlert: null, lastPayment: null, timer: SESSION_TIMEOUT_SECONDS, timerHandle: null, step: "login" };
     render();
   });
   var _existing = loadSession();

@@ -241,7 +241,7 @@ var NAV_HREFS = { "Dashboard": "/farmer-dashboard-flow", "Opportunities": "/farm
   var state = {
     token: null,
     email: "farmer@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["farmer@farmmaster.test"] || "",
     challengeId: null,
     otpEmail: "",
     quantity: "4.0",
@@ -468,7 +468,7 @@ var NAV_HREFS = { "Dashboard": "/farmer-dashboard-flow", "Opportunities": "/farm
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "farmer@farmmaster.test", password: "", challengeId: null, otpEmail: "", quantity: "4.0", pickupDate: "2026-09-15", orderOptions: [], selectedOrder: "", result: null, step: "login" };
+    state = { token: null, email: "farmer@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["farmer@farmmaster.test"] || "", challengeId: null, otpEmail: "", quantity: "4.0", pickupDate: "2026-09-15", orderOptions: [], selectedOrder: "", result: null, step: "login" };
     render();
   });
 

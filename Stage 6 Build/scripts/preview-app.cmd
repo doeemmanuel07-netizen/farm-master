@@ -5,6 +5,8 @@ setlocal
 set "BUILD=%~dp0.."
 for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%BUILD%\.preview\secret.env") do set "%%A=%%B"
 set "FARM_MASTER_PUBLIC_PREVIEW=1"
+rem Pre-filled logins on every page (owner request). Delete this line to require typed passwords.
+set "FARM_MASTER_DEMO_PREFILL=1"
 set "PYTHONUNBUFFERED=1"
 cd /d "%BUILD%\backend"
 "%~1" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1 --no-server-header --log-level info > "%BUILD%\.preview\app.log" 2>&1

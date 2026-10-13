@@ -223,6 +223,8 @@
    */
   FM.signIn = function (container, opts) {
     var state = { email: opts.demoEmail || "", password: "", challengeId: null, devCode: "" };
+    // Public demo preview only: the server injects FM_DEMO_LOGINS (see app/preview.py).
+    function demoPassword(email) { return (window.FM_DEMO_LOGINS || {})[email] || ""; }
     function render(step, error) {
       var html = '<div class="card" style="max-width:440px;margin:40px auto;">';
       if (step === "creds") {
@@ -230,7 +232,7 @@
           '<div class="hint">' + FM.esc(opts.hint || "Use your Farm Master account. A one-time code is sent to your email.") + "</div>" +
           (error ? '<div class="notice error">' + FM.esc(error) + "</div>" : "") +
           '<form id="fm-signin-form"><div class="field"><label for="fm-email">Email</label><input id="fm-email" type="email" autocomplete="username" required value="' + FM.esc(state.email) + '"></div>' +
-          '<div class="field"><label for="fm-pass">Password</label><input id="fm-pass" type="password" autocomplete="current-password" required></div>' +
+          '<div class="field"><label for="fm-pass">Password</label><input id="fm-pass" type="password" autocomplete="current-password" required value="' + FM.esc(demoPassword(state.email)) + '"></div>' +
           '<button class="btn btn-primary btn-block" type="submit">Continue</button></form>';
         if (opts.registerHref) html += '<a class="card-link" href="' + FM.esc(opts.registerHref) + '">New to Farm Master? Register →</a>';
       } else {
@@ -238,11 +240,15 @@
           '<div class="hint">We sent a 6-digit code to ' + FM.esc(state.email) + ".</div>" +
           (state.devCode ? '<div class="notice">Development build: your code is <strong>' + FM.esc(state.devCode) + "</strong></div>" : "") +
           (error ? '<div class="notice error">' + FM.esc(error) + "</div>" : "") +
-          '<form id="fm-otp-form"><div class="field"><label for="fm-otp">Code</label><input id="fm-otp" inputmode="numeric" autocomplete="one-time-code" required maxlength="6"></div>' +
+          '<form id="fm-otp-form"><div class="field"><label for="fm-otp">Code</label><input id="fm-otp" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" value="' + FM.esc(window.FM_DEMO_LOGINS ? state.devCode : "") + '"></div>' +
           '<button class="btn btn-primary btn-block" type="submit">Sign in</button></form>';
       }
       container.innerHTML = html + "</div>";
       var f1 = FM.$("#fm-signin-form", container);
+      if (f1) FM.$("#fm-email", container).addEventListener("input", function (e) {
+        var pw = demoPassword(e.target.value.trim());
+        if (pw) FM.$("#fm-pass", container).value = pw;
+      });
       if (f1) f1.addEventListener("submit", function (e) {
         e.preventDefault();
         state.email = FM.$("#fm-email", container).value.trim();
@@ -251,6 +257,9 @@
           state.challengeId = r.challenge_id;
           state.devCode = r.dev_only_email_code || "";
           render("otp");
+          // Demo preview: the code is already filled in, so carry straight on.
+          var otpForm = FM.$("#fm-otp-form", container);
+          if (window.FM_DEMO_LOGINS && state.devCode && otpForm) otpForm.requestSubmit();
         }).catch(function (err) { render("creds", err.message); });
       });
       var f2 = FM.$("#fm-otp-form", container);

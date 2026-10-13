@@ -285,7 +285,7 @@ var NAV_HREFS = { "Dashboard": "/buyer-dashboard-flow", "Submit Requirement": "/
   var state = {
     token: null,
     email: "buyer@farmmaster.test",
-    password: "",
+    password: (window.FM_DEMO_LOGINS || {})["buyer@farmmaster.test"] || "",
     loginError: "",
     challengeId: null,
     otpEmail: "",
@@ -668,7 +668,7 @@ var NAV_HREFS = { "Dashboard": "/buyer-dashboard-flow", "Submit Requirement": "/
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
     state = {
-      token: null, email: "buyer@farmmaster.test", password: "", loginError: "",
+      token: null, email: "buyer@farmmaster.test", password: (window.FM_DEMO_LOGINS || {})["buyer@farmmaster.test"] || "", loginError: "",
       challengeId: null, otpEmail: "",
       grade: "Maize Grade 1", qty: "5.0", price: "2150", location: "Tema fulfilment centre", timeline: "6 weeks",
       requirement: null, method: null, payment: null, step: "login",
