@@ -5,6 +5,7 @@ All notable changes to the Farm Master web app. Dates are when the change was co
 ## [Unreleased] — CEO platform demo alignment
 
 ### Added
+- **Public preview via Cloudflare Quick Tunnel** (13 Oct 2026): `Stage 6 Build/start-preview.sh` / `start-preview.ps1` restart the API (127.0.0.1:8000, no reload) and a `cloudflared` tunnel as detached processes and print the link. `--install` adds a Windows sign-in task. `scripts/preview_accounts.py` replaces every weak/default password with a strong random one, and the logins are kept in the git-ignored `.preview/credentials.txt`. `FARM_MASTER_PUBLIC_PREVIEW=1` (`app/preview.py`) turns off `/docs` and the OpenAPI schema, closes CORS to cross-origin callers, and refuses to start with the dev JWT secret or any weak password. Flow pages no longer pre-fill `password123`. See README "Preview via Cloudflare".
 - `docs/reference/Farm_Master_Platform_Demo.html`: the CEO-approved demo, now the target look and flow.
 - `docs/ceo-demo-gap-report.md`: feature-by-feature audit, plus decisions D1–D8.
 - Design system: `frontend/assets/tokens.css`, `components.css`, `components.js`, a live gallery at `/design-system`, and `docs/design-system.md`.

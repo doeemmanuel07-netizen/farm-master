@@ -254,7 +254,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Matching": "/matching-fl
   var state = {
     token: null,
     email: "agronomist@farmmaster.test",
-    password: "password123",
+    password: "",
     challengeId: null,
     otpEmail: "",
     visits: [],
@@ -508,7 +508,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Matching": "/matching-fl
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "agronomist@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", visits: [], farmers: [], messages: [], step: "login" };
+    state = { token: null, email: "agronomist@farmmaster.test", password: "", challengeId: null, otpEmail: "", visits: [], farmers: [], messages: [], step: "login" };
     render();
   });
 

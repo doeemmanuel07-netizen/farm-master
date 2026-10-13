@@ -270,7 +270,7 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
   var state = {
     token: null,
     email: "vendor@farmmaster.test",
-    password: "password123",
+    password: "",
     challengeId: null,
     otpEmail: "",
     requests: [],
@@ -557,7 +557,10 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Signing in as Super Admin…';
     try {
-      var loginRes = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "emmanuel@farmmaster.test", password: "password123" }) });
+      // No Super Admin password lives in the page: whoever runs the demo types it.
+      var adminPassword = window.prompt("Super Admin password for emmanuel@farmmaster.test");
+      if (!adminPassword) throw new Error("Super Admin password is needed to approve the override.");
+      var loginRes = await fetch(API + "/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "emmanuel@farmmaster.test", password: adminPassword }) });
       var loginData = await loginRes.json();
       if (!loginRes.ok) throw new Error(loginData.detail || "Super Admin login failed");
       btn.innerHTML = '<span class="spinner"></span> Verifying Super Admin OTP…';
@@ -599,7 +602,7 @@ var NAV_HREFS = { "Dashboard": "/vendor-dashboard-flow", "Catalogue": "/vendor-c
   }
 
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "vendor@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", requests: [], req: null, decision: null, step: "login" };
+    state = { token: null, email: "vendor@farmmaster.test", password: "", challengeId: null, otpEmail: "", requests: [], req: null, decision: null, step: "login" };
     render();
   });
 

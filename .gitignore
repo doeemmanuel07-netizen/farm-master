@@ -15,3 +15,7 @@ Stage 6 Build/backend/tests/e2e/_live_server.log
 Stage 6 Build/backend/.coverage
 Stage 6 Build/backend/htmlcov/
 Stage 6 Build/backend/.pytest_cache/
+
+# Public preview runtime state -- JWT secret, rotated logins, logs, current
+# tunnel URL. Local only, see README "Preview via Cloudflare".
+Stage 6 Build/.preview/

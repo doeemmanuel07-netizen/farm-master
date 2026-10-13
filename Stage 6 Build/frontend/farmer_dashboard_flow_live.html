@@ -170,7 +170,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var PORTAL_NAV = ["Dashboard", "Opportunities", "Milestones", "Messages", "Wallet"];
 var NAV_HREFS = { "Dashboard": "/farmer-dashboard-flow", "Opportunities": "/farmer-flow", "Milestones": "/farmer-dashboard-flow", "Messages": "/farmer-dashboard-flow", "Wallet": "/farmer-dashboard-flow" };
   var API = "";
-  var state = { token: null, email: "kojo.mensah@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", dashboard: null, milestones: [], opportunities: [], messages: [], wallet: null, step: "login" };
+  var state = { token: null, email: "kojo.mensah@farmmaster.test", password: "", challengeId: null, otpEmail: "", dashboard: null, milestones: [], opportunities: [], messages: [], wallet: null, step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "dashboard", label: "Farmer Dashboard" }, { id: "milestones", label: "Milestone Log" }, { id: "messaging", label: "Agronomist Messaging" }, { id: "wallet", label: "Wallet & Settlement" }];
   function authHeaders(extra) { var h = extra || {}; if (state.token) h["Authorization"] = "Bearer " + state.token; return h; }
   async function apiGet(path) { var res = await fetch(API + path, { headers: authHeaders() }); var data = await res.json().catch(function () { return {}; }); if (!res.ok) { var err = new Error(data.detail || ("Request failed: " + res.status)); err.status = res.status; throw err; } return data; }
@@ -309,7 +309,7 @@ var NAV_HREFS = { "Dashboard": "/farmer-dashboard-flow", "Opportunities": "/farm
     });
   }
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "kojo.mensah@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", dashboard: null, milestones: [], opportunities: [], messages: [], wallet: null, step: "login" }; render(); });
+    state = { token: null, email: "kojo.mensah@farmmaster.test", password: "", challengeId: null, otpEmail: "", dashboard: null, milestones: [], opportunities: [], messages: [], wallet: null, step: "login" }; render(); });
   var _existing = loadSession();
 
   if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }

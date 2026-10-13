@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 from .migrate import upgrade_to_head
 from .seed import seed
+from .preview import PUBLIC_PREVIEW, check_public_preview_safe, cors_origins
 from .routers import auth as auth_router
 from .routers import buyer as buyer_router
 from .routers import farmer as farmer_router
@@ -32,11 +33,16 @@ app = FastAPI(
                 "and the Buyer commitment-fee flow. See Farm_Master_SDD_Stage6.docx "
                 "and Farm_Master_API_Documentation_Stage6.docx.",
     version="0.1.0",
+    # The interactive docs stay local-only: a public preview link doesn't
+    # publish the full API surface.
+    docs_url=None if PUBLIC_PREVIEW else "/docs",
+    redoc_url=None if PUBLIC_PREVIEW else "/redoc",
+    openapi_url=None if PUBLIC_PREVIEW else "/openapi.json",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -211,6 +217,7 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 def on_startup():
     upgrade_to_head()
     seed()
+    check_public_preview_safe()
 
 
 @app.get("/health")

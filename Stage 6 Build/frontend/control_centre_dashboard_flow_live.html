@@ -151,7 +151,7 @@ var railToggleBtn = document.getElementById("railToggle");
 var PORTAL_NAV = ["Dashboard", "Admin", "Listings", "Reporting"];
 var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flow", "Listings": "/listing-review-flow", "Reporting": "/reporting-flow" };
   var API = "";
-  var state = { token: null, email: "emmanuel@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", data: null, step: "login" };
+  var state = { token: null, email: "emmanuel@farmmaster.test", password: "", challengeId: null, otpEmail: "", data: null, step: "login" };
   var STEPS = [{ id: "login", label: "Sign in" }, { id: "otp", label: "Verify OTP" }, { id: "dashboard", label: "Control Centre" }];
   var TILE_LABEL = {
     matching_queue_open: "Matching Queue -- open requirements", visits_scheduled: "Field visits scheduled", unread_messages: "Unread farmer messages",
@@ -176,7 +176,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flo
     if (state.step === "login") {
       document.getElementById("screen-title").textContent = "Sign in"; document.getElementById("screen-crumb").textContent = "Sign in";
       document.getElementById("screen-desc").textContent = "Real authentication -- any of the seven internal roles (Agronomist, Logistics, Finance, Super Admin, Pilot Operations Coordinator, Logistics/Fleet Coordinator, Compliance/Reporting Officer) can sign in here.";
-      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("email", "Email", state.email) + '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + '</div><button class="btn primary block" id="loginBtn" style="margin-top:16px;width:100%">Sign in</button><div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div><div class="caption" style="margin-top:10px">Try: emmanuel@ / finance@ / agronomist@ / logistics@ / ops.coordinator@ / fleet.coordinator@ / compliance.officer@farmmaster.test (all password123).</div></div></div>';
+      document.getElementById("canvas").innerHTML = '<div class="body-pad" style="max-width:420px;margin:0 auto"><div class="card">' + field("email", "Email", state.email) + '<div style="margin-top:12px">' + field("password", "Password", state.password, "password") + '</div><button class="btn primary block" id="loginBtn" style="margin-top:16px;width:100%">Sign in</button><div class="inline-alert" id="loginAlert"><span>⚠</span><span id="loginAlertText"></span></div><div class="caption" style="margin-top:10px">Try: emmanuel@ / finance@ / agronomist@ / logistics@ / ops.coordinator@ / fleet.coordinator@ / compliance.officer@farmmaster.test.</div></div></div>';
       document.getElementById("email").addEventListener("input", function (e) { state.email = e.target.value; });
       document.getElementById("password").addEventListener("input", function (e) { state.password = e.target.value; });
       document.getElementById("loginBtn").addEventListener("click", onLogin);
@@ -225,7 +225,7 @@ var NAV_HREFS = { "Dashboard": "/control-centre-flow", "Admin": "/user-admin-flo
     el.querySelectorAll(".flow-step.done").forEach(function (row) { row.addEventListener("click", function () { var target = STEPS[+row.dataset.idx].id; if (target === "login") state.token = null; state.step = target; render(); }); });
   }
   document.getElementById("restartBtn").addEventListener("click", function () { clearSession();
-    state = { token: null, email: "emmanuel@farmmaster.test", password: "password123", challengeId: null, otpEmail: "", data: null, step: "login" }; render(); });
+    state = { token: null, email: "emmanuel@farmmaster.test", password: "", challengeId: null, otpEmail: "", data: null, step: "login" }; render(); });
   var _existing = loadSession();
 
   if (_existing) { state.token = _existing.token; completeAuth().catch(function () { clearSession(); state.token = null; state.step = "login"; render(); }); } else { render(); }
