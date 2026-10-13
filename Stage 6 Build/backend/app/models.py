@@ -1350,3 +1350,23 @@ class AuditLog(Base):
     action = Column(String, nullable=False)
     detail = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Feedback(Base):
+    """
+    Stakeholder feedback left through the "Feedback" button on every page
+    (added 13 Oct 2026 for the public preview review). Anyone may leave it,
+    signed in or not; when a valid session token comes with it, the author
+    is recorded too. Super Admin reads it at /feedback.
+    """
+    __tablename__ = "feedback"
+
+    id = Column(String, primary_key=True, default=uid)
+    portal = Column(String, nullable=False)
+    page = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    name = Column(String, nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    user_role = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

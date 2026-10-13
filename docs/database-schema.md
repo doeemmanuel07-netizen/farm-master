@@ -27,6 +27,7 @@ erDiagram
     vehicles ||--o{ dispatch_jobs : "vehicle_id"
     crops ||--o{ farmer_crops : "crop_id"
     users ||--o{ farmer_crops : "farmer_id"
+    users ||--o{ feedback : "user_id"
     users ||--o{ field_visit_logs : "agronomist_id"
     users ||--o{ field_visit_logs : "farmer_id"
     opportunities ||--o{ field_visit_logs : "opportunity_id"
@@ -205,6 +206,17 @@ erDiagram
     farmer_unions {
         string id PK
         string name
+        datetime created_at
+    }
+    feedback {
+        string id PK
+        string portal
+        string page
+        string category
+        text message
+        string name
+        string user_id FK
+        string user_role
         datetime created_at
     }
     field_visit_logs {
@@ -702,6 +714,20 @@ erDiagram
 | `id` | string | no | PK |
 | `name` | string | no | unique |
 | `created_at` | datetime | yes |  |
+
+### `feedback`
+
+| Column | Type | Null | Key / default |
+|---|---|---|---|
+| `id` | string | no | PK |
+| `portal` | string | no |  |
+| `page` | string | no |  |
+| `category` | string | no |  |
+| `message` | text | no |  |
+| `name` | string | yes |  |
+| `user_id` | string | yes | FK → `users.id` |
+| `user_role` | string | yes |  |
+| `created_at` | datetime | no |  |
 
 ### `field_visit_logs`
 

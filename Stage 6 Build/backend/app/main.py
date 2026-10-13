@@ -1,13 +1,14 @@
+import secrets
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse
 
 from .migrate import upgrade_to_head
 from .seed import seed
-from .preview import DEMO_PREFILL, PUBLIC_PREVIEW, check_public_preview_safe, cors_origins, inject_demo_logins
+from .preview import DEMO_PREFILL, PROXY_SECRET, PUBLIC_PREVIEW, check_public_preview_safe, cors_origins, inject_demo_logins
 from .routers import auth as auth_router
 from .routers import buyer as buyer_router
 from .routers import farmer as farmer_router
@@ -25,6 +26,7 @@ from .routers import listings as listings_router
 from .routers import public as public_router
 from .routers import payments as payments_router
 from .routers import ops as ops_router
+from .routers import feedback as feedback_router
 from .uploads import UPLOADS_DIR
 
 app = FastAPI(
@@ -52,6 +54,20 @@ app.add_middleware(
 # phones that opened an earlier preview link) must revalidate them every
 # load instead of running a heuristically cached old components.js.
 @app.middleware("http")
+async def require_front_door(request, call_next):
+    # With the permanent link (preview-worker/), only requests the Worker
+    # forwards -- after Cloudflare Access -- carry this secret; the raw
+    # tunnel address answers nothing but the health check.
+    if PROXY_SECRET and request.url.path != "/health" and not secrets.compare_digest(
+        request.headers.get("x-fm-proxy-secret", ""), PROXY_SECRET
+    ):
+        client = request.client.host if request.client else ""
+        if request.headers.get("cf-connecting-ip") or client not in ("127.0.0.1", "::1"):
+            return PlainTextResponse("Use the Farm Master preview link.", status_code=403)
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def revalidate_static(request, call_next):
     response = await call_next(request)
     if request.url.path.startswith("/static/"):
@@ -75,6 +91,7 @@ app.include_router(listings_router.router)
 app.include_router(public_router.router)
 app.include_router(payments_router.router)
 app.include_router(ops_router.router)
+app.include_router(feedback_router.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 if FRONTEND_DIR.exists():
@@ -90,11 +107,16 @@ if FRONTEND_DIR.exists():
     # to see the current file.
     NO_STORE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
 
-    def _flow_page(filename: str):
+    # Every page gets the stakeholder "Feedback" button (assets/feedback.js).
+    FEEDBACK_SCRIPT = '<script src="/static/assets/feedback.js?v=1" defer></script>'
+
+    def _flow_page(filename: str) -> HTMLResponse:
+        html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
         if DEMO_PREFILL:
-            html = (FRONTEND_DIR / filename).read_text(encoding="utf-8")
-            return HTMLResponse(inject_demo_logins(html), headers=NO_STORE)
-        return FileResponse(str(FRONTEND_DIR / filename), headers=NO_STORE)
+            html = inject_demo_logins(html)
+        end = html.rfind("</body>")
+        html = html[:end] + FEEDBACK_SCRIPT + html[end:] if end >= 0 else html + FEEDBACK_SCRIPT
+        return HTMLResponse(html, headers=NO_STORE)
 
     @app.get("/buyer-flow")
     def buyer_flow_page():
@@ -220,6 +242,10 @@ if FRONTEND_DIR.exists():
     @app.get("/buyer")
     def buyer_portal_page():
         return _flow_page("portal_buyer.html")
+
+    @app.get("/feedback")
+    def feedback_page():
+        return _flow_page("portal_feedback.html")
 
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
