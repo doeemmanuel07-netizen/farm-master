@@ -26,6 +26,8 @@ from .models import User, UserStatus
 
 PUBLIC_PREVIEW = os.environ.get("FARM_MASTER_PUBLIC_PREVIEW") == "1"
 DEMO_PREFILL = os.environ.get("FARM_MASTER_DEMO_PREFILL") == "1"
+# Set when the permanent workers.dev link fronts the tunnel (preview-worker/).
+PROXY_SECRET = os.environ.get("FARM_MASTER_PROXY_SECRET", "") if PUBLIC_PREVIEW else ""
 CREDENTIALS_FILE = Path(__file__).resolve().parents[2] / ".preview" / "credentials.txt"
 
 DEV_JWT_SECRET = "dev-only-insecure-secret-change-me"

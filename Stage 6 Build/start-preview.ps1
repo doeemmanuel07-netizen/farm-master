@@ -51,7 +51,17 @@ $url = $null
 $urlFile = Join-Path $State "url.txt"
 if ($AppOnly -and (Test-Path $urlFile)) { $url = (Get-Content $urlFile -Raw).Trim() }
 if ($url) { Stop-Preview @("app") } else { Stop-Preview }
-if ($Stop) { Write-Host "Farm Master preview stopped."; exit 0 }
+if ($Stop) {
+    # The permanent link then shows "offline" instead of a connection error.
+    if (Test-Path (Join-Path $State "permanent_url.txt")) {
+        $kvId = (Select-String -Path (Join-Path $Build "preview-worker\wrangler.toml") -Pattern 'id = "([0-9a-f]+)"').Matches[0].Groups[1].Value
+        Push-Location (Join-Path $Build "preview-worker")
+        try { & npx.cmd --yes wrangler@4.146.0 kv key delete tunnel_url --namespace-id $kvId --remote | Out-Null }
+        finally { Pop-Location }
+    }
+    Write-Host "Farm Master preview stopped."
+    exit 0
+}
 
 if ($Install) {
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
@@ -102,6 +112,16 @@ if (-not $url) {
         }
     } until ($url -or (Get-Date) -gt $deadline)
     if (-not $url) { throw "The tunnel didn't report a link. See $logFile" }
+
+    # The permanent workers.dev link (preview-worker/) forwards to whatever
+    # tunnel address is in its KV store, so point it at this new one.
+    if (Test-Path (Join-Path $State "permanent_url.txt")) {
+        $kvId = (Select-String -Path (Join-Path $Build "preview-worker\wrangler.toml") -Pattern 'id = "([0-9a-f]+)"').Matches[0].Groups[1].Value
+        Push-Location (Join-Path $Build "preview-worker")
+        try { & npx.cmd --yes wrangler@4.146.0 kv key put tunnel_url $url --namespace-id $kvId --remote | Out-Null }
+        finally { Pop-Location }
+        if ($LASTEXITCODE -ne 0) { Write-Warning "Couldn't update the permanent link (run: npx wrangler login, then restart)." }
+    }
 }
 
 # A new hostname can take a few seconds to resolve.
@@ -115,6 +135,13 @@ Set-Content (Join-Path $State "url.txt") $url
 Write-Host ""
 Write-Host "Farm Master preview is live$(if (-not $live) { ' (still propagating, try again in a minute)' }):"
 Write-Host ""
-Write-Host $url
+$permanentFile = Join-Path $State "permanent_url.txt"
+if (Test-Path $permanentFile) {
+    Write-Host (Get-Content $permanentFile -Raw).Trim()
+    Write-Host ""
+    Write-Host "(permanent link; it forwards to this tunnel: $url)"
+} else {
+    Write-Host $url
+}
 Write-Host ""
 Write-Host "Logins: $State\credentials.txt"
